@@ -18,14 +18,29 @@ classDiagram
     AiCharacter "1" --> "*" AiSession
     EmailNotification ..> User : Uses
 
+
+
+    UserService --> CourseService : uses
+    CourseService --> EmailNotificationService : publishes events
+    AiService --> CourseService : validates access
+    EmailNotificationService --> UserService : fetch users
+    AiService --> AiClientService : send message
+%%    AiClientService --> RestTemplate
+    CourseService --o Repositories
+    UserService --o Repositories
+    AiService --o Repositories
+
+
+    UserController --> UserService
+    CourseController --> CourseService
+    AiController --> AiService
+
     
     
     
 %%    namespace model {
         class User {
             +Long id
-%%            +String name
-%%            +String email
             +String entraId
             +String role
             +LocalDateTime createdAt
