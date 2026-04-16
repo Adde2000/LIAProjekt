@@ -73,7 +73,7 @@ classDiagram
             +void sendEmailToCourse(Long courseId, String subject, String message)
         }
         class AiService{
-            +List<AiCharacter> getCharactersForCourse(Long courseId)
+            +List~AiCharacter~ getCharactersForCourse(Long courseId)
 
             +String askQuestion(String entraId, Long courseId, Long aiCharacterId, String message)
             +String askQuestion(String entraId, Long SessionId, String message) ??? kanske spara sessionId i klassen
