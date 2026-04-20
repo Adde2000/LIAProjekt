@@ -38,10 +38,9 @@
 ### Ramverk
 - Java 21
 - Spring Boot
-- PostgreSQL / MySQL (relationsdabas) Användare, kurser, material är alla kopplade med relationer. Samma med kopplandet av progression i kurser till deltagare.
+- Azure SQL (relationsdabas) Användare, kurser, material är alla kopplade med relationer. Samma med kopplandet av progression i kurser till deltagare.
 - Entra ID som ger oss JWT
 - React - React lämpar sig väl för webbapplikationer med dynamiskt innehåll och interaktiva funktioner, såsom hantering av kurser, tester och visning av progression.
-- Docker - för att bygga images till pipeline
 
 ## Grundfunktioner
 - Inloggning med roller: administratör, kursansvarig och kursdeltagare

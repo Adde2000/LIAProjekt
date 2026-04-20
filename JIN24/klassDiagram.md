@@ -79,7 +79,7 @@ classDiagram
             +String askQuestion(String entraId, Long SessionId, String message) ??? kanske spara sessionId i klassen
             
 
-            -String loadPersona(String personaFile)
+            -String loadPersona(Long aiCharacterId)
 
             -String loadCourseMaterial(Long courseId)
 
@@ -172,11 +172,15 @@ classDiagram
             +String status
             +Integer score
             +Boolean passed
-            +String answers
+            +List~AnsweredQuestion~
             +LocalDateTime startedAt
             +LocalDateTime completedAt
         }
         class AnsweredQuestion {
+            +Long id;
+%%            +Long testResultId;
+            +TestQuestion question;
+%%            +Long selectedAnswerId;
             +boolean isCorrect
         }
         class UserProgress {
