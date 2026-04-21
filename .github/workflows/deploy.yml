@@ -52,6 +52,9 @@ jobs:
         working-directory: Frontend
         run: npm run build
 
+      - name: Verify build output
+        run: ls -R Frontend/dist
+
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
         with:
