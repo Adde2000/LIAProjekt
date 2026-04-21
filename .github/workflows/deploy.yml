@@ -1,4 +1,4 @@
-name: Build and deploy fullstack to Azure V3
+name: Build and deploy fullstack to Azure
 
 on:
   push:
