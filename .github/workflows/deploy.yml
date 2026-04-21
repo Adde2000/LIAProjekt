@@ -44,11 +44,15 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
+
+      - name: Make mvnw executable
+        working-directory: Backend
+        run: chmod +x mvnw
 
       - name: Build backend with Maven
         working-directory: Backend
