@@ -1,94 +1,37 @@
-name: Deploy to Azure
+name: Deploy Static Web App
 
 on:
   push:
     branches:
-      - main  # Körs när kod pushas till main-grenen
+      - main
 
 jobs:
-  deploy-frontend:
+  build_and_deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    # Setup Node.js 20 för frontend
-    - name: Set up Node.js 20
-      uses: actions/setup-node@v2
-      with:
-        node-version: '20'
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
 
-    # Installera serve globalt för att säkerställa att den finns på servern
-    - name: Install serve globally
-      run: npm install -g serve
+      - name: Install dependencies
+        working-directory: Frontend
+        run: npm install
 
-    # Cache Node.js beroenden för frontend
-    - name: Cache Node.js dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.npm
-          ~/.cache
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+      - name: Build app
+        working-directory: Frontend
+        run: npm run build
 
-    # Installera frontend-beroenden (i rätt mapp)
-    - name: Install frontend dependencies
-      run: npm install
-      working-directory: ./Frontend  # Kör i frontend-mappen
-
-    # Bygg frontend (i rätt mapp)
-    - name: Build frontend
-      run: npm run build
-      working-directory: ./Frontend  # Kör i frontend-mappen
-
-    # Deploy frontend till Azure
-    - name: Deploy frontend to Azure
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: app-dev-web  # Frontend App Service
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_WEB }}
-        package: ./Frontend/dist  # Vägen till byggmappen för frontend (dist)
-
-  deploy-backend:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-
-    # Setup Java 21 för backend och specifika distribution (t.ex. zulu)
-    - name: Set up Java 21 (Zulu)
-      uses: actions/setup-java@v2
-      with:
-        java-version: '21'
-        distribution: 'zulu'  # Specificera distribution (ex. zulu, adoptopenjdk)
-
-    # Cache Maven dependencies för backend
-    - name: Cache Maven dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          ${{ runner.os }}-maven-
-
-    # Bygg backend med Maven (i rätt mapp)
-    - name: Build backend with Maven
-      run: mvn clean package -DskipTests=true
-      working-directory: ./Backend  # Kör i backend-mappen
-
-    # Lista filer i Backend-mappen för att se alla byggda artefakter
-    - name: List files in Backend directory
-      run: ls -l ./Backend  # Lista alla filer i backendens mapp för att verifiera byggprocessen
-
-    # Deploy hela backend-mappen till Azure (inklusive alla filer)
-    - name: Deploy backend to Azure
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: app-dev-api  # Backend App Service
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_API }}
-        package: ./Backend  # Peka på hela backend-mappen för deploy
-        slot-name: production  # Om du använder en slot för produktion
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: upload
+          app_location: "Frontend"
+          output_location: "dist"
