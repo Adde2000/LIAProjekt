@@ -50,13 +50,8 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Make mvnw executable
-        working-directory: Backend
-        run: chmod +x mvnw
-
-      - name: Build backend with Maven
-        working-directory: Backend
-        run: ./mvnw clean package -DskipTests
+      - name: Build backend using root mvnw with correct pom path
+        run: ./mvnw -f Backend/pom.xml clean package -DskipTests
 
       - name: Deploy backend to Azure App Service
         uses: azure/webapps-deploy@v3
