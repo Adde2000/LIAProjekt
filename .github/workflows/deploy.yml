@@ -21,9 +21,7 @@ jobs:
 
     # Installera serve globalt för att säkerställa att den finns på servern
     - name: Install serve globally
-      run: |
-        npm install -g serve
-        serve --version  # Kolla att serve är korrekt installerat
+      run: npm install -g serve
 
     # Cache Node.js beroenden för frontend
     - name: Cache Node.js dependencies
