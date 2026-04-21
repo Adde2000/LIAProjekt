@@ -22,7 +22,7 @@ jobs:
 
     # Cache Maven dependencies för backend
     - name: Cache Maven dependencies
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         path: ~/.m2/repository
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
@@ -61,7 +61,7 @@ jobs:
 
     # Cache Node.js beroenden för frontend
     - name: Cache Node.js dependencies
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         path: |
           ~/.npm
