@@ -55,11 +55,16 @@ jobs:
       - name: Verify build output
         run: ls -R Frontend/dist
 
+      - name: Zip frontend build files
+        run: |
+          cd Frontend
+          zip -r frontend.zip dist/*
+
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend
-          path: Frontend/dist
+          path: Frontend/frontend.zip
 
   deploy-backend:
     runs-on: ubuntu-latest
@@ -95,4 +100,5 @@ jobs:
         with:
           app-name: app-dev-web
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_WEB }}
-          package: Frontend/dist/*
+          package: frontend/frontend.zip
+          slot-name: production
