@@ -17,9 +17,10 @@ jobs:
         uses: actions/setup-java@v2
         with:
           java-version: '21'  # Använd Java 21 SE (ditt backend använder Java 21)
+          distribution: 'zulu'  # Specificera distribution (t.ex. 'zulu', 'adoptopenjdk', eller 'oraclejdk')
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3  # Uppdaterat till v3
+        uses: actions/cache@v3
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
@@ -50,7 +51,7 @@ jobs:
           node-version: '20'  # Använd Node.js 20 LTS (din frontend använder denna version)
 
       - name: Cache Node.js dependencies
-        uses: actions/cache@v3  # Uppdaterat till v3
+        uses: actions/cache@v3
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
