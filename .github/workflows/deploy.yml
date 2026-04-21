@@ -11,7 +11,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v2
 
     # Setup Java 21 för backend och specifika distribution (t.ex. zulu)
     - name: Set up Java 21 (Zulu)
@@ -22,7 +22,7 @@ jobs:
 
     # Cache Maven dependencies för backend
     - name: Cache Maven dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v2
       with:
         path: ~/.m2/repository
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
@@ -31,20 +31,21 @@ jobs:
 
     # Bygg backend med Maven (i rätt mapp)
     - name: Build backend with Maven
-      run: mvn clean install -DskipTests=true
+      run: mvn clean package -DskipTests=true
       working-directory: ./Backend  # Kör i backend-mappen
 
-    # Lista de byggda artefakter (t.ex. JAR-fil) efter Maven-build
-    - name: List built artifacts
-      run: ls -l ./Backend/target  # Detta listar alla filer i target-mappen i backend-mappen, inklusive den genererade JAR-filen
+    # Lista filer i Backend-mappen för att se alla byggda artefakter
+    - name: List files in Backend directory
+      run: ls -l ./Backend  # Lista alla filer i backendens mapp för att verifiera byggprocessen
 
-    # Deploy backend till Azure
+    # Deploy hela backend-mappen till Azure (inklusive alla filer)
     - name: Deploy backend to Azure
       uses: azure/webapps-deploy@v2
       with:
         app-name: app-dev-api  # Backend App Service
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_API }}
-        package: ./Backend/target/*.jar  # Vägen till JAR-filen i backendens target-mapp
+        package: ./Backend  # Peka på hela backend-mappen för deploy
+        slot-name: production  # Om du använder en slot för produktion
 
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -61,7 +62,7 @@ jobs:
 
     # Cache Node.js beroenden för frontend
     - name: Cache Node.js dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v2
       with:
         path: |
           ~/.npm
