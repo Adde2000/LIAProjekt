@@ -54,6 +54,9 @@ jobs:
         working-directory: Backend
         run: chmod +x mvnw
 
+      - name: Run tests with Maven
+        run: mvn verify
+
       - name: Build backend with Maven Wrapper
         working-directory: Backend
         run: ./mvnw clean package -DskipTests
