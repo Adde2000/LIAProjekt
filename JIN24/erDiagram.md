@@ -33,8 +33,6 @@ erDiagram
     TEST_QUESTION {
         bigint id PK
         string question_text
-%%        string correct_answer
-%%        string[] answers
         bigint section_id FK
     }
     
