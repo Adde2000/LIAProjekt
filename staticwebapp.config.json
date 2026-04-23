@@ -1,0 +1,9 @@
+{
+  "routes": [
+    {
+      "route": "/api/*",
+      "allowedRoles": ["authenticated"],
+      "rewrite": "app-dev-api-d7bthwada8b0bwh7.swedencentral-01.azurewebsites.net/api/*"
+    }
+  ]
+}
