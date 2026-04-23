@@ -26,10 +26,10 @@ Användare registreras till kurs av admin
 En ny UserProgress, som är kopplad till både den specifika användaren och kursen, skapas.
 
 ## AI session design
+#### Stateful:
 AiSession lagrar ett externt session-ID från Azure OpenAI (så att systemet kan återuppta samma konversation hos leverantören)
 
-vad händer när Azure OpenAI droppar sessionen? Leverantörssessioner har en TTL och försvinner förr eller senare. 
-Ska systemet starta en ny session tyst i bakgrunden, eller ska användaren informeras om att konversationshistoriken är borta?
+Om en kursdeltagare har använt sessionen i 60 dagar så informeras kursdeltagare att konversationshistoriken är borta och en ny session startas
 
 ## Skissa promptdesign för AI-karaktärerna
 [BASE SYSTEM PROMPT]
