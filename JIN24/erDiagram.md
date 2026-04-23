@@ -4,7 +4,6 @@ erDiagram
     USER {
         bigint id PK
         string entra_id
-%%        string role
         datetime created_at
     }
 
@@ -15,11 +14,6 @@ erDiagram
         datetime created_at
         string created_by
     }
-    
-%%    USER_COURSE {
-%%    bigint user_id PK
-%%    bigint course_id PK
-%%    }
 
     SECTION {
         bigint id PK
@@ -117,7 +111,7 @@ erDiagram
 
     USER ||--o{ USER_PROGRESS : tracks
     COURSE ||--o{ USER_PROGRESS : progress_for
-
+    
     COURSE ||--o{ SECTION : has
     SECTION ||--o{ MATERIAL : contains
     SECTION ||--o{ TEST_QUESTION : includes

@@ -19,6 +19,18 @@ Spring Data JPA med Hibernate (Motivera)
 - Antal rätt svar räknas ihop och kontrolleras om godkänt
 - Vid godkänt så ändras boolean "passed" till true
 
+
+## Kursregistrerings-flöde
+Användare hämtas från EntraId
+Användare registreras till kurs av admin
+En ny UserProgress, som är kopplad till både den specifika användaren och kursen, skapas.
+
+## AI session design
+#### Stateful:
+AiSession lagrar ett externt session-ID från Azure OpenAI (så att systemet kan återuppta samma konversation hos leverantören)
+
+Om en kursdeltagare har använt sessionen i 60 dagar så informeras kursdeltagare att konversationshistoriken är borta och en ny session startas
+
 ## Skissa promptdesign för AI-karaktärerna
 [BASE SYSTEM PROMPT]
 ````
@@ -39,7 +51,7 @@ FINAL PROMPT:
 
 [BASE SYSTEM PROMPT]
 
-+ persona.md
++ persona
 
 + kursmaterial
 
