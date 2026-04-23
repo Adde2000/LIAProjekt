@@ -53,13 +53,6 @@ erDiagram
         datetime started_at
         datetime completed_at
     }
-
-%%    TEST_PROGRESS {
-%%        bigint id PK
-%%        bigint user_id FK
-%%        bigint section_id FK
-%%        datetime attempt_time
-%%    }
     
     ANSWERED_QUESTION {
         bigint question_id PK
@@ -78,8 +71,17 @@ erDiagram
     }
 
     COURSE_AI {
-        bigint course_id PK
-        bigint ai_character_id PK
+        bigint course_ai_id PK
+        bigint course_id FK
+        bigint ai_character_id FK
+    }
+    
+    AI_SESSION {
+        bigint ai_session_id PK
+        bigint user_id FK
+        bigint course_ai_id FK
+        text session_id
+        datetime created_at
     }
 
     AI_CHARACTER {
@@ -87,16 +89,7 @@ erDiagram
         string name
         string description
         text system_prompt
-%%        bigint course_id FK
     }
-
-%%    CONVERSATION {
-%%        bigint id PK
-%%        bigint user_id FK
-%%        bigint ai_character_id FK
-%%        text message
-%%        datetime timestamp
-%%    }
 
     EMAIL_NOTIFICATION {
         bigint id PK
@@ -118,17 +111,14 @@ erDiagram
     USER ||--o{ TEST_RESULT : completes
     SECTION ||--o{ TEST_RESULT : results
 
-%%    USER ||--o{ TEST_PROGRESS : makes
-%%    SECTION ||--o{ TEST_PROGRESS : attempts
     TEST_RESULT ||--o{ ANSWERED_QUESTION : saves
     TEST_QUESTION ||--o{ ANSWERED_QUESTION : answered
-%%    TEST_PROGRESS ||--o{ TEST_ANSWER : answered
 
     COURSE ||--o{ COURSE_AI : has
     AI_CHARACTER ||--o{ COURSE_AI : has
     
-%%    USER ||--o{ CONVERSATION : sends
-%%    AI_CHARACTER ||--o{ CONVERSATION : responds
+    USER ||--o{ AI_SESSION : talks_with
+    COURSE_AI ||--o{ AI_SESSION : uses
 
     USER ||--o{ EMAIL_NOTIFICATION : receives
 

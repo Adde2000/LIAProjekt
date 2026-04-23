@@ -76,7 +76,7 @@ classDiagram
             +List~AiCharacter~ getCharactersForCourse(Long courseId)
 
             +String askQuestion(String entraId, Long courseId, Long aiCharacterId, String message)
-            +String askQuestion(String entraId, Long SessionId, String message) ??? kanske spara sessionId i klassen
+            +String askQuestion(String entraId, Long AiSessionId, String message)
             
 
             -String loadPersona(Long aiCharacterId)
