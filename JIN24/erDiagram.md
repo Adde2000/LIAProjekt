@@ -71,13 +71,13 @@ erDiagram
     }
 
     COURSE_AI {
-        bigint course_ai_id PK
+        bigint id PK
         bigint course_id FK
         bigint ai_character_id FK
     }
     
     AI_SESSION {
-        bigint ai_session_id PK
+        bigint id PK
         bigint user_id FK
         bigint course_ai_id FK
         text session_id

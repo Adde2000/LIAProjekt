@@ -25,7 +25,6 @@ classDiagram
     AiService --> CourseService : validates access
     EmailNotificationService --> UserService : fetch users
     AiService --> AiClientService : send message
-%%    AiClientService --> RestTemplate
     CourseService --o Repositories
     UserService --o Repositories
     AiService --o Repositories
@@ -130,7 +129,6 @@ classDiagram
         class User {
             +Long id
             +String entraId
-%%            +String role
             +LocalDateTime createdAt
         }
 
@@ -141,6 +139,7 @@ classDiagram
             +LocalDateTime createdAt
             +String createdBy
             +List~Section~ sections
+            +List~AiCharacter~ aiCharacters
         }
 
         class Section {
@@ -178,9 +177,7 @@ classDiagram
         }
         class AnsweredQuestion {
             +Long id;
-%%            +Long testResultId;
             +TestQuestion question;
-%%            +Long selectedAnswerId;
             +boolean isCorrect
         }
         class UserProgress {
@@ -200,8 +197,9 @@ classDiagram
         class AiSession {
             +Long id
             +String sessionId
-            +Long userId
-            +Long courseId
+            +User user
+            +Course course
+            +AiCharacter aiCharacter
             +LocalDateTime createdAt
         }
         class EmailNotification {
