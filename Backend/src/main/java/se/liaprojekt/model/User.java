@@ -35,4 +35,7 @@ public class User {
 
     @OneToMany(mappedBy = "user")
     private List<AiSession> aiSessions;
+
+    @OneToMany(mappedBy = "user")
+    private List<UserProgress> userProgressList;
 }

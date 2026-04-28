@@ -22,6 +22,6 @@ public class AiCharacter {
     private String description;
     private String systemPrompt;
 
-    @ManyToMany
+    @ManyToMany(mappedBy = "aiCharacters")
     private List<Course> courses;
 }

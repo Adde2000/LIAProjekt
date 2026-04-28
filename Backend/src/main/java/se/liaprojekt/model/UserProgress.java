@@ -23,8 +23,10 @@ public class UserProgress {
     private LocalDateTime lastUpdated;
 
     @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @ManyToOne
+    @JoinColumn(name = "course_id", nullable = false)
     private Course course;
 }
