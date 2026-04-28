@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 public class UserProgress {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private int completedSections;

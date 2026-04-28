@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 public class AiSession {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String sessionId;
