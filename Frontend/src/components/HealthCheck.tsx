@@ -1,36 +1,25 @@
 import { useEffect, useState } from "react";
-import { getHealth, type HealthResponse } from "../services/api";
+import type { IPublicClientApplication } from "@azure/msal-browser";
+import { getHealth } from "../services/api";
 
-function HealthCheck() {
+export default function HealthCheck({ instance }: { instance: IPublicClientApplication }) {
 
-    const [health, setHealth] =
-        useState<HealthResponse | null>(null);
+    const [data, setData] = useState<any>();
 
     useEffect(() => {
+        const run = async () => {
+            try {
+                const result = await getHealth(instance);
+                setData(result);
+            } catch (e) {
+                console.error(e);
+            }
+        };
 
-        getHealth()
-            .then((data) => {
-                setHealth(data);
-            })
-            .catch((err) => {
-                console.error(err);
-            });
-
+        run();
     }, []);
 
-    if (!health) return <p>Loading...</p>;
-
     return (
-        <div>
-
-            <h2>Backend Health</h2>
-
-            <p>Status: {health.status}</p>
-            <p>Service: {health.service}</p>
-            <p>Timestamp: {health.timestamp}</p>
-
-        </div>
+        <pre>{JSON.stringify(data, null, 2)}</pre>
     );
 }
-
-export default HealthCheck;

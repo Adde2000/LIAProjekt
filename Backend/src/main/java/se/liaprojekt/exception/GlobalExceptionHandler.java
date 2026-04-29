@@ -4,8 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.*;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
 
 @RestControllerAdvice
@@ -21,12 +21,10 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
 
-        log.warn(
-                "404 NOT FOUND | method={} path={} message={}",
+        log.warn("404 NOT FOUND | {} {} | {}",
                 request.getMethod(),
                 request.getRequestURI(),
-                ex.getMessage(),
-                ex
+                ex.getMessage()
         );
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -45,12 +43,10 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
 
-        log.warn(
-                "400 BAD REQUEST | method={} path={} message={}",
+        log.warn("400 BAD REQUEST | {} {} | {}",
                 request.getMethod(),
                 request.getRequestURI(),
-                ex.getMessage(),
-                ex
+                ex.getMessage()
         );
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -62,18 +58,16 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-    // 401 - Unauthorized
+    // 401
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handle401(
             AuthenticationException ex,
             HttpServletRequest request
     ) {
 
-        log.warn(
-                "401 UNAUTHORIZED | method={} path={}",
+        log.warn("401 UNAUTHORIZED | {} {}",
                 request.getMethod(),
-                request.getRequestURI(),
-                ex
+                request.getRequestURI()
         );
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -85,18 +79,16 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-    // 403 - Forbidden
+    // 403
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handle403(
             AccessDeniedException ex,
             HttpServletRequest request
     ) {
 
-        log.warn(
-                "403 FORBIDDEN | method={} path={}",
+        log.warn("403 FORBIDDEN | {} {}",
                 request.getMethod(),
-                request.getRequestURI(),
-                ex
+                request.getRequestURI()
         );
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -115,8 +107,7 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
 
-        log.error(
-                "500 INTERNAL ERROR | method={} path={}",
+        log.error("500 INTERNAL ERROR | {} {}",
                 request.getMethod(),
                 request.getRequestURI(),
                 ex
