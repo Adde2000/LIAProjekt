@@ -2,43 +2,57 @@ package se.liaprojekt.controller;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
+import se.liaprojekt.dto.GraphAPIResponse;
+import se.liaprojekt.dto.UserResponse;
 
-import java.security.Principal;
+import java.util.List;
 import java.util.Map;
 
 @RestController
 public class HelloController {
     @GetMapping("admin")
     @ResponseBody
-    @PreAuthorize("hasAuthority('APPROLE_Participant')")
-    public String Participant(Principal principal, Authentication authentication) {
+//    @PreAuthorize("hasAuthority('APPROLE_Participant')")
+    public String Participant() {
         RestTemplate restTemplate = new RestTemplate();
 
         String baseUrl = "https://graph.microsoft.com/v1.0";
 
-        //TODO FRÅGA FÖR MOV, API PERMISSIONS, finns det?
-        //TODO Behöver kunna hämta information om enskilda användare eller hela klasser
-
         HttpHeaders headers = new HttpHeaders();
         HttpEntity entity = new HttpEntity(headers);
         headers.setBearerAuth(getAccessToken(restTemplate));
-        ResponseEntity<String> answer = restTemplate.exchange(
+        ResponseEntity<GraphAPIResponse> answer = restTemplate.exchange(
 //                baseUrl + "/users?select=id,displayname,mail",
                 baseUrl + "/users",
-//                baseUrl + "/me",
                 HttpMethod.GET,
                 entity,
-                String.class
+                GraphAPIResponse.class
         );
-        return "Participant message: " + principal.getName() + ": \n" + answer.getBody();
+        for (UserResponse user : answer.getBody().value()) {
+            System.out.println(user + " role: " + getUserRole(restTemplate, user.id()));
+        }
+        return "Participant message: \n" + answer.getBody().toString();
+    }
+
+    private String getUserRole(RestTemplate restTemplate, String userId) {
+        String baseUrl = "https://graph.microsoft.com/v1.0";
+        HttpHeaders headers = new HttpHeaders();
+        HttpEntity entity = new HttpEntity(headers);
+        headers.setBearerAuth(getAccessToken(restTemplate));
+        ResponseEntity<RoleAPIResponse> answer = restTemplate.exchange(
+//                baseUrl + "/users?select=id,displayname,mail",
+                baseUrl + "/users/" + userId + "/appRoleAssignments",
+                HttpMethod.GET,
+                entity,
+                RoleAPIResponse.class
+        );
+        return answer.getBody().value.toString();
     }
 
     @Value("${TENANT_ID}")
@@ -85,9 +99,11 @@ public class HelloController {
                         request,
                         Map.class
                 );
-        System.out.println(response.getBody());
 
         return (String) response.getBody()
                 .get("access_token");
     }
+
+    private record RoleAPIResponse(List<RoleResponse> value)  {}
+    private record RoleResponse(String principalDisplayName) {}
 }
