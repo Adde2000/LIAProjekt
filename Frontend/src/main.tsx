@@ -1,10 +1,14 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+import { msalInstance } from "./auth/msalInstance";
+import { handleRedirect } from "./auth/authRedirect";
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+await msalInstance.initialize();
+await handleRedirect(msalInstance);
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+    <React.StrictMode>
+        <App msalInstance={msalInstance} />
+    </React.StrictMode>
+);

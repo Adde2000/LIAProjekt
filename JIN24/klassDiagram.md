@@ -1,22 +1,30 @@
 ```mermaid
 classDiagram
-    
-    Course "1" --* "1..*" Section
-    Course "*" -- "*" AiCharacter
+
+    Course "1" --> "*" Section
+    Course "*" --> "*" AiCharacter
     Course "1" --> "*" UserProgress
     Course "1" --> "*" AiSession
-    Section "1" --* "1..*" Material
-    Section "1" --* "1..*" TestQuestion
-    Section "1" --* "*" TestResult
-    User "1" --* "*" TestResult
-    User "1" -- "*" UserProgress
+
+    Section "1" --> "*" Material
+    Section "1" --> "*" TestQuestion
+
+    User "1" --> "*" UserProgress
     User "1" --> "*" AiSession
     User "*" --> "*" Course
-    TestQuestion "1" <.. "0" AnsweredQuestion
-    TestQuestion "1" --* "1..*" TestAnswer
-    TestResult "1" --* "*" AnsweredQuestion
+
+    TestQuestion "1" --> "*" TestAnswer
+
+    TestResult "1" --> "*" AnsweredQuestion
+    TestResult "*" --> "1" User
+    TestResult "*" --> "1" Section
+
+    AnsweredQuestion "*" --> "1" TestQuestion
+
+    AiCharacter "*" --> "*" Course
     AiCharacter "1" --> "*" AiSession
-    EmailNotification ..> User : Uses
+
+    EmailNotification ..> User
 
 
 
