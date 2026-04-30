@@ -18,8 +18,13 @@ public class TestQuestion {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String questionText;
 
-    @OneToMany(cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "question", cascade = CascadeType.ALL)
     private List<TestAnswer> answers;
+
+    @ManyToOne
+    @JoinColumn(name = "section_id", nullable = false)
+    private Section section;
 }

@@ -143,6 +143,7 @@ classDiagram
 
         class Course {
             +Long id
+            +User courseAdmin
             +String title
             +String description
             +LocalDateTime createdAt

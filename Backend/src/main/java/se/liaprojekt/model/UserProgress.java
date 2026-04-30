@@ -5,13 +5,17 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @Setter
 @NoArgsConstructor
-@Table(name = "user_progress")
+@Table(
+        name = "user_progress",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"user_id", "course_id"})
+        }
+)
 public class UserProgress {
 
     @Id
@@ -20,7 +24,6 @@ public class UserProgress {
 
     private int completedSections;
     private int progressPercentage;
-    private LocalDateTime lastUpdated;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)

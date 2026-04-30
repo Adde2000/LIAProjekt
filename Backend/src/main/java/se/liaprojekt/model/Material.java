@@ -16,7 +16,16 @@ public class Material {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String title;
+
+    @Column(nullable = false)
     private String contentType;
+
+    @Column(nullable = false)
     private String contentUrl;
+
+    @ManyToOne
+    @JoinColumn(name = "section_id", nullable = false)
+    private Section section;
 }

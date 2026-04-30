@@ -3,8 +3,6 @@ package se.liaprojekt.model;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -28,17 +26,18 @@ public class Course {
     @Column(nullable = false)
     private String createdBy;
 
-    @Column(nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
-
+    @OrderBy("orderIndex ASC")
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL)
-    private List<Section> sections = new ArrayList<>();
+    private List<Section> sections;
+
+    @OneToMany(mappedBy = "course")
+    private List<UserProgress> userProgress;
 
     @ManyToMany
     @JoinTable(
             name = "course_ai",
-            joinColumns = @JoinColumn(name = "ai_character_id"),
-            inverseJoinColumns = @JoinColumn(name = "course_id")
+            joinColumns = @JoinColumn(name = "course_id"),
+            inverseJoinColumns = @JoinColumn(name = "ai_character_id")
     )
-    private List<AiCharacter> aiCharacters = new ArrayList<>();
+    private List<AiCharacter> aiCharacters;
 }

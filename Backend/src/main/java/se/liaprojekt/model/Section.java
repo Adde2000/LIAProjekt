@@ -18,15 +18,18 @@ public class Section {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String title;
+
+    @Column(nullable = false)
     private int orderIndex;
 
     @ManyToOne
     private Course course;
 
-    @OneToMany(cascade = CascadeType.ALL)
-    private List<Material> material;
+    @OneToMany(mappedBy = "section", cascade = CascadeType.ALL)
+    private List<Material> materials;
 
-    @OneToMany(cascade = CascadeType.ALL)
-    private List<TestQuestion> test;
+    @OneToMany(mappedBy = "section", cascade = CascadeType.ALL)
+    private List<TestQuestion> testQuestions;
 }
