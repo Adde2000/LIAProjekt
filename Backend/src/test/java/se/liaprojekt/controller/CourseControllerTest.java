@@ -115,7 +115,17 @@ class CourseControllerTest {
         CourseResponse courseResponse = controller.createCourse(courseRequest1).getBody();
         assertNotNull(courseResponse, "Course is null from createCourse");
 
-        //TODO
+        List<UserRequest> students = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            students.add(new UserRequest(i+1L));
+        }
+
+        List<UserResponse> userResponseList = controller.addStudentsToCourse(courseResponse.getId(), students).getBody();
+        assertNotNull(userResponseList, "Student list is null");
+        assertEquals(10, userResponseList.size(), "Student list is not the correct size");
+        for (int i = 0; i < 10; i++) {
+            assertEquals(students.get(i).id(), userResponseList.get(i).id(), "User id does not match");
+        }
     }
 
     @Test
@@ -128,7 +138,7 @@ class CourseControllerTest {
             students.add(new UserRequest(i+1L));
         }
 
-        ResponseEntity<String> responseEntity = controller.addStudentsToCourse(courseResponse.getId(), students);
+        ResponseEntity<List<UserResponse>> responseEntity = controller.addStudentsToCourse(courseResponse.getId(), students);
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
 
         ResponseEntity<List<UserResponse>> studentResponsResponseEntity = controller.getCourseStudents(courseResponse.getId());

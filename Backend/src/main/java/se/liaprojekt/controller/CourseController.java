@@ -32,9 +32,9 @@ public class CourseController {
     }
 
     @PostMapping("/{courseId}/students")
-    public ResponseEntity<String> addStudentsToCourse(@PathVariable Long courseId, @RequestBody List<UserRequest> students) {
+    public ResponseEntity<List<UserResponse>> addStudentsToCourse(@PathVariable Long courseId, @RequestBody List<UserRequest> students) {
         //TODO
-        return ResponseEntity.ok("OK - getCourseStudents " + courseId);
+        return ResponseEntity.ok(List.of());
     }
 
     @PostMapping
