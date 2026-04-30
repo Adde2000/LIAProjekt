@@ -19,7 +19,7 @@ public class HelloController {
     @GetMapping("admin")
     @ResponseBody
 //    @PreAuthorize("hasAuthority('APPROLE_Participant')")
-    public String Participant() {
+    public String participant() {
         RestTemplate restTemplate = new RestTemplate();
 
         String baseUrl = "https://graph.microsoft.com/v1.0";
@@ -64,7 +64,7 @@ public class HelloController {
     @Value("${CLIENT_SECRET}")
     private String clientSecret;
 
-    private String getAccessToken(RestTemplate restTemplate) {
+    public String getAccessToken(RestTemplate restTemplate) {
 
         String url =
                 "https://login.microsoftonline.com/"

@@ -1,44 +1,70 @@
 package se.liaprojekt.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
 
 @Service
 public class TokenService {
-
-    @Value("${spring.cloud.azure.tenant-id}")
+    @Value("${TENANT_ID}")
     private String tenantId;
 
-    @Value("${spring.cloud.azure.credential.client-id}")
+    @Value("${CLIENT_ID}")
     private String clientId;
 
-    @Value("${spring.cloud.azure.credential.client-secret}")
+    @Value("${CLIENT_SECRET}")
     private String clientSecret;
 
-    private final WebClient webClient = WebClient.builder().build();
 
-    public String getGraphToken() {
+    private TokenResponseBody tokenResponseBody;
+    private long tokenExpiryTimeMillis;
 
+    public String getAccessToken(RestTemplate restTemplate) {
         String url = "https://login.microsoftonline.com/" + tenantId + "/oauth2/v2.0/token";
 
-        JsonNode response = webClient.post()
-                .uri(url)
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                .bodyValue(
-                        "client_id=" + clientId +
-                                "&scope=https://graph.microsoft.com/.default" +
-                                "&client_secret=" + clientSecret +
-                                "&grant_type=client_credentials"
-                )
-                .retrieve()
-                .bodyToMono(JsonNode.class)
-                .block();
-        if (response == null)
-        {
-            return "";
+        //If a token has been saved, and it doesn't expire within the next minute return current token
+        if (tokenResponseBody != null && tokenExpiryTimeMillis > System.currentTimeMillis() + 60000) {
+            return tokenResponseBody.access_token;
         }
-        return response.get("access_token").asText();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        MultiValueMap<String, String> body =
+                new LinkedMultiValueMap<>();
+
+        body.add("client_id", clientId);
+        body.add("client_secret", clientSecret);
+        body.add(
+                "scope",
+                "https://graph.microsoft.com/.default"
+        );
+        body.add(
+                "grant_type",
+                "client_credentials"
+        );
+
+        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+
+        ResponseEntity<TokenResponseBody> response = restTemplate.postForEntity(url, request, TokenResponseBody.class);
+
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            tokenResponseBody = response.getBody();
+            tokenExpiryTimeMillis = System.currentTimeMillis() + tokenResponseBody.expires_in * 1000;
+            return tokenResponseBody.access_token;
+        } else {
+            //TODO throw appropriate exception when request fail
+        }
+
+        return response.getBody().access_token;
     }
+
+
+    private record TokenResponseBody(String access_token, String token_type, long expires_in) {}
 }
