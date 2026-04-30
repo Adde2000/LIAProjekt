@@ -4,8 +4,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import se.liaprojekt.dto.CourseRequest;
 import se.liaprojekt.dto.CourseResponse;
-import se.liaprojekt.dto.StudentRequest;
-import se.liaprojekt.dto.StudentResponse;
+import se.liaprojekt.dto.UserRequest;
+import se.liaprojekt.dto.UserResponse;
 
 import java.util.List;
 
@@ -26,13 +26,13 @@ public class CourseController {
     }
 
     @GetMapping("/{courseId}/students")
-    public ResponseEntity<List<StudentResponse>> getCourseStudents(@PathVariable Long courseId) {
+    public ResponseEntity<List<UserResponse>> getCourseStudents(@PathVariable Long courseId) {
         //TODO
         return ResponseEntity.ok(List.of());
     }
 
     @PostMapping("/{courseId}/students")
-    public ResponseEntity<String> addStudentsToCourse(@PathVariable Long courseId, @RequestBody List<StudentRequest> students) {
+    public ResponseEntity<String> addStudentsToCourse(@PathVariable Long courseId, @RequestBody List<UserRequest> students) {
         //TODO
         return ResponseEntity.ok("OK - getCourseStudents " + courseId);
     }
