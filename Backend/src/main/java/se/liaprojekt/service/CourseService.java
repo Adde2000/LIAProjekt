@@ -36,6 +36,7 @@ public class CourseService {
         Course course = new Course();
         course.setTitle(request.title());
         course.setDescription(request.description());
+        // TODO: ändra CreatedBy till authenticatied user
         course.setCreatedBy("system");
 
         Course saved = courseRepository.save(course);
