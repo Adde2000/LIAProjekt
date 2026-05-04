@@ -45,21 +45,25 @@ public class UserService {
     private void updateFromGraphAPI(List<GraphResponse> graphResponseList) {
         //Get all users in database end put their unique entraId in a set
         List<User> usersInDatabaseList = userRepository.findAll();
-        Set<String> usersInDataBaseSet = new HashSet<>();
+        Map<String, User> usersInDataBaseMap = new HashMap<>();
         for (User user : usersInDatabaseList) {
-            usersInDataBaseSet.add(user.getEntraId());
+            usersInDataBaseMap.put(user.getEntraId(), user);
         }
 
         List<User> usersToSave = new ArrayList<>();
         for (GraphResponse graphResponse : graphResponseList) {
             //Add only if database doesn't already contain this entraId
-            if (!usersInDataBaseSet.contains(graphResponse.id())) {
+            if (!usersInDataBaseMap.containsKey(graphResponse.id())) {
                 usersToSave.add(graphResponseToUser(graphResponse));
+            } else {
+                usersInDataBaseMap.remove(graphResponse.id());
             }
         }
 
         userRepository.saveAll(usersToSave);
 
+        //Users left in the map are users that have been removed from graph and should be removed from database
+        userRepository.deleteAll(usersInDataBaseMap.values());
     }
 
     private User graphResponseToUser(GraphResponse graphResponse) {
