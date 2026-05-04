@@ -21,6 +21,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/health").authenticated()
                         .requestMatchers("/api/users/**").authenticated()
+                        .requestMatchers("/api/courses/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth ->
