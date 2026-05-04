@@ -1,28 +1,31 @@
 package se.liaprojekt.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import se.liaprojekt.dto.CourseRequest;
 import se.liaprojekt.dto.CourseResponse;
 import se.liaprojekt.dto.UserRequest;
 import se.liaprojekt.dto.UserResponse;
+import se.liaprojekt.service.CourseService;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/courses")
+@RequiredArgsConstructor
 public class CourseController {
+
+    private final CourseService courseService;
 
     @GetMapping
     public ResponseEntity<List<CourseResponse>> getAllCourses() {
-        //TODO
-        return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(courseService.getAllCourses());
     }
 
     @GetMapping("/{courseId}")
     public ResponseEntity<CourseResponse> getCourseById(@PathVariable Long courseId) {
-        //TODO
-        return ResponseEntity.ok(null);
+        return ResponseEntity.ok(courseService.getCourseById(courseId));
     }
 
     @GetMapping("/{courseId}/students")
@@ -39,8 +42,7 @@ public class CourseController {
 
     @PostMapping
     public ResponseEntity<CourseResponse> createCourse(@RequestBody CourseRequest courseRequest) {
-        //TODO
-        return ResponseEntity.ok(null);
+        return ResponseEntity.ok(courseService.createCourse(courseRequest));
     }
 
     @PostMapping("/{courseId}/sections")
@@ -53,5 +55,19 @@ public class CourseController {
     public ResponseEntity<String> completeCourse(@PathVariable Long courseId) {
         //TODO
         return ResponseEntity.ok("OK - completeCourse " + courseId);
+    }
+
+    @PutMapping("/{courseId}")
+    public ResponseEntity<CourseResponse> updateCourse(
+            @PathVariable Long courseId,
+            @RequestBody CourseRequest courseRequest) {
+
+        return ResponseEntity.ok(courseService.updateCourse(courseId, courseRequest));
+    }
+
+    @DeleteMapping("/{courseId}")
+    public ResponseEntity<Void> deleteCourse(@PathVariable Long courseId) {
+        courseService.deleteCourse(courseId);
+        return ResponseEntity.noContent().build();
     }
 }
