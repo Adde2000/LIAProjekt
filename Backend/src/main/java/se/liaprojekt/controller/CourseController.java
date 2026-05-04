@@ -3,11 +3,9 @@ package se.liaprojekt.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import se.liaprojekt.dto.CourseRequest;
-import se.liaprojekt.dto.CourseResponse;
-import se.liaprojekt.dto.UserRequest;
-import se.liaprojekt.dto.UserResponse;
+import se.liaprojekt.dto.*;
 import se.liaprojekt.service.CourseService;
+import se.liaprojekt.service.SectionService;
 
 import java.util.List;
 
@@ -17,6 +15,7 @@ import java.util.List;
 public class CourseController {
 
     private final CourseService courseService;
+    private final SectionService sectionService;
 
     @GetMapping
     public ResponseEntity<List<CourseResponse>> getAllCourses() {
@@ -46,9 +45,12 @@ public class CourseController {
     }
 
     @PostMapping("/{courseId}/sections")
-    public ResponseEntity<String> addSection(@PathVariable Long courseId) {
-        //TODO
-        return ResponseEntity.ok("OK - addSection " + courseId);
+    public ResponseEntity<String> addSection(
+            @PathVariable Long courseId,
+            @RequestBody SectionRequest request) {
+
+        sectionService.addSection(courseId, request.title());
+        return ResponseEntity.ok("Section created");
     }
 
     @PostMapping("/{courseId}/complete")
