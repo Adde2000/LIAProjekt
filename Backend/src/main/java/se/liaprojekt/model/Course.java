@@ -1,17 +1,15 @@
 package se.liaprojekt.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
 @Getter
 @Setter
-@NoArgsConstructor
+@RequiredArgsConstructor
+@AllArgsConstructor
 @Table(name = "courses")
 public class Course {
 
@@ -19,15 +17,27 @@ public class Course {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String title;
+
+    @Column(nullable = false)
     private String description;
+
+    @Column(nullable = false)
     private String createdBy;
 
-    private LocalDateTime createdAt = LocalDateTime.now();
-
+    @OrderBy("orderIndex ASC")
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL)
     private List<Section> sections;
 
-    @ManyToMany(mappedBy = "courses")
+    @OneToMany(mappedBy = "course")
+    private List<UserProgress> userProgress;
+
+    @ManyToMany
+    @JoinTable(
+            name = "course_ai",
+            joinColumns = @JoinColumn(name = "course_id"),
+            inverseJoinColumns = @JoinColumn(name = "ai_character_id")
+    )
     private List<AiCharacter> aiCharacters;
 }

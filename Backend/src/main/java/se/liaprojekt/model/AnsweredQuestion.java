@@ -16,8 +16,14 @@ public class AnsweredQuestion {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
+    private boolean isCorrect;
+
     @ManyToOne
+    @JoinColumn(name = "question_id", nullable = false)
     private TestQuestion question;
 
-    private boolean isCorrect;
+    @ManyToOne
+    @JoinColumn(name = "test_result_id", nullable = false)
+    private TestResult testResult;
 }

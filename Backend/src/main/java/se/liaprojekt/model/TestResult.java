@@ -19,16 +19,42 @@ public class TestResult {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private Status status;
+
+    @Column
     private Integer score;
+
+    @Column(nullable = false)
     private Boolean passed;
 
+    @Column(nullable = false)
     private LocalDateTime startedAt;
+
+    @Column
     private LocalDateTime completedAt;
 
     @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @OneToMany(cascade = CascadeType.ALL)
+    @ManyToOne
+    @JoinColumn(name = "section_id", nullable = false)
+    private Section section;
+
+    @OneToMany(mappedBy = "testResult",cascade = CascadeType.ALL)
     private List<AnsweredQuestion> answeredQuestions;
+
+    @PrePersist
+    public void onCreate() {
+        this.startedAt = LocalDateTime.now();
+    }
+
+    //Do not change names
+    public enum Status {
+        NOT_STARTED,
+        IN_PROGRESS,
+        COMPLETED,
+        FAILED
+    }
 }

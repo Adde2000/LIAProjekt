@@ -18,11 +18,19 @@ public class EmailNotification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String type;
+
+    @Column(nullable = false)
     private String subject;
+
+    @Column(nullable = false)
     private LocalDateTime sentAt;
+
+    @Column(nullable = false)
     private String status;
 
     @ManyToOne
+    @JoinColumn(name = "user_id")
     private User user;
 }

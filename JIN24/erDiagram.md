@@ -4,14 +4,12 @@ erDiagram
     USER {
         bigint id PK
         string entra_id
-        datetime created_at
     }
 
     COURSE {
         bigint id PK
         string title
         string description
-        datetime created_at
         string created_by
     }
 
@@ -50,8 +48,6 @@ erDiagram
         int score
         boolean passed
         string status
-        datetime started_at
-        datetime completed_at
     }
     
     ANSWERED_QUESTION {
@@ -66,8 +62,6 @@ erDiagram
         bigint course_id FK
         int completed_sections
         int progress_percentage
-        datetime last_updated
-        datetime assigned_at
     }
 
     COURSE_AI {
@@ -81,14 +75,13 @@ erDiagram
         bigint user_id FK
         bigint course_ai_id FK
         text session_id
-        datetime created_at
     }
 
     AI_CHARACTER {
         bigint id PK
         string name
         string description
-        text system_prompt
+        text system_prompt_url
     }
 
     EMAIL_NOTIFICATION {

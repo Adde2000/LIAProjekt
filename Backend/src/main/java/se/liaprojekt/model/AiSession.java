@@ -5,7 +5,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -18,16 +17,18 @@ public class AiSession {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String sessionId;
 
     @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @ManyToOne
+    @JoinColumn(name = "course_id", nullable = false)
     private Course course;
 
     @ManyToOne
+    @JoinColumn(name = "ai_character_id", nullable = false)
     private AiCharacter aiCharacter;
-
-    private LocalDateTime createdAt = LocalDateTime.now();
 }

@@ -114,13 +114,14 @@ classDiagram
     
     namespace controller {
         class UserController{
-            +UserDto getCurrentUser()
-            +List~CourseDto~ getMyCourses()
-            +void enrollInCourse(Long courseId)
+            +List<UserResponse> getAllUsers()
+            +UserResponse getCurrentUser()
+            +List~CourseResponse~ getMyCourses()
         }
         class CourseController{
             +List~CourseDto~ getAllCourses()
-            +List~UserDto~ getCourseStudents(Long courseId)
+            +List~StudentResponse~ getCourseStudents(Long courseId)
+            +List~StudentResponse~ addStudentsToCourse(Long courseId List~StudentRequest~ students)
             +CourseDto getCourseById(Long courseId)
             +CourseDto createCourse(CourseDto course)
             +void addSection(Long courseId, SectionDto section)
@@ -142,6 +143,7 @@ classDiagram
 
         class Course {
             +Long id
+            +User courseAdmin
             +String title
             +String description
             +LocalDateTime createdAt
