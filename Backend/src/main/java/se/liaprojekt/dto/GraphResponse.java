@@ -1,7 +1,7 @@
 package se.liaprojekt.dto;
 
-public record UserResponse(
-        Long id,
+public record GraphResponse(
+        String id,
         String displayName,
         String givenName,
         String surname,

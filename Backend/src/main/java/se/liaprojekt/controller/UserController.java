@@ -3,12 +3,10 @@ package se.liaprojekt.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
-import se.liaprojekt.service.TokenService;
 
-import java.util.Map;
 import se.liaprojekt.dto.CourseResponse;
 import se.liaprojekt.dto.UserResponse;
+import se.liaprojekt.service.UserService;
 
 import java.util.List;
 
@@ -16,13 +14,18 @@ import java.util.List;
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
-    private final TokenService tokenService;
+    private final UserService userService;
 
     @GetMapping("/all")
-    public ResponseEntity<String> getAllUsers() {
-        RestTemplate restTemplate = new RestTemplate();
-        System.out.println(tokenService.getAccessToken(restTemplate));
-        return ResponseEntity.ok("OK - getAllUsers");
+    public ResponseEntity<List<UserResponse>> getAllUsers() {
+        List<UserResponse> userResponseList = userService.getAllUsers();
+        return ResponseEntity.ok(userResponseList);
+    }
+
+    @GetMapping("/{userId}")
+    public ResponseEntity<UserResponse> getUserById(@PathVariable long userId) {
+        UserResponse userResponse = userService.getUserById(userId);
+        return ResponseEntity.ok(userResponse);
     }
 
     @GetMapping("/me")
