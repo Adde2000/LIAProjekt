@@ -1,7 +1,11 @@
 package se.liaprojekt.dto;
 
 public record UserResponse(
-        Long id,
-        String name,
-        String mail) {
+        String id,
+        String displayName,
+        String givenName,
+        String surname,
+        String mail,
+        String memberOf
+) {
 }

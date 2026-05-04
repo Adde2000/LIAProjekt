@@ -1,17 +1,21 @@
+import type { IPublicClientApplication } from "@azure/msal-browser";
+import LoginButton from "./components/LoginButton";
 import HealthCheck from "./components/HealthCheck";
 
-function App() {
+export default function App({ msalInstance }: { msalInstance: IPublicClientApplication }) {
 
-  return (
-      <div>
+    const account = msalInstance.getActiveAccount();
 
-        <h1>LIA Project</h1>
+    return (
+        <div>
+            {!account && <LoginButton instance={msalInstance} />}
 
-        {/* Testar backend connection */}
-        <HealthCheck />
-
-      </div>
-  );
+            {account && (
+                <>
+                    <h2>Logged in as {account.username}</h2>
+                    <HealthCheck instance={msalInstance} />
+                </>
+            )}
+        </div>
+    );
 }
-
-export default App;

@@ -1,22 +1,34 @@
-export type HealthResponse = {
-    status: string;
-    service: string;
-    timestamp: string;
-};
+import type { IPublicClientApplication } from "@azure/msal-browser";
+import { getAccessToken } from "../auth/getAccessToken";
+
 const BASE_URL = "http://localhost:8080";
 
-/**
- * Hämtar health status från backend
- * Spring Boot endpoint: /health
- */
-export async function getHealth(): Promise<HealthResponse> {
+export async function getHealth(instance: IPublicClientApplication) {
 
-    const response =
-        await fetch(`${BASE_URL}/health`);
+    const token = await getAccessToken(instance);
 
-    if (!response.ok) {
-        throw new Error("Failed to fetch health");
-    }
+    const res = await fetch(`${BASE_URL}/health`, {
+        headers: {
+            Authorization: `Bearer ${token}`
+        }
+    });
 
-    return response.json();
+    if (!res.ok) throw new Error("Failed health");
+
+    return res.json();
+}
+
+export async function getGraphUsers(instance: IPublicClientApplication) {
+
+    const token = await getAccessToken(instance);
+
+    const res = await fetch(`${BASE_URL}/graph/users`, {
+        headers: {
+            Authorization: `Bearer ${token}`
+        }
+    });
+
+    if (!res.ok) throw new Error("Failed graph users");
+
+    return res.json();
 }
