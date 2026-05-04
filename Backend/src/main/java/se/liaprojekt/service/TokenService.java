@@ -12,7 +12,7 @@ import org.springframework.web.client.RestTemplate;
 
 @Service
 public class TokenService {
-    @Value("${TENANT-ID}")
+    @Value("${spring.cloud.azure.tenant-id}")
     private String tenantId;
 
 //    @Value("${CLIENT_ID}")
