@@ -117,7 +117,8 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(
                         500,
                         "Internal Server Error",
-                        "Unexpected error occurred",
+//                        "Unexpected error occurred",
+                        ex.getMessage(),
                         request.getRequestURI()
                 ));
     }

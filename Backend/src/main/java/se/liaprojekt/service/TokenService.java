@@ -1,5 +1,9 @@
 package se.liaprojekt.service;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -10,6 +14,12 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import se.liaprojekt.exception.BadRequestException;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 @Service
 public class TokenService {
@@ -65,10 +75,42 @@ public class TokenService {
 
             return response.getBody().access_token;
         } catch (Exception e) {
-            throw new BadRequestException(e.getMessage());
+            throw new RuntimeException("tenantId: " + tenantId + "\n" + e.getMessage());
         }
 
     }
+
+//    public String getAccessToken1(RestTemplate restTemplate) throws Exception {
+//        URL msiEndpoint = new URL("http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/");
+//        HttpURLConnection con = (HttpURLConnection) msiEndpoint.openConnection();
+//        con.setRequestMethod("GET");
+//        con.setRequestProperty("Metadata", "true");
+//
+//        if (con.getResponseCode()!=200) {
+//            throw new Exception("Error calling managed identity token endpoint.");
+//        }
+//
+//        InputStream responseStream = con.getInputStream();
+//
+//        JsonFactory factory = new JsonFactory();
+//        JsonParser parser = factory.createParser(responseStream);
+//
+//        while(!parser.isClosed()){
+//            JsonToken jsonToken = parser.nextToken();
+//
+//            if(JsonToken.FIELD_NAME.equals(jsonToken)){
+//                String fieldName = parser.getCurrentName();
+//                jsonToken = parser.nextToken();
+//
+//                if("access_token".equals(fieldName)) {
+//                    String accesstoken = parser.getValueAsString();
+//                    System.out.println("Access Token: " + accesstoken.substring(0, 5) + "..." + accesstoken.substring(accesstoken.length() - 5));
+//                    return accesstoken;
+//                }
+//            }
+//        }
+//        return "";
+//    }
 
 
     private record TokenResponseBody(String access_token, String token_type, long expires_in) {}
