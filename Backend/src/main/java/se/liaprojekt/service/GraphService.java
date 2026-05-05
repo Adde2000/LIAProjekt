@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import se.liaprojekt.dto.GraphResponse;
+import se.liaprojekt.exception.BadRequestException;
 
 import java.util.List;
 
@@ -26,7 +27,12 @@ public class GraphService {
     }
 
     public List<GraphResponse> getAllUsers() {
-        String token = tokenService.getAccessToken(restTemplate);
+        String token;
+        try {
+            token = tokenService.getAccessToken(restTemplate);
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
+        }
 
         HttpHeaders headers = new HttpHeaders();
         HttpEntity<String> entity = new HttpEntity<>(headers);
@@ -48,7 +54,12 @@ public class GraphService {
     }
 
     public GraphResponse getUserByEntraId(String entraId) {
-        String token = tokenService.getAccessToken(restTemplate);
+        String token;
+        try {
+            token = tokenService.getAccessToken(restTemplate);
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
+        }
         HttpHeaders headers = new HttpHeaders();
         HttpEntity<String> entity = new HttpEntity<>(headers);
         headers.setBearerAuth(token);
