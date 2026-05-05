@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import se.liaprojekt.exception.BadRequestException;
 
 @Service
 public class TokenService {
@@ -51,18 +52,22 @@ public class TokenService {
         );
 
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+        try {
+            ResponseEntity<TokenResponseBody> response = restTemplate.postForEntity(url, request, TokenResponseBody.class);
 
-        ResponseEntity<TokenResponseBody> response = restTemplate.postForEntity(url, request, TokenResponseBody.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                tokenResponseBody = response.getBody();
+                tokenExpiryTimeMillis = System.currentTimeMillis() + tokenResponseBody.expires_in * 1000;
+                return tokenResponseBody.access_token;
+            } else {
+                //TODO throw appropriate exception when request fail
+            }
 
-        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-            tokenResponseBody = response.getBody();
-            tokenExpiryTimeMillis = System.currentTimeMillis() + tokenResponseBody.expires_in * 1000;
-            return tokenResponseBody.access_token;
-        } else {
-            //TODO throw appropriate exception when request fail
+            return response.getBody().access_token;
+        } catch (Exception e) {
+            throw new BadRequestException(e.getMessage());
         }
 
-        return response.getBody().access_token;
     }
 
 
