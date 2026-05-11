@@ -19,6 +19,9 @@ public class AiCharacter {
     private Long id;
 
     @Column(nullable = false)
+    private String assistantId;
+
+    @Column(nullable = false)
     private String name;
 
     @Column(nullable = false)
