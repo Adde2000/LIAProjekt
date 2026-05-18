@@ -27,13 +27,27 @@ public class GraphService {
         List<GraphResponse> graphResponses = new ArrayList<>();
         if (userCollectionResponse != null && userCollectionResponse.getValue() != null) {
             userCollectionResponse.getValue().forEach((user) -> {
-                graphResponses.add(new GraphResponse(
-                        user.getId(),
-                        user.getDisplayName(),
-                        user.getGivenName(),
-                        user.getSurname(),
-                        user.getMail()
-                ));
+                try {
+                    List<String> roles = new ArrayList<>();
+//                    user.getAppRoleAssignments().forEach(roleAssignment -> {roles.add(roleAssignment.getId());});
+                    graphServiceClient.users().byUserId(
+                            user.getId())
+                            .appRoleAssignments()
+                            .get().getValue().forEach(role -> {
+                                roles.add(role.getPrincipalDisplayName());
+                            });
+                    graphResponses.add(new GraphResponse(
+                            user.getId(),
+                            user.getDisplayName(),
+                            user.getGivenName(),
+                            user.getSurname(),
+                            user.getMail(),
+                            roles
+                    ));
+                } catch (NullPointerException e) {
+                    System.out.println("Error getting roles from: " + user.getDisplayName());
+                }
+
             });
         }
         return graphResponses;
@@ -51,7 +65,9 @@ public class GraphService {
                     user.getDisplayName(),
                     user.getGivenName(),
                     user.getSurname(),
-                    user.getMail()
+                    user.getMail(),
+//                    Objects.requireNonNull(user.getAppRoleAssignments()).getFirst().getId()
+                    List.of("")
             );
         } else {
             throw new ResourceNotFoundException("User not found");
