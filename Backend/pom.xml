@@ -61,6 +61,11 @@
             <scope>compile</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-messaging-servicebus</artifactId>
+        </dependency>
+
         <!-- SECURITY + OAUTH2 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
