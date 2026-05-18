@@ -1,5 +1,6 @@
 import type { IPublicClientApplication } from "@azure/msal-browser";
 import { getAccessToken } from "../auth/getAccessToken";
+import type { CourseRequest } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -13,6 +14,30 @@ async function safeFetch(url: string, token: string, errorMessage: string) {
             headers: {
                 Authorization: `Bearer ${token}`
             }
+        });
+
+        if (!res.ok) {
+            const text = await res.text().catch(() => "");
+            console.error("API error:", res.status, text);
+            throw new Error(errorMessage);
+        }
+
+        return await res.json();
+    } catch (err) {
+        console.error("Network/API failure:", err);
+        throw err;
+    }
+}
+
+async function safePost(url: string, token: string, body: unknown, errorMessage: string) {
+    try {
+        const res = await fetch(url, {
+            method:  "POST",
+            headers: {
+                Authorization:  `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
         });
 
         if (!res.ok) {
@@ -49,5 +74,21 @@ export async function getUsers(instance: IPublicClientApplication) {
         `${BASE_URL}/api/users/all`,
         token,
         "Failed to fetch users"
+    );
+}
+
+export async function createCourse(
+    instance: IPublicClientApplication,
+    course: CourseRequest
+) {
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    return safePost(
+        `${BASE_URL}/api/courses`,
+        token,
+        course,
+        "Failed to create course"
     );
 }

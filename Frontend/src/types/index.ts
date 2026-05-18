@@ -33,5 +33,12 @@ export interface UserResponse {
     givenName: string;
     surname: string;
     mail: string;
-    role: string;
+    Role: string;           // capital R, as the API sends it
+}
+
+// Mirrors the Java CourseRequest record — sent as POST body when creating a course
+export interface CourseRequest {
+    id:          number | null;   // null on create; the server assigns the ID
+    title:       string;
+    description: string;
 }

@@ -16,7 +16,7 @@ public class UserService {
     private final GraphService graphService;
     UserRepository userRepository;
 
-    public UserResponse getUserById(long userId) {
+    public UserResponse getUserResponseById(long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
         GraphResponse graphResponse = graphService.getUserByEntraId(user.getEntraId());
@@ -24,7 +24,7 @@ public class UserService {
         return userResponse;
     }
 
-    public List<UserResponse> getAllUsers() {
+    public List<UserResponse> getAllUserResponses() {
         List<GraphResponse> graphResponseList = graphService.getAllUsers();
         updateFromGraphAPI(graphResponseList);
 
@@ -41,6 +41,10 @@ public class UserService {
         return userResponseList;
     }
 
+    public User getUserById(long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+    }
 
     private void updateFromGraphAPI(List<GraphResponse> graphResponseList) {
         //Get all users in database end put their unique entraId in a set

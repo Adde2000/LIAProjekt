@@ -18,13 +18,13 @@ public class UserController {
 
     @GetMapping("/all")
     public ResponseEntity<List<UserResponse>> getAllUsers() {
-        List<UserResponse> userResponseList = userService.getAllUsers();
+        List<UserResponse> userResponseList = userService.getAllUserResponses();
         return ResponseEntity.ok(userResponseList);
     }
 
     @GetMapping("/{userId}")
     public ResponseEntity<UserResponse> getUserById(@PathVariable long userId) {
-        UserResponse userResponse = userService.getUserById(userId);
+        UserResponse userResponse = userService.getUserResponseById(userId);
         return ResponseEntity.ok(userResponse);
     }
 
