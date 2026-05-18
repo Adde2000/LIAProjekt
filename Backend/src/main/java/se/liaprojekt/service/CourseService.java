@@ -2,19 +2,17 @@ package se.liaprojekt.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import se.liaprojekt.dto.CourseProgressResponse;
-import se.liaprojekt.dto.CourseRequest;
-import se.liaprojekt.dto.CourseResponse;
+import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
-import se.liaprojekt.model.Course;
-import se.liaprojekt.model.Section;
-import se.liaprojekt.model.TestResult;
+import se.liaprojekt.model.*;
 import se.liaprojekt.repository.CourseRepository;
 import se.liaprojekt.repository.SectionRepository;
 import se.liaprojekt.repository.TestResultRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import se.liaprojekt.repository.UserProgressRepository;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -27,6 +25,8 @@ public class CourseService {
     private final CourseRepository courseRepository;
     private final TestResultRepository testResultRepository;
     private final SectionRepository sectionRepository;
+    private final UserProgressRepository userProgressRepository;
+    private final UserService userService;
 
     public List<CourseResponse> getAllCourses() {
         return courseRepository.findAll()
@@ -54,6 +54,28 @@ public class CourseService {
         Course saved = courseRepository.save(course);
 
         return mapToResponse(saved);
+    }
+
+    //TODO return UserProgressResponse
+    public List<UserResponse> addStudentsToCourse(Long courseId, List<UserRequest> students) {
+        Course course = courseRepository.findById(courseId).orElseThrow(() ->
+                new ResourceNotFoundException("Course not found with id: " + courseId));
+        List<UserProgress> userProgressList = new ArrayList<>();
+        students.forEach(student -> {
+            userProgressList.add(new UserProgress(userService.getUserById(student.id()), course));
+        });
+        userProgressRepository.saveAll(userProgressList);
+        return null;
+    }
+
+    //TODO return UserProgressResponse
+    public List<UserResponse> getStudentsInCourse(Long courseId) {
+        List<UserProgress> userProgressList = userProgressRepository.findByCourseId(courseId);
+        List<UserResponse> userResponseList = new ArrayList<>();
+        userProgressList.forEach(userProgress -> {
+            userResponseList.add(userService.getUserResponseById(userProgress.getUser().getId()));
+        });
+        return userResponseList;
     }
 
     public CourseResponse updateCourse(Long id, CourseRequest request) {

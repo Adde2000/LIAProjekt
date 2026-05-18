@@ -1,0 +1,121 @@
+/* ── Course grid ──────────────────────────────────────────────────────────── */
+
+.vmv-courses {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--color-border-secondary);
+    border: 1px solid var(--color-border-secondary);
+    margin-bottom: 1.5rem;
+}
+
+.vmv-course {
+    background: var(--color-background-primary);
+    padding: 1rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.vmv-course:hover,
+.vmv-course.highlight {
+    background: var(--color-background-secondary);
+}
+
+.vmv-course-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--color-border-secondary);
+    line-height: 1;
+    margin-bottom: 6px;
+}
+
+.vmv-course-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    line-height: 1.3;
+    margin-bottom: 8px;
+}
+
+.vmv-course-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    margin-bottom: 10px;
+}
+
+.vmv-course-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.vmv-course-pct {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+}
+
+/* ── Quiz list ────────────────────────────────────────────────────────────── */
+
+.vmv-quiz {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-border-tertiary);
+}
+
+.vmv-quiz:last-child {
+    border-bottom: none;
+}
+
+.vmv-quiz-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-border-secondary);
+    width: 20px;
+    flex-shrink: 0;
+}
+
+.vmv-quiz-body {
+    flex: 1;
+}
+
+.vmv-quiz-title {
+    font-size: 13px;
+    color: var(--color-text-primary);
+}
+
+.vmv-quiz-course {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+}
+
+.vmv-quiz-score {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: #3B6D11;
+}
+
+.vmv-quiz-start {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border: 1px solid var(--color-border-secondary);
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    text-transform: uppercase;
+}
+
+.vmv-quiz-start:hover {
+    background: var(--color-background-secondary);
+}

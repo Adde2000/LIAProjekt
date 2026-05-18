@@ -19,15 +19,14 @@ public class UserService {
     private final ApplicationEventPublisher eventPublisher;
     UserRepository userRepository;
 
-    public UserResponse getUserById(long userId) {
+    public UserResponse getUserResponseById(long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
         GraphResponse graphResponse = graphService.getUserByEntraId(user.getEntraId());
-        UserResponse userResponse = mapToResponse(user, graphResponse);
-        return userResponse;
+        return mapToResponse(user, graphResponse);
     }
 
-    public List<UserResponse> getAllUsers() {
+    public List<UserResponse> getAllUserResponses() {
         List<GraphResponse> graphResponseList = graphService.getAllUsers();
         updateFromGraphAPI(graphResponseList);
 
@@ -44,6 +43,10 @@ public class UserService {
         return userResponseList;
     }
 
+    public User getUserById(long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+    }
 
     private void updateFromGraphAPI(List<GraphResponse> graphResponseList) {
 
@@ -107,7 +110,8 @@ public class UserService {
                 graphResponse.displayName(),
                 graphResponse.givenName(),
                 graphResponse.surname(),
-                graphResponse.mail()
+                graphResponse.mail(),
+                "bob"
         );
     }
 }
