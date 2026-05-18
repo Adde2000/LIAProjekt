@@ -8,7 +8,6 @@ import lombok.*;
 @Getter
 @Setter
 @NoArgsConstructor
-//@RequiredArgsConstructor
 @AllArgsConstructor
 @Table(
         name = "user_progress",

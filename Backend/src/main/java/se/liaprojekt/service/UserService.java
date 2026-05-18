@@ -20,8 +20,7 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
         GraphResponse graphResponse = graphService.getUserByEntraId(user.getEntraId());
-        UserResponse userResponse = mapToResponse(user, graphResponse);
-        return userResponse;
+        return mapToResponse(user, graphResponse);
     }
 
     public List<UserResponse> getAllUserResponses() {
