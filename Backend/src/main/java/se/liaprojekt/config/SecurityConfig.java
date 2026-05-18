@@ -20,8 +20,10 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/health").permitAll()
-                        .requestMatchers("/api/users/**").permitAll()
+//                        .requestMatchers("/api/users/**").permitAll()
                         .requestMatchers("/api/courses/**").authenticated()
+                        .requestMatchers("/api/email/**").authenticated()
+//                        .requestMatchers("/api/email/**").permitAll()
 //                        .requestMatchers("/api/courses/**").permitAll()
 //                        .requestMatchers("/v3/api-docs/**").permitAll()
 //                        .requestMatchers("/swagger-ui/**").permitAll()

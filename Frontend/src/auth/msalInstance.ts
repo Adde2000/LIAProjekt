@@ -15,7 +15,7 @@ const msalConfig: Configuration = {
     auth: {
         clientId,
         authority: `https://login.microsoftonline.com/${tenantId}`,
-        redirectUri: "http://localhost:5173"
+        redirectUri: import.meta.env.VITE_REDIRECT_URI
     },
     cache: {
         cacheLocation: "sessionStorage"

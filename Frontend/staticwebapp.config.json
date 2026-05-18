@@ -1,0 +1,11 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html"
+  },
+  "globalHeaders": {
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://video-endpoint-cfbtbpazgpepd0cm.z03.azurefd.net; media-src 'self' https://video-endpoint-cfbtbpazgpepd0cm.z03.azurewebsites.net; connect-src 'self' https://login.microsoftonline.com/ https://graph.microsoft.com/ https://app-dev-api-d7bthwada8b0bwh7.swedencentral-01.azurewebsites.net; frame-ancestors 'none';",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
+  }
+}

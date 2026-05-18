@@ -1,0 +1,406 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,wght@0,300;0,400;1,300&display=swap');
+
+/* ── Root ─────────────────────────────────────────────────────────────────── */
+
+.vmv {
+  font-family: 'Source Serif 4', Georgia, serif;
+  color: var(--color-text-primary);
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+
+.vmv-header {
+  border-bottom: 2px solid var(--color-text-primary);
+  padding-bottom: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.vmv-eyebrow {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.vmv-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.15;
+  margin-bottom: 6px;
+}
+
+.vmv-subtitle {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+/* ── Nav ──────────────────────────────────────────────────────────────────── */
+
+.vmv-nav {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--color-border-secondary);
+  margin: 0.75rem 0 1.25rem;
+}
+
+.vmv-nav button {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.vmv-nav button.active {
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-text-primary);
+}
+
+/* ── Stats bar ────────────────────────────────────────────────────────────── */
+
+.vmv-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--color-border-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.vmv-stat {
+  padding: 1rem;
+  border-right: 1px solid var(--color-border-secondary);
+}
+
+.vmv-stat:last-child {
+  border-right: none;
+}
+
+.vmv-stat-n {
+  font-family: 'Playfair Display', serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+
+.vmv-stat-l {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+/* ── Search ───────────────────────────────────────────────────────────────── */
+
+.vmv-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--color-border-secondary);
+  padding: 6px 12px;
+  margin-bottom: 1.25rem;
+}
+
+.vmv-search input {
+  border: none;
+  background: transparent;
+  font-family: 'Source Serif 4', serif;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  outline: none;
+  flex: 1;
+}
+
+.vmv-search-icon {
+  color: var(--color-text-secondary);
+  font-size: 16px;
+}
+
+/* ── Filters ──────────────────────────────────────────────────────────────── */
+
+.vmv-filters {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.vmv-filter {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border: 1px solid var(--color-border-secondary);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.vmv-filter.active {
+  background: var(--color-text-primary);
+  color: var(--color-background-primary);
+  border-color: var(--color-text-primary);
+}
+
+/* ── Section heading ──────────────────────────────────────────────────────── */
+
+.vmv-section-head {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border-tertiary);
+  padding-bottom: 6px;
+  margin-bottom: 1rem;
+}
+
+/* ── Course grid ──────────────────────────────────────────────────────────── */
+
+.vmv-courses {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--color-border-secondary);
+  border: 1px solid var(--color-border-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.vmv-course {
+  background: var(--color-background-primary);
+  padding: 1rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.vmv-course:hover,
+.vmv-course.highlight {
+  background: var(--color-background-secondary);
+}
+
+.vmv-course-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--color-border-secondary);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.vmv-course-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+}
+
+.vmv-course-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+
+.vmv-course-meta {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  margin-bottom: 10px;
+}
+
+.vmv-progress-bg {
+  background: var(--color-border-tertiary);
+  height: 3px;
+}
+
+.vmv-progress-fill {
+  height: 3px;
+  background: var(--color-text-primary);
+}
+
+.vmv-course-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.vmv-course-pct {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--color-text-secondary);
+}
+
+/* ── Status badges ────────────────────────────────────────────────────────── */
+
+.vmv-status {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.vmv-status--done    { color: #3B6D11; }
+.vmv-status--wip     { color: #854F0B; }
+.vmv-status--todo    { color: var(--color-text-secondary); }
+
+/* ── Empty state ──────────────────────────────────────────────────────────── */
+
+.vmv-empty {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--color-text-secondary);
+  padding: 1rem;
+  grid-column: 1 / -1;
+  background: var(--color-background-primary);
+}
+
+/* ── Bottom two-col ───────────────────────────────────────────────────────── */
+
+.vmv-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.vmv-panel-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border-secondary);
+  padding-bottom: 8px;
+  margin-bottom: 0.75rem;
+}
+
+/* ── Quiz list ────────────────────────────────────────────────────────────── */
+
+.vmv-quiz {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border-tertiary);
+}
+
+.vmv-quiz:last-child {
+  border-bottom: none;
+}
+
+.vmv-quiz-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-border-secondary);
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.vmv-quiz-body {
+  flex: 1;
+}
+
+.vmv-quiz-title {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.vmv-quiz-course {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--color-text-secondary);
+}
+
+.vmv-quiz-score {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: #3B6D11;
+}
+
+.vmv-quiz-start {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border: 1px solid var(--color-border-secondary);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.vmv-quiz-start:hover {
+  background: var(--color-background-secondary);
+}
+
+/* ── Activity feed ────────────────────────────────────────────────────────── */
+
+.vmv-activity {
+  display: flex;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--color-border-tertiary);
+}
+
+.vmv-activity:last-child {
+  border-bottom: none;
+}
+
+.vmv-activity-bar {
+  width: 2px;
+  flex-shrink: 0;
+}
+
+.vmv-activity-text {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.vmv-activity-time {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+
+.vmv-footer {
+  border-top: 1px solid var(--color-border-secondary);
+  margin-top: 1.5rem;
+  padding-top: 0.75rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ── Stats view (full page) ───────────────────────────────────────────────── */
+
+.vmv-stats-note {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--color-text-secondary);
+  margin-top: 0.5rem;
+}
