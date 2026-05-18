@@ -5,6 +5,7 @@ import com.azure.messaging.servicebus.ServiceBusSenderClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import se.liaprojekt.exception.EventPublishException;
 import se.liaprojekt.model.EmailEvent;
 
 /**
@@ -27,7 +28,10 @@ public class EmailEventPublisher {
             senderClient.sendMessage(message);
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to publish email event", e);
-        } // Fixa exception till GlobalExceptionHandler
+            throw new EventPublishException(
+                    "Failed to publish email event",
+                    e
+            );
+        }
     }
 }

@@ -4,6 +4,7 @@ import com.microsoft.graph.models.*;
 import com.microsoft.graph.models.UserCollectionResponse;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
 import com.microsoft.graph.users.item.sendmail.SendMailPostRequestBody;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import se.liaprojekt.dto.GraphResponse;
 import se.liaprojekt.exception.ResourceNotFoundException;
@@ -13,6 +14,9 @@ import java.util.List;
 
 @Service
 public class GraphService {
+
+    @Value("${azure.graph.mail-user}")
+    private String mailUser;
 
     private final TokenService tokenService;
 
@@ -60,8 +64,7 @@ public class GraphService {
         return graphResponse;
     }
 
-    public void sendEmail(String from,
-                          String to,
+    public void sendEmail(String to,
                           String subject,
                           String htmlBody) {
         String[] scopes = {"https://graph.microsoft.com/.default"};
@@ -94,7 +97,7 @@ public class GraphService {
 
         graphServiceClient
                 .users()
-                .byUserId(from)
+                .byUserId(mailUser)
                 .sendMail()
                 .post(requestBody);
     }

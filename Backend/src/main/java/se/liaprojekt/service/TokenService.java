@@ -31,20 +31,4 @@ public class TokenService {
         }
         return credential;
     }
-
-    // Ta bort innan push till dev ENDAST FÖR FELSÖKNING
-    public void printToken() {
-        TokenRequestContext context =
-                new TokenRequestContext()
-                        .addScopes("https://graph.microsoft.com/.default");
-
-        String token = getCredential()
-                .getToken(context)
-                .block()
-                .getToken();
-
-        System.out.println("===== GRAPH TOKEN =====");
-        System.out.println(token);
-        System.out.println("=======================");
-    }
 }
