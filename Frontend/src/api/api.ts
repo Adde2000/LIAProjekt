@@ -1,6 +1,6 @@
 import type { IPublicClientApplication } from "@azure/msal-browser";
 import { getAccessToken } from "../auth/getAccessToken";
-import type { CourseRequest } from "../types";
+import type { CourseRequest, UserResponse } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -90,5 +90,49 @@ export async function createCourse(
         token,
         course,
         "Failed to create course"
+    );
+}
+
+export async function getCourses(instance: IPublicClientApplication) {
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    return safeFetch(
+        `${BASE_URL}/api/courses`,
+        token,
+        "Failed to fetch courses"
+    );
+}
+
+export async function getCourseStudents(
+    instance: IPublicClientApplication,
+    courseId: number
+) {
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    return safeFetch(
+        `${BASE_URL}/api/courses/${courseId}/students`,
+        token,
+        "Failed to fetch course students"
+    );
+}
+
+export async function addStudentsToCourse(
+    instance: IPublicClientApplication,
+    courseId: number,
+    students: UserResponse[]
+) {
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    return safePost(
+        `${BASE_URL}/api/courses/${courseId}/students`,
+        token,
+        students,
+        "Failed to add students to course"
     );
 }

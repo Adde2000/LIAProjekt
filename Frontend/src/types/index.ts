@@ -33,7 +33,7 @@ export interface UserResponse {
     givenName: string;
     surname: string;
     mail: string;
-    Role: string;           // capital R, as the API sends it
+    role: string;           // lowercase in the updated DTO
 }
 
 // Mirrors the Java CourseRequest record — sent as POST body when creating a course
@@ -41,4 +41,12 @@ export interface CourseRequest {
     id:          number | null;   // null on create; the server assigns the ID
     title:       string;
     description: string;
+}
+
+// Shape returned by the API for courses — mirrors the Java CourseResponse class
+export interface CourseResponse {
+    id:          number;
+    title:       string;
+    description: string;
+    createdBy:   string;
 }

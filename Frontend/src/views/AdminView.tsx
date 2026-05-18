@@ -3,10 +3,11 @@ import { useMsal } from "@azure/msal-react";
 import type { User, UserRole, UserResponse, CourseRequest } from "../types";
 import { getUsers, createCourse } from "../api/api";
 import { pad } from "../components/Shared";
+import { ManageCoursesView } from "./ManageCoursesView";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type AdminTab = "users" | "create-course";
+type AdminTab = "users" | "create-course" | "manage-courses";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -27,14 +28,11 @@ const ROLE_CLS: Record<UserRole, string> = {
 function normaliseRole(raw: string): UserRole {
     const map: Record<string, UserRole> = {
         admin:       "admin",
-        Admin:       "admin",
         student:     "student",
-        Student:     "student",
         courseadmin: "courseAdmin",
         courseAdmin: "courseAdmin",
-        CourseAdmin: "courseAdmin",
     };
-    return map[raw] ?? "student";
+    return map[raw.toLowerCase()] ?? "student";
 }
 
 function mapUser(u: UserResponse): User {
@@ -42,7 +40,7 @@ function mapUser(u: UserResponse): User {
         id:              u.id,
         name:            u.displayName,
         email:           u.mail,
-        role:            normaliseRole(u.Role),
+        role:            normaliseRole(u.role),   // lowercase .role from updated DTO
         coursesEnrolled: 0,
     };
 }
@@ -311,8 +309,9 @@ function CreateCourseView() {
 // ── AdminView — submenu shell ──────────────────────────────────────────────────
 
 const ADMIN_TABS: { key: AdminTab; label: string }[] = [
-    { key: "users",         label: "Användare"  },
-    { key: "create-course", label: "Ny kurs"    },
+    { key: "users",          label: "Användare"  },
+    { key: "create-course",  label: "Ny kurs"    },
+    { key: "manage-courses", label: "Hantera kurser" },
 ];
 
 export function AdminView() {
@@ -333,8 +332,9 @@ export function AdminView() {
                 ))}
             </div>
 
-            {tab === "users"         && <UsersView />}
-            {tab === "create-course" && <CreateCourseView />}
+            {tab === "users"          && <UsersView />}
+            {tab === "create-course"  && <CreateCourseView />}
+            {tab === "manage-courses" && <ManageCoursesView />}
         </>
     );
 }
