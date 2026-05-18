@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import se.liaprojekt.exception.EmailProcessingException;
-import se.liaprojekt.model.EmailEvent;
+import se.liaprojekt.event.EmailEvent;
 import se.liaprojekt.service.GraphService;
 
 @Component
@@ -46,12 +46,12 @@ public class EmailMessageHandler {
                     objectMapper.readValue(body, EmailEvent.class);
 
             graphService.sendEmail(
-                    event.getTo(),
-                    event.getSubject(),
-                    event.getBody()
+                    event.to(),
+                    event.subject(),
+                    event.body()
             );
 
-            log.info("✅ Email sent to {}", event.getTo());
+            log.info("✅ Email sent to {}", event.to());
 
         } catch (Exception e) {
 
