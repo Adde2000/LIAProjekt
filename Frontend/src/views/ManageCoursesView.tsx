@@ -122,13 +122,15 @@ function CourseDetail({ course }: { course: CourseResponse }) {
         let cancelled = false;
 
         async function fetchStudents() {
+            setEnrolled({ data: null, loading: true, error: null });
+            setStaged(new Set());
+            setShowAdd(false);
+            setAddStatus("idle");
+
             try {
                 const data = await getCourseStudents(instance, course.id);
                 if (!cancelled) {
                     setEnrolled({ data: data as UserResponse[], loading: false, error: null });
-                    setStaged(new Set());
-                    setShowAdd(false);
-                    setAddStatus("idle");
                 }
             } catch (err) {
                 if (!cancelled) {
@@ -137,7 +139,6 @@ function CourseDetail({ course }: { course: CourseResponse }) {
             }
         }
 
-        setEnrolled(prev => ({ ...prev, loading: true, error: null }));
         fetchStudents();
 
         return () => { cancelled = true; };
@@ -150,6 +151,8 @@ function CourseDetail({ course }: { course: CourseResponse }) {
         let cancelled = false;
 
         async function fetchAllUsers() {
+            setAllUsers({ data: null, loading: true, error: null });
+
             try {
                 const data = await getUsers(instance);
                 if (!cancelled) {
@@ -162,7 +165,6 @@ function CourseDetail({ course }: { course: CourseResponse }) {
             }
         }
 
-        setAllUsers(prev => ({ ...prev, loading: true, error: null }));
         fetchAllUsers();
 
         return () => { cancelled = true; };
@@ -351,6 +353,8 @@ export function ManageCoursesView() {
         let cancelled = false;
 
         async function fetchCourses() {
+            setCourses({ data: null, loading: true, error: null });
+
             try {
                 const data = await getCourses(instance);
                 if (!cancelled) {
@@ -363,7 +367,6 @@ export function ManageCoursesView() {
             }
         }
 
-        setCourses(prev => ({ ...prev, loading: true, error: null }));
         fetchCourses();
 
         return () => { cancelled = true; };
