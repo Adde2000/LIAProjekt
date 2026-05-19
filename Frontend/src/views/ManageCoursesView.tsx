@@ -119,25 +119,53 @@ function CourseDetail({ course }: { course: CourseResponse }) {
 
     // Fetch enrolled students whenever the selected course changes
     useEffect(() => {
-        setEnrolled({ data: null, loading: true, error: null });
-        setStaged(new Set());
-        setShowAdd(false);
-        setAddStatus("idle");
+        let cancelled = false;
 
-        getCourseStudents(instance, course.id)
-            .then((data) => setEnrolled({ data: data as UserResponse[], loading: false, error: null }))
-            .catch((err: Error) => setEnrolled({ data: null, loading: false, error: err.message }));
+        async function fetchStudents() {
+            try {
+                const data = await getCourseStudents(instance, course.id);
+                if (!cancelled) {
+                    setEnrolled({ data: data as UserResponse[], loading: false, error: null });
+                    setStaged(new Set());
+                    setShowAdd(false);
+                    setAddStatus("idle");
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setEnrolled({ data: null, loading: false, error: (err as Error).message });
+                }
+            }
+        }
+
+        setEnrolled(prev => ({ ...prev, loading: true, error: null }));
+        fetchStudents();
+
+        return () => { cancelled = true; };
     }, [instance, course.id]);
 
     // Fetch all users lazily — only when the add panel opens
     useEffect(() => {
         if (!showAdd || allUsers.data) return;
 
-        setAllUsers({ data: null, loading: true, error: null });
+        let cancelled = false;
 
-        getUsers(instance)
-            .then((data) => setAllUsers({ data: data as UserResponse[], loading: false, error: null }))
-            .catch((err: Error) => setAllUsers({ data: null, loading: false, error: err.message }));
+        async function fetchAllUsers() {
+            try {
+                const data = await getUsers(instance);
+                if (!cancelled) {
+                    setAllUsers({ data: data as UserResponse[], loading: false, error: null });
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setAllUsers({ data: null, loading: false, error: (err as Error).message });
+                }
+            }
+        }
+
+        setAllUsers(prev => ({ ...prev, loading: true, error: null }));
+        fetchAllUsers();
+
+        return () => { cancelled = true; };
     }, [showAdd, instance, allUsers.data]);
 
     const enrolledIds = new Set((enrolled.data ?? []).map((u) => u.id));
@@ -152,7 +180,11 @@ function CourseDetail({ course }: { course: CourseResponse }) {
     function toggleStaged(id: number) {
         setStaged((prev) => {
             const next = new Set(prev);
-            next.has(id) ? next.delete(id) : next.add(id);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
             return next;
         });
     }
@@ -316,11 +348,25 @@ export function ManageCoursesView() {
     const [selectedCourse, setSelectedCourse] = useState<CourseResponse | null>(null);
 
     useEffect(() => {
-        setCourses({ data: null, loading: true, error: null });
+        let cancelled = false;
 
-        getCourses(instance)
-            .then((data) => setCourses({ data: data as CourseResponse[], loading: false, error: null }))
-            .catch((err: Error) => setCourses({ data: null, loading: false, error: err.message }));
+        async function fetchCourses() {
+            try {
+                const data = await getCourses(instance);
+                if (!cancelled) {
+                    setCourses({ data: data as CourseResponse[], loading: false, error: null });
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setCourses({ data: null, loading: false, error: (err as Error).message });
+                }
+            }
+        }
+
+        setCourses(prev => ({ ...prev, loading: true, error: null }));
+        fetchCourses();
+
+        return () => { cancelled = true; };
     }, [instance]);
 
     return (
