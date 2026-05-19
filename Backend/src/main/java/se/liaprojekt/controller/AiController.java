@@ -21,17 +21,25 @@ public class AiController {
     private final AiSessionInitService initService;
     private final AiCharacterService aiCharacterService;
 
+    /**
+     * Send message to Azure Assistant thread
+     */
     @PostMapping("/chat")
-    public ResponseEntity<String> chat(@RequestBody ChatRequest request) {
+    public ResponseEntity<String> chat(
+            @RequestBody ChatRequest request
+    ) {
 
-        return ResponseEntity.ok(
-                chatService.chat(
-                        request.getSessionId(),
-                        request.getMessage()
-                )
+        String response = chatService.chat(
+                request.getSessionId(),
+                request.getMessage()
         );
+
+        return ResponseEntity.ok(response);
     }
 
+    /**
+     * Create or reuse session/thread
+     */
     @PostMapping("/session")
     public ResponseEntity<Long> createSession(
             @RequestParam Long userId,
@@ -48,15 +56,17 @@ public class AiController {
         return ResponseEntity.ok(session.getId());
     }
 
-
     /**
-     * Fetch available characters per course
+     * Get available AI characters for a course
      */
     @GetMapping("/characters/{courseId}")
-    public ResponseEntity<List<AiCharacterResponse>> getCharacters(@PathVariable Long courseId) {
+    public ResponseEntity<List<AiCharacterResponse>> getCharacters(
+            @PathVariable Long courseId
+    ) {
 
-        return ResponseEntity.ok(
-                aiCharacterService.getByCourse(courseId)
-        );
+        List<AiCharacterResponse> characters =
+                aiCharacterService.getByCourse(courseId);
+
+        return ResponseEntity.ok(characters);
     }
 }

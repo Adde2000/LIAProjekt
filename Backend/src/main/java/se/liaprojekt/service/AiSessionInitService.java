@@ -2,37 +2,65 @@ package se.liaprojekt.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import se.liaprojekt.model.AiCharacter;
-import se.liaprojekt.model.AiSession;
-import se.liaprojekt.repository.AiCharacterRepository;
-import se.liaprojekt.repository.AiSessionRepository;
+import se.liaprojekt.model.*;
+import se.liaprojekt.repository.*;
 
 @Service
 @RequiredArgsConstructor
 public class AiSessionInitService {
 
     private final AzureAssistantClient client;
+
     private final AiSessionRepository sessionRepo;
     private final AiCharacterRepository characterRepo;
+    private final UserRepository userRepo;
+    private final CourseRepository courseRepo;
 
-    /**
-     * Creates a session bound to a specific AI character (dynamic assistant selection)
-     */
-    public AiSession createSession(Long userId, Long courseId, Long characterId) {
+    public AiSession createSession(
+            Long userId,
+            Long courseId,
+            Long characterId
+    ) {
 
-        // 1. fetch character
+        User user = userRepo.findById(userId)
+                .orElseThrow();
+
+        Course course = courseRepo.findById(courseId)
+                .orElseThrow();
+
         AiCharacter character = characterRepo.findById(characterId)
                 .orElseThrow();
 
-        // 2. extract assistantId (THIS is the key)
-        String assistantId = character.getAssistantId();
+        boolean valid = character.getCourses()
+                .stream()
+                .anyMatch(c -> c.getId().equals(courseId));
 
-        // 3. create thread
+        if (!valid) {
+            throw new RuntimeException("Character does not belong to course");
+        }
+
+        return sessionRepo
+                .findByUser_IdAndCourse_IdAndAiCharacter_Id(
+                        userId,
+                        courseId,
+                        characterId
+                )
+                .orElseGet(() -> createNewSession(user, course, character));
+    }
+
+    private AiSession createNewSession(
+            User user,
+            Course course,
+            AiCharacter character
+    ) {
+
         String threadId = client.createThread();
 
-        // 4. save session with BOTH thread + assistant
         AiSession session = new AiSession();
+
         session.setThreadId(threadId);
+        session.setUser(user);
+        session.setCourse(course);
         session.setAiCharacter(character);
 
         return sessionRepo.save(session);

@@ -5,9 +5,8 @@ import org.springframework.stereotype.Service;
 import se.liaprojekt.model.AiSession;
 import se.liaprojekt.repository.AiSessionRepository;
 
-/**
- * Handles chat flow using Azure Assistants (Threads)
- */
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class AiChatService {
@@ -22,13 +21,16 @@ public class AiChatService {
 
         String threadId = session.getThreadId();
 
-        // 1. send message
         client.addMessage(threadId, message);
 
-        // 2. IMPORTANT: run with correct assistant
-        return client.runAndWaitForResponse(
+        String runId = client.createRun(
                 threadId,
                 session.getAiCharacter().getAssistantId()
         );
+
+        session.setLastUsedAt(LocalDateTime.now());
+        repo.save(session);
+
+        return client.waitForCompletion(threadId, runId);
     }
 }

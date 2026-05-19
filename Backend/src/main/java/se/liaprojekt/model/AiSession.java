@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 /**
  * Representerar en AI-session kopplad till Azure Assistants Thread.
  * Detta ersätter all manuell chat history.
@@ -23,10 +25,8 @@ public class AiSession {
     /**
      * Azure OpenAI Thread ID (detta är "minnet")
      */
-    @Column(unique = true)
+    @Column(nullable = false, unique = true)
     private String threadId;
-
-    private String assistantId;
 
     /**
      * Kopplad användare
@@ -48,4 +48,8 @@ public class AiSession {
     @ManyToOne
     @JoinColumn(name = "ai_character_id", nullable = false)
     private AiCharacter aiCharacter;
+
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    private LocalDateTime lastUsedAt = LocalDateTime.now();
 }

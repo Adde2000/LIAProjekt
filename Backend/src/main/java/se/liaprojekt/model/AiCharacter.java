@@ -27,9 +27,6 @@ public class AiCharacter {
     @Column(nullable = false)
     private String description;
 
-    @Column(nullable = false)
-    private String systemPromptUrl;
-
     @ManyToMany(mappedBy = "aiCharacters")
     private List<Course> courses;
 }

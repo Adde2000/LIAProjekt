@@ -11,15 +11,12 @@ import org.springframework.web.client.RestTemplate;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Handles Azure OpenAI Assistants API (Threads + Runs + Polling)
- */
 @Service
 @RequiredArgsConstructor
 public class AzureAssistantClient {
 
+    private final RestTemplate restTemplate;
     private final TokenCredential credential;
-    private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${azure.openai.endpoint}")
     private String endpoint;
@@ -27,10 +24,7 @@ public class AzureAssistantClient {
     @Value("${azure.openai.api-version}")
     private String apiVersion;
 
-    @Value("${azure.openai.assistant-id}")
-    private String assistantId;
-
-    // ---------------- AUTH ----------------
+    // ---------------- TOKEN ----------------
 
     private String getToken() {
         return credential.getToken(
@@ -40,10 +34,10 @@ public class AzureAssistantClient {
     }
 
     private HttpHeaders headers() {
-        HttpHeaders h = new HttpHeaders();
-        h.setBearerAuth(getToken());
-        h.setContentType(MediaType.APPLICATION_JSON);
-        return h;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(getToken());
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return headers;
     }
 
     // ---------------- THREAD ----------------
@@ -52,11 +46,14 @@ public class AzureAssistantClient {
 
         String url = endpoint + "/openai/threads?api-version=" + apiVersion;
 
-        ResponseEntity<Map> res =
-                restTemplate.exchange(url, HttpMethod.POST,
-                        new HttpEntity<>(headers()), Map.class);
+        ResponseEntity<Map> response = restTemplate.exchange(
+                url,
+                HttpMethod.POST,
+                new HttpEntity<>(headers()),
+                Map.class
+        );
 
-        return (String) res.getBody().get("id");
+        return (String) response.getBody().get("id");
     }
 
     // ---------------- MESSAGE ----------------
@@ -65,52 +62,52 @@ public class AzureAssistantClient {
 
         String url = endpoint + "/openai/threads/" + threadId + "/messages?api-version=" + apiVersion;
 
-        Map body = Map.of(
+        Map<String, Object> body = Map.of(
                 "role", "user",
                 "content", message
         );
 
-        restTemplate.postForEntity(url,
+        restTemplate.postForEntity(
+                url,
                 new HttpEntity<>(body, headers()),
-                Map.class);
+                Map.class
+        );
     }
 
     // ---------------- RUN ----------------
 
-    public String run(String threadId, String assistantId) {
+    public String createRun(String threadId, String assistantId) {
 
-        String url = endpoint +
-                "/openai/threads/" + threadId +
-                "/runs?api-version=" + apiVersion;
+        String url = endpoint + "/openai/threads/" + threadId + "/runs?api-version=" + apiVersion;
 
-        Map body = Map.of(
+        Map<String, Object> body = Map.of(
                 "assistant_id", assistantId
         );
 
-        ResponseEntity<Map> res =
-                restTemplate.postForEntity(url,
-                        new HttpEntity<>(body, headers()),
-                        Map.class);
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                url,
+                new HttpEntity<>(body, headers()),
+                Map.class
+        );
 
-        return (String) res.getBody().get("id");
+        return (String) response.getBody().get("id");
     }
 
-    // ---------------- POLLING ENTRY POINT ----------------
+    // ---------------- WAIT ----------------
 
-    public String runAndWaitForResponse(String threadId, String assistantId) {
+    public String waitForCompletion(String threadId, String runId) {
 
-        String runId = run(threadId, assistantId);
-
-        String status = "";
         int attempts = 0;
 
         while (attempts < 30) {
 
-            status = getRunStatus(threadId, runId);
+            String status = getRunStatus(threadId, runId);
 
-            if ("completed".equals(status)) break;
+            if ("completed".equals(status)) {
+                return getLatestMessage(threadId);
+            }
 
-            if (List.of("failed", "cancelled", "expired").contains(status)) {
+            if (List.of("failed", "expired", "cancelled").contains(status)) {
                 throw new RuntimeException("Run failed: " + status);
             }
 
@@ -118,53 +115,51 @@ public class AzureAssistantClient {
             attempts++;
         }
 
-        if (!"completed".equals(status)) {
-            throw new RuntimeException("Run timeout");
-        }
-
-        return getLatestMessage(threadId);
+        throw new RuntimeException("Run timeout");
     }
 
-    // ---------------- RUN STATUS ----------------
+    // ---------------- STATUS ----------------
 
     public String getRunStatus(String threadId, String runId) {
 
-        String url = endpoint +
-                "/openai/threads/" + threadId +
-                "/runs/" + runId +
-                "?api-version=" + apiVersion;
+        String url = endpoint + "/openai/threads/" + threadId + "/runs/" + runId + "?api-version=" + apiVersion;
 
-        ResponseEntity<Map> res =
-                restTemplate.exchange(url, HttpMethod.GET,
-                        new HttpEntity<>(headers()), Map.class);
+        ResponseEntity<Map> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                new HttpEntity<>(headers()),
+                Map.class
+        );
 
-        return (String) res.getBody().get("status");
+        return (String) response.getBody().get("status");
     }
 
     // ---------------- RESPONSE ----------------
 
     public String getLatestMessage(String threadId) {
 
-        String url = endpoint +
-                "/openai/threads/" + threadId +
-                "/messages?api-version=" + apiVersion;
+        String url = endpoint + "/openai/threads/" + threadId + "/messages?api-version=" + apiVersion;
 
-        ResponseEntity<Map> res =
-                restTemplate.exchange(url, HttpMethod.GET,
-                        new HttpEntity<>(headers()), Map.class);
+        ResponseEntity<Map> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                new HttpEntity<>(headers()),
+                Map.class
+        );
 
         List<Map<String, Object>> data =
-                (List<Map<String, Object>>) res.getBody().get("data");
+                (List<Map<String, Object>>) response.getBody().get("data");
 
         Map<String, Object> latest = data.get(0);
 
         List<Map<String, Object>> content =
                 (List<Map<String, Object>>) latest.get("content");
 
-        return content.get(0).get("text").toString();
-    }
+        Map<String, Object> text =
+                (Map<String, Object>) content.get(0).get("text");
 
-    // ---------------- UTIL ----------------
+        return (String) text.get("value");
+    }
 
     private void sleep(long ms) {
         try {
