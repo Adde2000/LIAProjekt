@@ -604,3 +604,12 @@
     gap: 12px;
     margin-top: 1rem;
 }
+
+/* ── Role badge group (multiple roles per user) ───────────────────────────── */
+
+.vmv-role-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}

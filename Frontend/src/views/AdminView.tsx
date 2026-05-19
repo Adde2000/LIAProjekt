@@ -25,6 +25,7 @@ const ROLE_CLS: Record<UserRole, string> = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// normaliseRole maps a single raw role string to a typed UserRole
 function normaliseRole(raw: string): UserRole {
     const map: Record<string, UserRole> = {
         admin:       "admin",
@@ -35,12 +36,17 @@ function normaliseRole(raw: string): UserRole {
     return map[raw.toLowerCase()] ?? "student";
 }
 
+// normaliseRoles maps the full Set<String> from the API to typed UserRole[]
+function normaliseRoles(raw: string[]): UserRole[] {
+    return raw.map(normaliseRole);
+}
+
 function mapUser(u: UserResponse): User {
     return {
         id:              u.id,
         name:            u.displayName,
         email:           u.mail,
-        role:            normaliseRole(u.role),   // lowercase .role from updated DTO
+        roles:           normaliseRoles(u.role),
         coursesEnrolled: 0,
     };
 }
@@ -95,10 +101,10 @@ function UsersView() {
     }
 
     const filtered = users.filter((u) => {
-        const matchRole   = roleFilter === "all" || u.role === roleFilter;
+        const matchRole   = roleFilter === "all" || u.roles.includes(roleFilter);
         const matchSearch =
             u.name.toLowerCase().includes(search.toLowerCase()) ||
-            u.email.toLowerCase().includes(search.toLowerCase());
+            (u.email ?? "").toLowerCase().includes(search.toLowerCase());
         return matchRole && matchSearch;
     });
 
@@ -151,8 +157,12 @@ function UsersView() {
                         >
                             <span className="vmv-user-id">{pad(u.id)}</span>
                             <span className="vmv-user-name">{u.name}</span>
-                            <span className="vmv-user-email">{u.email}</span>
-                            <span><span className={ROLE_CLS[u.role]}>{ROLE_LABELS[u.role]}</span></span>
+                            <span className="vmv-user-email">{u.email ?? <span style={{ opacity: 0.4, fontStyle: "italic" }}>–</span>}</span>
+                            <span className="vmv-role-badges">
+                                {u.roles.map((r) => (
+                                    <span key={r} className={ROLE_CLS[r]}>{ROLE_LABELS[r]}</span>
+                                ))}
+                            </span>
                             <span className="vmv-user-meta">{u.coursesEnrolled}</span>
                         </div>
                     ))
@@ -167,7 +177,9 @@ function UsersView() {
                         </div>
                         <div>
                             <div className="vmv-user-detail-name">{selectedUser.name}</div>
-                            <div className="vmv-user-detail-email">{selectedUser.email}</div>
+                            <div className="vmv-user-detail-email">
+                                {selectedUser.email ?? <span style={{ fontStyle: "italic", opacity: 0.5 }}>Ingen e-post registrerad</span>}
+                            </div>
                         </div>
                         <button
                             className="vmv-user-detail-close"
@@ -177,8 +189,12 @@ function UsersView() {
                     </div>
                     <div className="vmv-user-detail-grid">
                         <div>
-                            <div className="vmv-user-detail-label">Roll</div>
-                            <div className="vmv-user-detail-val">{ROLE_LABELS[selectedUser.role]}</div>
+                            <div className="vmv-user-detail-label">Roller</div>
+                            <div className="vmv-role-badges">
+                                {selectedUser.roles.map((r) => (
+                                    <span key={r} className={ROLE_CLS[r]}>{ROLE_LABELS[r]}</span>
+                                ))}
+                            </div>
                         </div>
                         <div>
                             <div className="vmv-user-detail-label">Antal Kurser</div>

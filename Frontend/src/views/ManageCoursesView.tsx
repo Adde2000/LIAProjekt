@@ -90,8 +90,12 @@ function StudentRow({ user, index, action }: {
         <div className="vmv-mgmt-student-row">
             <span className="vmv-user-id">{pad(index + 1)}</span>
             <span className="vmv-user-name">{user.displayName}</span>
-            <span className="vmv-user-email">{user.mail}</span>
-            <span className="vmv-mgmt-role-badge">{user.role}</span>
+            <span className="vmv-user-email">{user.mail ?? <span style={{ opacity: 0.4, fontStyle: "italic" }}>–</span>}</span>
+            <span className="vmv-role-badges">
+                {user.role.map((r) => (
+                    <span key={r} className="vmv-mgmt-role-badge">{r}</span>
+                ))}
+            </span>
             {action && <span>{action}</span>}
         </div>
     );
@@ -115,25 +119,55 @@ function CourseDetail({ course }: { course: CourseResponse }) {
 
     // Fetch enrolled students whenever the selected course changes
     useEffect(() => {
-        setEnrolled({ data: null, loading: true, error: null });
-        setStaged(new Set());
-        setShowAdd(false);
-        setAddStatus("idle");
+        let cancelled = false;
 
-        getCourseStudents(instance, course.id)
-            .then((data) => setEnrolled({ data: data as UserResponse[], loading: false, error: null }))
-            .catch((err: Error) => setEnrolled({ data: null, loading: false, error: err.message }));
+        async function fetchStudents() {
+            setEnrolled({ data: null, loading: true, error: null });
+            setStaged(new Set());
+            setShowAdd(false);
+            setAddStatus("idle");
+
+            try {
+                const data = await getCourseStudents(instance, course.id);
+                if (!cancelled) {
+                    setEnrolled({ data: data as UserResponse[], loading: false, error: null });
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setEnrolled({ data: null, loading: false, error: (err as Error).message });
+                }
+            }
+        }
+
+        fetchStudents();
+
+        return () => { cancelled = true; };
     }, [instance, course.id]);
 
     // Fetch all users lazily — only when the add panel opens
     useEffect(() => {
         if (!showAdd || allUsers.data) return;
 
-        setAllUsers({ data: null, loading: true, error: null });
+        let cancelled = false;
 
-        getUsers(instance)
-            .then((data) => setAllUsers({ data: data as UserResponse[], loading: false, error: null }))
-            .catch((err: Error) => setAllUsers({ data: null, loading: false, error: err.message }));
+        async function fetchAllUsers() {
+            setAllUsers({ data: null, loading: true, error: null });
+
+            try {
+                const data = await getUsers(instance);
+                if (!cancelled) {
+                    setAllUsers({ data: data as UserResponse[], loading: false, error: null });
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setAllUsers({ data: null, loading: false, error: (err as Error).message });
+                }
+            }
+        }
+
+        fetchAllUsers();
+
+        return () => { cancelled = true; };
     }, [showAdd, instance, allUsers.data]);
 
     const enrolledIds = new Set((enrolled.data ?? []).map((u) => u.id));
@@ -141,13 +175,18 @@ function CourseDetail({ course }: { course: CourseResponse }) {
     // Users available to add = all users minus already enrolled
     const available = (allUsers.data ?? []).filter(
         (u) => !enrolledIds.has(u.id) &&
-               u.displayName.toLowerCase().includes(search.toLowerCase())
+               (u.displayName.toLowerCase().includes(search.toLowerCase()) ||
+               (u.mail ?? "").toLowerCase().includes(search.toLowerCase()))
     );
 
     function toggleStaged(id: number) {
         setStaged((prev) => {
             const next = new Set(prev);
-            next.has(id) ? next.delete(id) : next.add(id);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
             return next;
         });
     }
@@ -311,11 +350,26 @@ export function ManageCoursesView() {
     const [selectedCourse, setSelectedCourse] = useState<CourseResponse | null>(null);
 
     useEffect(() => {
-        setCourses({ data: null, loading: true, error: null });
+        let cancelled = false;
 
-        getCourses(instance)
-            .then((data) => setCourses({ data: data as CourseResponse[], loading: false, error: null }))
-            .catch((err: Error) => setCourses({ data: null, loading: false, error: err.message }));
+        async function fetchCourses() {
+            setCourses({ data: null, loading: true, error: null });
+
+            try {
+                const data = await getCourses(instance);
+                if (!cancelled) {
+                    setCourses({ data: data as CourseResponse[], loading: false, error: null });
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setCourses({ data: null, loading: false, error: (err as Error).message });
+                }
+            }
+        }
+
+        fetchCourses();
+
+        return () => { cancelled = true; };
     }, [instance]);
 
     return (
