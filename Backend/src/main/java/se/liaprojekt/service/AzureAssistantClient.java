@@ -2,18 +2,29 @@ package se.liaprojekt.service;
 
 import com.azure.core.credential.TokenCredential;
 import com.azure.core.credential.TokenRequestContext;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import se.liaprojekt.dto.azure.*;
+import se.liaprojekt.exception.AzureAssistantException;
 
 import java.util.List;
-import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AzureAssistantClient {
+
+    private static final String AZURE_SCOPE =
+            "https://cognitiveservices.azure.com/.default";
+
+    private static final int MAX_POLL_ATTEMPTS = 30;
+    private static final long POLL_INTERVAL_MS = 2000;
 
     private final RestTemplate restTemplate;
     private final TokenCredential credential;
@@ -24,148 +35,376 @@ public class AzureAssistantClient {
     @Value("${azure.openai.api-version}")
     private String apiVersion;
 
-    // ---------------- TOKEN ----------------
+    // =========================
+    // VALIDATE CONFIG
+    // =========================
 
-    private String getToken() {
-        return credential.getToken(
-                new TokenRequestContext()
-                        .addScopes("https://cognitiveservices.azure.com/.default")
-        ).block().getToken();
+    @PostConstruct
+    public void validateConfig() {
+
+        if (endpoint == null || endpoint.isBlank()) {
+            throw new IllegalStateException(
+                    "azure.openai.endpoint is missing"
+            );
+        }
+
+        if (apiVersion == null || apiVersion.isBlank()) {
+            throw new IllegalStateException(
+                    "azure.openai.api-version is missing"
+            );
+        }
+
+        log.info("Azure OpenAI endpoint configured");
     }
 
+    // =========================
+    // TOKEN
+    // =========================
+
+    private String getToken() {
+
+        try {
+
+            return credential.getToken(
+                    new TokenRequestContext()
+                            .addScopes(AZURE_SCOPE)
+            ).block().getToken();
+
+        } catch (Exception ex) {
+
+            throw new AzureAssistantException(
+                    "Failed to acquire Azure access token",
+                    ex
+            );
+        }
+    }
+
+    // =========================
+    // HEADERS
+    // =========================
+
     private HttpHeaders headers() {
+
         HttpHeaders headers = new HttpHeaders();
+
         headers.setBearerAuth(getToken());
         headers.setContentType(MediaType.APPLICATION_JSON);
+
         return headers;
     }
 
-    // ---------------- THREAD ----------------
+    // =========================
+    // URL BUILDER
+    // =========================
+
+    private String url(String path) {
+        return endpoint + path + "?api-version=" + apiVersion;
+    }
+
+    // =========================
+    // THREAD
+    // =========================
 
     public String createThread() {
 
-        String url = endpoint + "/openai/threads?api-version=" + apiVersion;
+        log.info("Creating Azure OpenAI thread");
 
-        ResponseEntity<Map> response = restTemplate.exchange(
-                url,
-                HttpMethod.POST,
-                new HttpEntity<>(headers()),
-                Map.class
+        AzureThreadResponse response = post(
+                url("/openai/threads"),
+                null,
+                AzureThreadResponse.class
         );
 
-        return (String) response.getBody().get("id");
+        if (response == null || response.id() == null) {
+            throw new AzureAssistantException(
+                    "Azure returned invalid thread response"
+            );
+        }
+
+        return response.id();
     }
 
-    // ---------------- MESSAGE ----------------
+    // =========================
+    // MESSAGE
+    // =========================
 
     public void addMessage(String threadId, String message) {
 
-        String url = endpoint + "/openai/threads/" + threadId + "/messages?api-version=" + apiVersion;
+        log.info("Adding message to thread {}", threadId);
 
-        Map<String, Object> body = Map.of(
-                "role", "user",
-                "content", message
-        );
+        AddMessageRequest request =
+                new AddMessageRequest("user", message);
 
-        restTemplate.postForEntity(
-                url,
-                new HttpEntity<>(body, headers()),
-                Map.class
+        post(
+                url("/openai/threads/" + threadId + "/messages"),
+                request,
+                Void.class
         );
     }
 
-    // ---------------- RUN ----------------
+    // =========================
+    // RUN
+    // =========================
 
     public String createRun(String threadId, String assistantId) {
 
-        String url = endpoint + "/openai/threads/" + threadId + "/runs?api-version=" + apiVersion;
+        log.info("Creating assistant run");
 
-        Map<String, Object> body = Map.of(
-                "assistant_id", assistantId
+        CreateRunRequest request =
+                new CreateRunRequest(assistantId);
+
+        AzureRunResponse response = post(
+                url("/openai/threads/" + threadId + "/runs"),
+                request,
+                AzureRunResponse.class
         );
 
-        ResponseEntity<Map> response = restTemplate.postForEntity(
-                url,
-                new HttpEntity<>(body, headers()),
-                Map.class
-        );
+        if (response == null || response.id() == null) {
+            throw new AzureAssistantException(
+                    "Azure returned invalid run response"
+            );
+        }
 
-        return (String) response.getBody().get("id");
+        return response.id();
     }
 
-    // ---------------- WAIT ----------------
+    // =========================
+    // WAIT FOR COMPLETION
+    // =========================
 
     public String waitForCompletion(String threadId, String runId) {
 
         int attempts = 0;
 
-        while (attempts < 30) {
+        while (attempts < MAX_POLL_ATTEMPTS) {
 
             String status = getRunStatus(threadId, runId);
+
+            log.info("Run status: {}", status);
+
+            // =========================
+            // COMPLETED
+            // =========================
 
             if ("completed".equals(status)) {
                 return getLatestMessage(threadId);
             }
 
-            if (List.of("failed", "expired", "cancelled").contains(status)) {
-                throw new RuntimeException("Run failed: " + status);
+            // =========================
+            // FAILED STATES
+            // =========================
+
+            if (List.of(
+                    "failed",
+                    "expired",
+                    "cancelled"
+            ).contains(status)) {
+
+                throw new AzureAssistantException(
+                        "Azure run failed with status: " + status
+                );
             }
 
-            sleep(1000);
+            // =========================
+            // LOG UNKNOWN STATES
+            // =========================
+
+            if (!List.of(
+                    "queued",
+                    "in_progress",
+                    "completed"
+            ).contains(status)) {
+
+                log.warn("Unhandled Azure run status: {}", status);
+            }
+
+            sleep(POLL_INTERVAL_MS);
             attempts++;
         }
 
-        throw new RuntimeException("Run timeout");
+        throw new AzureAssistantException(
+                "Azure run timeout"
+        );
     }
 
-    // ---------------- STATUS ----------------
+    // =========================
+    // STATUS
+    // =========================
 
     public String getRunStatus(String threadId, String runId) {
 
-        String url = endpoint + "/openai/threads/" + threadId + "/runs/" + runId + "?api-version=" + apiVersion;
-
-        ResponseEntity<Map> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                new HttpEntity<>(headers()),
-                Map.class
+        AzureRunStatusResponse response = get(
+                url("/openai/threads/" + threadId + "/runs/" + runId),
+                AzureRunStatusResponse.class
         );
 
-        return (String) response.getBody().get("status");
+        if (response == null || response.status() == null) {
+            throw new AzureAssistantException(
+                    "Azure returned invalid run status response"
+            );
+        }
+
+        return response.status();
     }
 
-    // ---------------- RESPONSE ----------------
+    // =========================
+    // GET RESPONSE
+    // =========================
 
     public String getLatestMessage(String threadId) {
 
-        String url = endpoint + "/openai/threads/" + threadId + "/messages?api-version=" + apiVersion;
-
-        ResponseEntity<Map> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                new HttpEntity<>(headers()),
-                Map.class
+        AzureMessageListResponse response = get(
+                url("/openai/threads/" + threadId + "/messages"),
+                AzureMessageListResponse.class
         );
 
-        List<Map<String, Object>> data =
-                (List<Map<String, Object>>) response.getBody().get("data");
+        // =========================
+        // VALIDATE RESPONSE
+        // =========================
 
-        Map<String, Object> latest = data.get(0);
+        if (response == null ||
+                response.data() == null ||
+                response.data().isEmpty()) {
 
-        List<Map<String, Object>> content =
-                (List<Map<String, Object>>) latest.get("content");
+            throw new AzureAssistantException(
+                    "No messages returned from Azure"
+            );
+        }
 
-        Map<String, Object> text =
-                (Map<String, Object>) content.get(0).get("text");
+        AzureMessageData latestMessage =
+                response.data().getFirst();
 
-        return (String) text.get("value");
+        if (latestMessage.content() == null ||
+                latestMessage.content().isEmpty()) {
+
+            throw new AzureAssistantException(
+                    "Azure message content missing"
+            );
+        }
+
+        AzureMessageContent content =
+                latestMessage.content().getFirst();
+
+        if (content.text() == null ||
+                content.text().value() == null) {
+
+            throw new AzureAssistantException(
+                    "Azure message text missing"
+            );
+        }
+
+        return content.text().value();
     }
 
-    private void sleep(long ms) {
+    // =========================
+    // GENERIC GET
+    // =========================
+
+    private <T> T get(String url, Class<T> responseType) {
+
         try {
+
+            ResponseEntity<T> response =
+                    restTemplate.exchange(
+                            url,
+                            HttpMethod.GET,
+                            new HttpEntity<>(headers()),
+                            responseType
+                    );
+
+            return response.getBody();
+
+        } catch (HttpClientErrorException ex) {
+
+            log.error(
+                    "Azure GET failed: {} | {}",
+                    ex.getStatusCode(),
+                    ex.getResponseBodyAsString()
+            );
+
+            throw new AzureAssistantException(
+                    "Azure GET request failed: " + ex.getStatusCode(),
+                    ex
+            );
+
+        } catch (Exception ex) {
+
+            log.error("Unexpected Azure GET error", ex);
+
+            throw new AzureAssistantException(
+                    "Unexpected Azure GET error",
+                    ex
+            );
+        }
+    }
+
+    // =========================
+    // GENERIC POST
+    // =========================
+
+    private <T> T post(
+            String url,
+            Object body,
+            Class<T> responseType
+    ) {
+
+        try {
+
+            HttpEntity<?> entity =
+                    new HttpEntity<>(body, headers());
+
+            ResponseEntity<T> response =
+                    restTemplate.exchange(
+                            url,
+                            HttpMethod.POST,
+                            entity,
+                            responseType
+                    );
+
+            return response.getBody();
+
+        } catch (HttpClientErrorException ex) {
+
+            log.error(
+                    "Azure POST failed: {} | {}",
+                    ex.getStatusCode(),
+                    ex.getResponseBodyAsString()
+            );
+
+            throw new AzureAssistantException(
+                    "Azure POST request failed: " + ex.getStatusCode(),
+                    ex
+            );
+
+        } catch (Exception ex) {
+
+            log.error("Unexpected Azure POST error", ex);
+
+            throw new AzureAssistantException(
+                    "Unexpected Azure POST error",
+                    ex
+            );
+        }
+    }
+
+    // =========================
+    // SLEEP
+    // =========================
+
+    private void sleep(long ms) {
+
+        try {
+
             Thread.sleep(ms);
+
         } catch (InterruptedException e) {
+
             Thread.currentThread().interrupt();
+
+            throw new AzureAssistantException(
+                    "Polling interrupted",
+                    e
+            );
         }
     }
 }
