@@ -90,8 +90,12 @@ function StudentRow({ user, index, action }: {
         <div className="vmv-mgmt-student-row">
             <span className="vmv-user-id">{pad(index + 1)}</span>
             <span className="vmv-user-name">{user.displayName}</span>
-            <span className="vmv-user-email">{user.mail}</span>
-            <span className="vmv-mgmt-role-badge">{user.role}</span>
+            <span className="vmv-user-email">{user.mail ?? <span style={{ opacity: 0.4, fontStyle: "italic" }}>–</span>}</span>
+            <span className="vmv-role-badges">
+                {user.role.map((r) => (
+                    <span key={r} className="vmv-mgmt-role-badge">{r}</span>
+                ))}
+            </span>
             {action && <span>{action}</span>}
         </div>
     );
@@ -141,7 +145,8 @@ function CourseDetail({ course }: { course: CourseResponse }) {
     // Users available to add = all users minus already enrolled
     const available = (allUsers.data ?? []).filter(
         (u) => !enrolledIds.has(u.id) &&
-               u.displayName.toLowerCase().includes(search.toLowerCase())
+               (u.displayName.toLowerCase().includes(search.toLowerCase()) ||
+               (u.mail ?? "").toLowerCase().includes(search.toLowerCase()))
     );
 
     function toggleStaged(id: number) {

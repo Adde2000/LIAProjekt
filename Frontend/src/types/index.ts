@@ -21,8 +21,8 @@ export interface Quiz {
 export interface User {
     id: number;
     name: string;
-    email: string;
-    role: UserRole;
+    email: string | null;    // null if the user has no email registered
+    roles: UserRole[];
     coursesEnrolled: number;
 }
 
@@ -32,8 +32,8 @@ export interface UserResponse {
     displayName: string;
     givenName: string;
     surname: string;
-    mail: string;
-    role: string;           // lowercase in the updated DTO
+    mail: string | null;    // null if the user has no email registered
+    role: string[];         // Java Set<String> deserialises to an array in JSON
 }
 
 // Mirrors the Java CourseRequest record — sent as POST body when creating a course
