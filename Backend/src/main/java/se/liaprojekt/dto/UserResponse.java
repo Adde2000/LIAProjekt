@@ -1,6 +1,6 @@
 package se.liaprojekt.dto;
 
-import java.util.List;
+import java.util.Set;
 
 public record UserResponse(
         Long id,
@@ -8,6 +8,6 @@ public record UserResponse(
         String givenName,
         String surname,
         String mail,
-        List<String> role
+        Set<String> role
 ) {
 }

@@ -1,6 +1,6 @@
 package se.liaprojekt.dto;
 
-import java.util.List;
+import java.util.Set;
 
 public record GraphResponse(
         String id,
@@ -8,6 +8,6 @@ public record GraphResponse(
         String givenName,
         String surname,
         String mail,
-        List<String> role
+        Set<String> role
 ) {
 }
