@@ -1,4 +1,10 @@
 export type Status = "in-progress" | "completed" | "not-started";
+
+export type LoadState<T> = { data: T | null; loading: boolean; error: string | null };
+
+export function idle<T>(): LoadState<T> {
+    return { data: null, loading: false, error: null };
+}
 export type ViewKey = "courses" | "quizzes" | "admin";
 export type FilterKey = "all" | Status;
 export type UserRole = "admin" | "student" | "courseAdmin";
