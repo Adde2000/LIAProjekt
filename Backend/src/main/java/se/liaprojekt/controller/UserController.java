@@ -2,12 +2,19 @@ package se.liaprojekt.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import se.liaprojekt.dto.CourseResponse;
 import se.liaprojekt.dto.UserResponse;
+import se.liaprojekt.service.CourseService;
 import se.liaprojekt.service.UserService;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -15,6 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+    private final CourseService courseService;
 
     @GetMapping("/all")
     public ResponseEntity<List<UserResponse>> getAllUsers() {
@@ -35,9 +43,11 @@ public class UserController {
     }
 
     @GetMapping("/me/courses")
-    public ResponseEntity<List<CourseResponse>> getMyCourses() {
-        //TODO
-        return ResponseEntity.ok(List.of());
+    public ResponseEntity<List<CourseResponse>> getMyCourses(@AuthenticationPrincipal Jwt jwt) {
+        String entraId = jwt.getClaim("oid");
+        long userId = userService.getUserByEntraId(entraId).getId();
+        List<CourseResponse> courseResponseList = courseService.getAllRegisteredCourses(userId);
+        return ResponseEntity.ok(courseResponseList);
     }
 
 }
