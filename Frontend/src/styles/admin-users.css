@@ -1,0 +1,195 @@
+/* ── User table ───────────────────────────────────────────────────────────── */
+
+.vmv-user-table {
+    border: 1px solid var(--color-border-secondary);
+    margin-bottom: 1.5rem;
+}
+
+.vmv-user-thead,
+.vmv-user-row {
+    display: grid;
+    grid-template-columns: 36px 1.6fr 2fr 1fr 0.8fr;
+    gap: 0;
+    align-items: center;
+}
+
+.vmv-user-thead {
+    background: var(--color-background-secondary);
+    border-bottom: 1px solid var(--color-border-secondary);
+    padding: 6px 12px;
+}
+
+.vmv-user-thead span {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+}
+
+.vmv-user-row {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--color-border-tertiary);
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.vmv-user-row:last-child {
+    border-bottom: none;
+}
+
+.vmv-user-row:hover {
+    background: var(--color-background-secondary);
+}
+
+.vmv-user-row.selected {
+    background: var(--color-background-secondary);
+    border-left: 2px solid var(--color-text-primary);
+}
+
+.vmv-user-id {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-border-secondary);
+}
+
+.vmv-user-name {
+    font-family: 'Source Serif 4', serif;
+    font-size: 13px;
+    color: var(--color-text-primary);
+}
+
+.vmv-user-email {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+}
+
+.vmv-user-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+}
+
+/* ── Role badges ──────────────────────────────────────────────────────────── */
+
+.vmv-role {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border: 1px solid transparent;
+}
+
+.vmv-role--admin       { border-color: var(--color-text-primary); color: var(--color-text-primary); }
+.vmv-role--student     { border-color: var(--color-border-secondary); color: var(--color-text-secondary); }
+.vmv-role--courseAdmin { border-color: #854F0B; color: #854F0B; }
+
+.vmv-role-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+/* ── User detail panel ────────────────────────────────────────────────────── */
+
+.vmv-user-detail {
+    border: 1px solid var(--color-border-secondary);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    background: var(--color-background-secondary);
+}
+
+.vmv-user-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.vmv-user-avatar {
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--color-border-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    flex-shrink: 0;
+    background: var(--color-background-primary);
+}
+
+.vmv-user-detail-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: 2px;
+}
+
+.vmv-user-detail-email {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+}
+
+.vmv-user-detail-close {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 4px 8px;
+}
+
+.vmv-user-detail-close:hover {
+    color: var(--color-text-primary);
+}
+
+.vmv-user-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.vmv-user-detail-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    margin-bottom: 4px;
+}
+
+.vmv-user-detail-val {
+    font-family: 'Source Serif 4', serif;
+    font-size: 13px;
+    color: var(--color-text-primary);
+    text-transform: capitalize;
+}
+
+.vmv-user-detail-actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border-tertiary);
+}
+
+.vmv-action--danger {
+    color: #c0392b !important;
+    border-color: #c0392b !important;
+}
+
+.vmv-action--danger:hover {
+    background: rgba(192, 57, 43, 0.1) !important;
+}

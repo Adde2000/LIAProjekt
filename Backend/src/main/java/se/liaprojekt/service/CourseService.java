@@ -28,6 +28,16 @@ public class CourseService {
                 .toList();
     }
 
+    public List<CourseResponse> getAllRegisteredCourses(long userId) {
+        List<UserProgress> userProgressList = userProgressRepository.findByUserId(userId);
+        List<CourseResponse> courseResponseList = new ArrayList<>();
+        for (UserProgress userProgress : userProgressList) {
+            Course course = userProgress.getCourse();
+            courseResponseList.add(mapToResponse(course));
+        }
+        return courseResponseList;
+    }
+
     public CourseResponse getCourseById(Long id) {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() ->
