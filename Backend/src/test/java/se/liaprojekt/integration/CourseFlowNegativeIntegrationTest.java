@@ -162,7 +162,7 @@ class CourseFlowNegativeIntegrationTest {
                           "createdBy": "system"
                         }
                         """))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();

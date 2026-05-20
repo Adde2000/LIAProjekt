@@ -83,7 +83,7 @@ class CourseFlowIntegrationTest {
                           "createdBy": "admin"
                         }
                         """))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
