@@ -6,7 +6,10 @@ import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.*;
 import se.liaprojekt.repository.CourseRepository;
+import se.liaprojekt.repository.SectionRepository;
 import se.liaprojekt.repository.TestResultRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import se.liaprojekt.repository.UserProgressRepository;
 
 import java.util.ArrayList;
@@ -16,8 +19,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CourseService {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(CourseService.class);
+
     private final CourseRepository courseRepository;
     private final TestResultRepository testResultRepository;
+    private final SectionRepository sectionRepository;
     private final UserProgressRepository userProgressRepository;
     private final UserService userService;
 
@@ -109,6 +116,38 @@ public class CourseService {
                 course.getDescription(),
                 course.getCreatedBy()
         );
+    }
+
+    public boolean isCourseCompleted(String entraId, Course course) {
+
+        log.debug("CHECK COURSE COMPLETION | entraId={} courseId={}",
+                entraId,
+                course.getId()
+        );
+
+        List<Section> sections = sectionRepository.findByCourseId(course.getId());
+
+        for (Section section : sections) {
+
+            TestResult lastAttempt = testResultRepository
+                    .findTopByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(
+                            entraId,
+                            section.getId()
+                    )
+                    .orElse(null);
+
+            log.debug("SECTION CHECK | sectionId={} status={}",
+                    section.getId(),
+                    lastAttempt != null ? lastAttempt.getStatus() : "NULL"
+            );
+
+            if (lastAttempt == null ||
+                    lastAttempt.getStatus() != TestResult.Status.COMPLETED) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // =========================
