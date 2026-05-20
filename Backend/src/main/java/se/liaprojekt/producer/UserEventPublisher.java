@@ -5,8 +5,10 @@ import com.azure.messaging.servicebus.ServiceBusSenderClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import se.liaprojekt.event.UserCreatedEvent;
+import se.liaprojekt.exception.EventPublishException;
 
 import java.util.UUID;
 
@@ -18,7 +20,15 @@ public class UserEventPublisher {
     private final ServiceBusSenderClient senderClient;
     private final ObjectMapper objectMapper;
 
+    @Value("${app.events.enabled:true}")
+    private boolean eventsEnabled;
+
     public void publish(UserCreatedEvent event) {
+
+        if (!eventsEnabled) {
+            log.info("Event publishing disabled");
+            return;
+        }
 
         try {
 
@@ -55,7 +65,7 @@ public class UserEventPublisher {
                     e
             );
 
-            throw new RuntimeException(
+            throw new EventPublishException(
                     "Failed to publish USER_CREATED event",
                     e
             );

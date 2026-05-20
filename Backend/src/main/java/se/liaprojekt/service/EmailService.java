@@ -1,19 +1,34 @@
 package se.liaprojekt.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import se.liaprojekt.event.EmailEvent;
 import se.liaprojekt.model.Course;
 import se.liaprojekt.model.EmailType;
 import se.liaprojekt.producer.EmailEventPublisher;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailService {
 
     private final EmailEventPublisher publisher;
 
+    @Value("${app.email.enabled:true}")
+    private boolean emailEnabled;
+
     public void sendTestResultEmail(String email, int score) {
+
+        if (!emailEnabled) {
+            log.info(
+                    "Email disabled - skipped {} email to {}",
+                    EmailType.TEST_RESULT,
+                    email
+            );
+            return;
+        }
 
         EmailEvent event = new EmailEvent(
                 email,
@@ -29,6 +44,15 @@ public class EmailService {
     }
 
     public void sendCourseCompletedEmail(String email, Course course) {
+
+        if (!emailEnabled) {
+            log.info(
+                    "Email disabled - skipped {} email to {}",
+                    EmailType.COURSE_COMPLETED,
+                    email
+            );
+            return;
+        }
 
         EmailEvent event = new EmailEvent(
                 email,
