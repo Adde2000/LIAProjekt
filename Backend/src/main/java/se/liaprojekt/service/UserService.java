@@ -48,6 +48,11 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
     }
 
+    public User getUserByEntraId(String entraId) {
+        return userRepository.findByEntraId(entraId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + entraId));
+    }
+
     private void updateFromGraphAPI(List<GraphResponse> graphResponseList) {
 
         //Get all users in database end put their unique entraId in a set
@@ -111,7 +116,7 @@ public class UserService {
                 graphResponse.givenName(),
                 graphResponse.surname(),
                 graphResponse.mail(),
-                "bob"
+                graphResponse.role()
         );
     }
 }

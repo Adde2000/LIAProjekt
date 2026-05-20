@@ -1,46 +1,10 @@
 import { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
-import type { CourseResponse, UserResponse } from "../types";
-import { getCourses, getCourseStudents, addStudentsToCourse, getUsers } from "../api/api";
-import { pad } from "../components/Shared";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-type LoadState<T> = { data: T | null; loading: boolean; error: string | null };
-
-function idle<T>(): LoadState<T> {
-    return { data: null, loading: false, error: null };
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function FetchState({ loading, error, onRetry }: {
-    loading: boolean;
-    error: string | null;
-    onRetry?: () => void;
-}) {
-    if (loading) {
-        return (
-            <div className="vmv-fetch-state">
-                <div className="vmv-fetch-spinner" />
-                <span>Hämtar...</span>
-            </div>
-        );
-    }
-    if (error) {
-        return (
-            <div className="vmv-fetch-state vmv-fetch-state--error">
-                <span>{error}</span>
-                {onRetry && (
-                    <button className="vmv-quiz-start" onClick={onRetry}>
-                        Försök igen ↗
-                    </button>
-                )}
-            </div>
-        );
-    }
-    return null;
-}
+import type { CourseResponse, UserResponse, LoadState } from "../../types";
+import { idle } from "../../types";
+import { getCourses, getCourseStudents, addStudentsToCourse, getUsers } from "../../api/api.ts";
+import { pad } from "../../components/Shared.tsx";
+import { FetchState } from "../../components/FetchState.tsx";
 
 // ── Course list panel ─────────────────────────────────────────────────────────
 
@@ -90,8 +54,12 @@ function StudentRow({ user, index, action }: {
         <div className="vmv-mgmt-student-row">
             <span className="vmv-user-id">{pad(index + 1)}</span>
             <span className="vmv-user-name">{user.displayName}</span>
-            <span className="vmv-user-email">{user.mail}</span>
-            <span className="vmv-mgmt-role-badge">{user.role}</span>
+            <span className="vmv-user-email">{user.mail ?? <span style={{ opacity: 0.4, fontStyle: "italic" }}>–</span>}</span>
+            <span className="vmv-role-badges">
+                {user.role.map((r) => (
+                    <span key={r} className="vmv-mgmt-role-badge">{r}</span>
+                ))}
+            </span>
             {action && <span>{action}</span>}
         </div>
     );
@@ -102,52 +70,81 @@ function StudentRow({ user, index, action }: {
 function CourseDetail({ course }: { course: CourseResponse }) {
     const { instance } = useMsal();
 
-    // enrolled students
     const [enrolled, setEnrolled]   = useState<LoadState<UserResponse[]>>(idle());
-    // all users (for the add panel)
     const [allUsers, setAllUsers]   = useState<LoadState<UserResponse[]>>(idle());
-    // which users are staged to be added
     const [staged, setStaged]       = useState<Set<number>>(new Set());
     const [addStatus, setAddStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
     const [addError, setAddError]   = useState<string | null>(null);
     const [showAdd, setShowAdd]     = useState(false);
     const [search, setSearch]       = useState("");
 
-    // Fetch enrolled students whenever the selected course changes
     useEffect(() => {
-        setEnrolled({ data: null, loading: true, error: null });
-        setStaged(new Set());
-        setShowAdd(false);
-        setAddStatus("idle");
+        let cancelled = false;
 
-        getCourseStudents(instance, course.id)
-            .then((data) => setEnrolled({ data: data as UserResponse[], loading: false, error: null }))
-            .catch((err: Error) => setEnrolled({ data: null, loading: false, error: err.message }));
+        async function fetchStudents() {
+            setEnrolled({ data: null, loading: true, error: null });
+            setStaged(new Set());
+            setShowAdd(false);
+            setAddStatus("idle");
+
+            try {
+                const data = await getCourseStudents(instance, course.id);
+                if (!cancelled) {
+                    setEnrolled({ data: data as UserResponse[], loading: false, error: null });
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setEnrolled({ data: null, loading: false, error: (err as Error).message });
+                }
+            }
+        }
+
+        fetchStudents();
+
+        return () => { cancelled = true; };
     }, [instance, course.id]);
 
-    // Fetch all users lazily — only when the add panel opens
     useEffect(() => {
         if (!showAdd || allUsers.data) return;
 
-        setAllUsers({ data: null, loading: true, error: null });
+        let cancelled = false;
 
-        getUsers(instance)
-            .then((data) => setAllUsers({ data: data as UserResponse[], loading: false, error: null }))
-            .catch((err: Error) => setAllUsers({ data: null, loading: false, error: err.message }));
+        async function fetchAllUsers() {
+            setAllUsers({ data: null, loading: true, error: null });
+
+            try {
+                const data = await getUsers(instance);
+                if (!cancelled) {
+                    setAllUsers({ data: data as UserResponse[], loading: false, error: null });
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setAllUsers({ data: null, loading: false, error: (err as Error).message });
+                }
+            }
+        }
+
+        fetchAllUsers();
+
+        return () => { cancelled = true; };
     }, [showAdd, instance, allUsers.data]);
 
     const enrolledIds = new Set((enrolled.data ?? []).map((u) => u.id));
 
-    // Users available to add = all users minus already enrolled
     const available = (allUsers.data ?? []).filter(
         (u) => !enrolledIds.has(u.id) &&
-               u.displayName.toLowerCase().includes(search.toLowerCase())
+               (u.displayName.toLowerCase().includes(search.toLowerCase()) ||
+               (u.mail ?? "").toLowerCase().includes(search.toLowerCase()))
     );
 
     function toggleStaged(id: number) {
         setStaged((prev) => {
             const next = new Set(prev);
-            next.has(id) ? next.delete(id) : next.add(id);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
             return next;
         });
     }
@@ -174,7 +171,6 @@ function CourseDetail({ course }: { course: CourseResponse }) {
     return (
         <div className="vmv-mgmt-detail">
 
-            {/* Course header */}
             <div className="vmv-mgmt-detail-header">
                 <div>
                     <div className="vmv-mgmt-detail-title">{course.title}</div>
@@ -183,7 +179,6 @@ function CourseDetail({ course }: { course: CourseResponse }) {
                 </div>
             </div>
 
-            {/* Enrolled students */}
             <div className="vmv-section-head" style={{ marginTop: "1.25rem" }}>
                 Inregistrerade studenter ({enrolled.data?.length ?? "–"})
             </div>
@@ -210,7 +205,6 @@ function CourseDetail({ course }: { course: CourseResponse }) {
                         </div>
                     )}
 
-                    {/* Toggle add panel */}
                     <div className="vmv-mgmt-actions">
                         <button
                             className="vmv-quiz-start"
@@ -232,7 +226,6 @@ function CourseDetail({ course }: { course: CourseResponse }) {
                 </>
             )}
 
-            {/* Add students panel */}
             {showAdd && (
                 <div className="vmv-mgmt-add-panel">
                     <div className="vmv-section-head">Välj studenter att lägga till</div>
@@ -307,15 +300,30 @@ function CourseDetail({ course }: { course: CourseResponse }) {
 
 export function ManageCoursesView() {
     const { instance } = useMsal();
-    const [courses, setCourses]             = useState<LoadState<CourseResponse[]>>(idle());
+    const [courses, setCourses]               = useState<LoadState<CourseResponse[]>>(idle());
     const [selectedCourse, setSelectedCourse] = useState<CourseResponse | null>(null);
 
     useEffect(() => {
-        setCourses({ data: null, loading: true, error: null });
+        let cancelled = false;
 
-        getCourses(instance)
-            .then((data) => setCourses({ data: data as CourseResponse[], loading: false, error: null }))
-            .catch((err: Error) => setCourses({ data: null, loading: false, error: err.message }));
+        async function fetchCourses() {
+            setCourses({ data: null, loading: true, error: null });
+
+            try {
+                const data = await getCourses(instance);
+                if (!cancelled) {
+                    setCourses({ data: data as CourseResponse[], loading: false, error: null });
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setCourses({ data: null, loading: false, error: (err as Error).message });
+                }
+            }
+        }
+
+        fetchCourses();
+
+        return () => { cancelled = true; };
     }, [instance]);
 
     return (

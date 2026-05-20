@@ -2,14 +2,17 @@ import { type JSX, useState } from "react";
 import type { ViewKey } from "./types";
 import { VIEWS } from "./data";
 import { CoursesView } from "./views/CoursesView";
-import { AdminView }   from "./views/AdminView";
+import { AdminView }   from "./views/admin/AdminView";
 
 // CSS — one import per concern, all pulled in here
 import "./styles/global.css";
 import "./styles/layout.css";
 import "./styles/components.css";
 import "./styles/courses.css";
-import "./styles/admin.css";
+import "./styles/admin-layout.css";
+import "./styles/admin-users.css";
+import "./styles/admin-courses.css";
+import "./styles/admin-forms.css";
 
 export default function LearningPortal() {
     const [view, setView] = useState<ViewKey>("courses");
