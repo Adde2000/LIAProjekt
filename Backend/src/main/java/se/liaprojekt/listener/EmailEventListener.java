@@ -1,6 +1,7 @@
 package se.liaprojekt.listener;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 import se.liaprojekt.dto.GraphResponse;
@@ -22,6 +23,9 @@ public class EmailEventListener {
     private final CourseRepository courseRepository;
     private final GraphService graphService;
 
+    @Value("${app.allow-anonymous-events:false}")
+    private boolean allowAnonymousEvents;
+
     @TransactionalEventListener
     public void onTestResult(TestResultEvent event) {
 
@@ -29,8 +33,21 @@ public class EmailEventListener {
                 .findById(event.testResultId())
                 .orElseThrow();
 
+        String entraId = result.getUser().getEntraId();
+
+        if ("anonymousUser".equals(entraId)) {
+
+            if (allowAnonymousEvents) {
+                return;
+            }
+
+            throw new IllegalStateException(
+                    "Anonymous users are not allowed"
+            );
+        }
+
         String email = graphService
-                .getUserByEntraId(result.getUser().getEntraId())
+                .getUserByEntraId(entraId)
                 .mail();
 
         emailService.sendTestResultEmail(
@@ -46,8 +63,21 @@ public class EmailEventListener {
                 .findById(event.courseId())
                 .orElseThrow();
 
+        String entraId = event.entraId();
+
+        if ("anonymousUser".equals(entraId)) {
+
+            if (allowAnonymousEvents) {
+                return;
+            }
+
+            throw new IllegalStateException(
+                    "Anonymous users are not allowed"
+            );
+        }
+
         GraphResponse graphUser = graphService
-                .getUserByEntraId(event.entraId());
+                .getUserByEntraId(entraId);
 
         emailService.sendCourseCompletedEmail(
                 graphUser.mail(),

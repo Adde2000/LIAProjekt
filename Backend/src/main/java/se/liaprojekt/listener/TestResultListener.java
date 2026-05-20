@@ -2,6 +2,7 @@ package se.liaprojekt.listener;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -27,6 +28,9 @@ public class TestResultListener {
     private final GraphService graphService;
     private final ApplicationEventPublisher eventPublisher;
 
+    @Value("${app.allow-anonymous-events:false}")
+    private boolean allowAnonymousEvents;
+
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onTestResult(TestResultEvent event) {
 
@@ -48,8 +52,23 @@ public class TestResultListener {
         // =========================
         // FETCH EMAIL FROM GRAPH
         // =========================
+        String entraId = result.getUser().getEntraId();
+
+        if ("anonymousUser".equals(entraId)) {
+
+            log.info("Skipping email for anonymous user");
+
+            if (allowAnonymousEvents) {
+                return;
+            }
+
+            throw new IllegalStateException(
+                    "Anonymous users are not allowed"
+            );
+        }
+
         String email = graphService
-                .getUserByEntraId(result.getUser().getEntraId())
+                .getUserByEntraId(entraId)
                 .mail();
 
         // =========================
