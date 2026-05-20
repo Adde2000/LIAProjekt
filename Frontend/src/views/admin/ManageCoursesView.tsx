@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
 import type { CourseResponse, UserResponse, LoadState } from "../../types";
 import { idle } from "../../types";
-import { getCourses, getCourseStudents, addStudentsToCourse, getUsers } from "../../api/api.ts";
-import { pad } from "../../components/Shared.tsx";
-import { FetchState } from "../../components/FetchState.tsx";
+import { getCourses, getCourseStudents, addStudentsToCourse, getUsers, deleteCourse } from "../../api/api";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { pad } from "../../components/Shared";
+import { FetchState } from "../../components/FetchState";
 
 // ── Course list panel ─────────────────────────────────────────────────────────
 
@@ -67,7 +68,7 @@ function StudentRow({ user, index, action }: {
 
 // ── Course detail panel ───────────────────────────────────────────────────────
 
-function CourseDetail({ course }: { course: CourseResponse }) {
+function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: (id: number) => void }) {
     const { instance } = useMsal();
 
     const [enrolled, setEnrolled]   = useState<LoadState<UserResponse[]>>(idle());
@@ -77,6 +78,9 @@ function CourseDetail({ course }: { course: CourseResponse }) {
     const [addError, setAddError]   = useState<string | null>(null);
     const [showAdd, setShowAdd]     = useState(false);
     const [search, setSearch]       = useState("");
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [deleting, setDeleting]       = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -168,6 +172,19 @@ function CourseDetail({ course }: { course: CourseResponse }) {
         }
     }
 
+    async function handleDelete() {
+        setDeleting(true);
+        setDeleteError(null);
+        try {
+            await deleteCourse(instance, course.id);
+            onDelete(course.id);
+        } catch (err) {
+            setDeleteError(err instanceof Error ? err.message : "Okänt fel");
+            setDeleting(false);
+            setShowConfirm(false);
+        }
+    }
+
     return (
         <div className="vmv-mgmt-detail">
 
@@ -177,7 +194,32 @@ function CourseDetail({ course }: { course: CourseResponse }) {
                     <div className="vmv-mgmt-detail-desc">{course.description}</div>
                     <div className="vmv-mgmt-detail-meta">Skapad av: {course.createdBy}</div>
                 </div>
+                <div className="vmv-mgmt-detail-header-actions">
+                    <button
+                        className="vmv-quiz-start vmv-quiz-start--danger"
+                        onClick={() => setShowConfirm(true)}
+                    >
+                        Ta bort kurs
+                    </button>
+                    {deleteError && (
+                        <span className="vmv-form-feedback vmv-form-feedback--error">
+                            Fel: {deleteError}
+                        </span>
+                    )}
+                </div>
             </div>
+
+            {showConfirm && (
+                <ConfirmDialog
+                    title="Ta bort kurs"
+                    message={`Är du säker på att du vill ta bort "${course.title}"? Åtgärden kan inte ångras.`}
+                    confirmLabel="Ta bort"
+                    danger
+                    disabled={deleting}
+                    onConfirm={handleDelete}
+                    onCancel={() => setShowConfirm(false)}
+                />
+            )}
 
             <div className="vmv-section-head" style={{ marginTop: "1.25rem" }}>
                 Inregistrerade studenter ({enrolled.data?.length ?? "–"})
@@ -303,6 +345,14 @@ export function ManageCoursesView() {
     const [courses, setCourses]               = useState<LoadState<CourseResponse[]>>(idle());
     const [selectedCourse, setSelectedCourse] = useState<CourseResponse | null>(null);
 
+    function handleCourseDeleted(id: number) {
+        setCourses((prev) => ({
+            ...prev,
+            data: (prev.data ?? []).filter((c) => c.id !== id),
+        }));
+        setSelectedCourse(null);
+    }
+
     useEffect(() => {
         let cancelled = false;
 
@@ -345,7 +395,7 @@ export function ManageCoursesView() {
                     />
                     <div className="vmv-mgmt-detail-pane">
                         {selectedCourse ? (
-                            <CourseDetail course={selectedCourse} />
+                            <CourseDetail course={selectedCourse} onDelete={handleCourseDeleted} />
                         ) : (
                             <div className="vmv-mgmt-placeholder">
                                 ← Välj en kurs för att hantera studenter
