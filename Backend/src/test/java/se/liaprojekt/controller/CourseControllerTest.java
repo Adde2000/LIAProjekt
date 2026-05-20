@@ -1,184 +1,193 @@
-//package se.liaprojekt.controller;
-//
-//import org.junit.jupiter.api.BeforeAll;
-//import org.junit.jupiter.api.BeforeEach;
-//import org.junit.jupiter.api.Test;
-//import org.springframework.http.HttpStatus;
-//import org.springframework.http.ResponseEntity;
-//import se.liaprojekt.dto.CourseRequest;
-//import se.liaprojekt.dto.CourseResponse;
-//import se.liaprojekt.dto.UserRequest;
-//import se.liaprojekt.dto.UserResponse;
-//
-//import java.util.ArrayList;
-//import java.util.List;
-//
-//import static org.junit.jupiter.api.Assertions.*;
-//
-//class CourseControllerTest {
-//
-//    CourseController controller;
-//    private static CourseRequest courseRequest1;
-//    private static CourseRequest courseRequest2;
-//    private static CourseRequest courseRequest3;
-//
-//    @BeforeAll
-//    static void setUpBeforeClass() {
-//        courseRequest1 = new CourseRequest(1L, "TestCourse1", "This is the first test course");
-//        courseRequest2 = new CourseRequest(2L, "TestCourse2", "This is the second test course");
-//        courseRequest3 = new CourseRequest(3L, "TestCourse3", "This is the third test course");
-//    }
-//
-//    @BeforeEach
-//    void setUp() {
-//        controller = new CourseController();
-//    }
-//
-//    @Test
-//    void getAllCoursesEmpty() {
-//        ResponseEntity<List<CourseResponse>> responseEntity = controller.getAllCourses();
-//        assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
-//
-//        List<CourseResponse> courses = responseEntity.getBody();
-//        assertNotNull(courses, "Course list is null");
-//        assertTrue(courses.isEmpty(), "Course list is not empty");
-//    }
-//    @Test
-//    void getAllCourses() {
-//        ResponseEntity<List<CourseResponse>> responseEntity = controller.getAllCourses();
-//        assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
-//
-//        controller.createCourse(courseRequest1);
-//        List<CourseResponse> courses = responseEntity.getBody();
-//        assertNotNull(courses, "Course list is null");
-//        assertEquals(1, courses.size(), "Course list is not the correct size");
-//        assertEquals(courseRequest1.title(), courses.getFirst().getTitle(), "Course title does not match");
-//        assertEquals(courseRequest1.description(), courses.getFirst().getDescription(), "Course description does not match");
-//
-//        controller.createCourse(courseRequest2);
-//        controller.createCourse(courseRequest3);
-//        assertEquals(3, courses.size(), "Course list is not the correct size");
-//
-//    }
-//
-//    @Test
-//    void getCourseByIdNotFound() {
-//        ResponseEntity<CourseResponse> responseEntity = controller.getCourseById(4L);
-//        assertEquals(HttpStatus.NOT_FOUND, responseEntity.getStatusCode(), "Wrong status code");
-//    }
-//
-//    @Test
-//    void getCourseById() {
-//        CourseResponse courseResponse1 = controller.createCourse(courseRequest1).getBody();
-//        CourseResponse courseResponse2 = controller.createCourse(courseRequest2).getBody();
-//        CourseResponse courseResponse3 = controller.createCourse(courseRequest3).getBody();
-//
-//        assertNotNull(courseResponse1, "Course is null from createCourse");
-//        assertNotNull(courseResponse2, "Course is null from createCourse");
-//        assertNotNull(courseResponse3, "Course is null from createCourse");
-//
-//        ResponseEntity<CourseResponse> responseEntity = controller.getCourseById(courseResponse1.getId());
-//        assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
-//        CourseResponse courseResponse = responseEntity.getBody();
-//        assertNotNull(courseResponse, "Course is null from getCourseById");
-//        assertEquals(courseRequest1.title(), courseResponse.getTitle(), "Course title does not match");
-//        assertEquals(courseRequest1.description(), courseResponse.getDescription(), "Course description does not match");
-//
-//        responseEntity = controller.getCourseById(courseResponse2.getId());
-//        assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
-//        courseResponse = responseEntity.getBody();
-//        assertNotNull(courseResponse, "Course is null from getCourseById");
-//        assertEquals(courseRequest2.title(), courseResponse.getTitle(), "Course title does not match");
-//        assertEquals(courseRequest2.description(), courseResponse.getDescription(), "Course description does not match");
-//
-//        responseEntity = controller.getCourseById(courseResponse3.getId());
-//        assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
-//        courseResponse = responseEntity.getBody();
-//        assertNotNull(courseResponse, "Course is null from getCourseById");
-//        assertEquals(courseRequest3.title(), courseResponse.getTitle(), "Course title does not match");
-//        assertEquals(courseRequest3.description(), courseResponse.getDescription(), "Course description does not match");
-//    }
-//
-//    @Test
-//    void getCourseStudentsEmptyList() {
-//        CourseResponse courseResponse = controller.createCourse(courseRequest1).getBody();
-//        assertNotNull(courseResponse, "Course is null from createCourse");
-//
-//        ResponseEntity<List<UserResponse>> students = controller.getCourseStudents(courseResponse.getId());
-//        assertEquals(HttpStatus.OK, students.getStatusCode(), "Wrong status code");
-//        assertNotNull(students.getBody(), "Student list is null");
-//        assertTrue(students.getBody().isEmpty(), "Student list is not empty");
-//    }
-//
-//    @Test
-//    void getCourseStudents() {
-//        CourseResponse courseResponse = controller.createCourse(courseRequest1).getBody();
-//        assertNotNull(courseResponse, "Course is null from createCourse");
-//
-//        List<UserRequest> students = new ArrayList<>();
-//        for (int i = 0; i < 10; i++) {
-//            students.add(new UserRequest(i+1L));
-//        }
-//
-//        List<UserResponse> userResponseList = controller.addStudentsToCourse(courseResponse.getId(), students).getBody();
-//        assertNotNull(userResponseList, "Student list is null");
-//        assertEquals(10, userResponseList.size(), "Student list is not the correct size");
-//        for (int i = 0; i < 10; i++) {
-//            assertEquals(students.get(i).id(), userResponseList.get(i).id(), "User id does not match");
-//        }
-//    }
-//
-//    @Test
-//    void addStudentsToCourse() {
-//        CourseResponse courseResponse = controller.createCourse(courseRequest1).getBody();
-//        assertNotNull(courseResponse, "Course is null from createCourse");
-//
-//        List<UserRequest> students = new ArrayList<>();
-//        for (int i = 0; i < 10; i++) {
-//            students.add(new UserRequest(i+1L));
-//        }
-//
-//        ResponseEntity<List<UserResponse>> responseEntity = controller.addStudentsToCourse(courseResponse.getId(), students);
-//        assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
-//
-//        ResponseEntity<List<UserResponse>> studentResponsResponseEntity = controller.getCourseStudents(courseResponse.getId());
-//        assertEquals(HttpStatus.OK, studentResponsResponseEntity.getStatusCode(), "Wrong status code");
-//        List<UserResponse> userResponseList = studentResponsResponseEntity.getBody();
-//        assertNotNull(userResponseList, "Course is null from getCourseStudents");
-//        assertEquals(10, userResponseList.size(), "Course list is not the correct size");
-//        for (int i = 0; i < 10; i++) {
-//            assertEquals(students.get(i).id(), userResponseList.get(i).id(), "User id does not match");
-//        }
-//    }
-//
-//    @Test
-//    void createCourse() {
-//        ResponseEntity<List<CourseResponse>> responseEntity = controller.getAllCourses();
-//        List<CourseResponse> courses = responseEntity.getBody();
-//        assertNotNull(courses, "Course list is null");
-//        assertTrue(courses.isEmpty(), "Course list before creation is not empty");
-//
-//        ResponseEntity<CourseResponse> createCourseResponseEntity = controller.createCourse(courseRequest1);
-//        assertEquals(HttpStatus.CREATED, createCourseResponseEntity.getStatusCode(), "Wrong status code");
-//
-//        CourseResponse courseResponse = createCourseResponseEntity.getBody();
-//        assertNotNull(courseResponse, "Course is null from getCourseById");
-//        assertEquals(courseRequest1.title(), courseResponse.getTitle(), "Course title does not match");
-//        assertEquals(courseRequest1.description(), courseResponse.getDescription(), "Course description does not match");
-//
-//        List<CourseResponse> courseResponseList = controller.getAllCourses().getBody();
-//        assertNotNull(courseResponseList, "Course list is null from getAllCourses");
-//        assertFalse(courseResponseList.isEmpty(), "Course was not created");
-//        assertEquals(1, courseResponseList.size(), "Course list is not the correct size");
-//    }
-//
-//    @Test
-//    void addSection() {
-//        //TODO
-//    }
-//
-//    @Test
-//    void completeCourse() {
-//        //TODO
-//    }
-//}
+package se.liaprojekt.controller;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import se.liaprojekt.dto.CourseRequest;
+import se.liaprojekt.dto.CourseResponse;
+import se.liaprojekt.exception.ResourceNotFoundException;
+import se.liaprojekt.model.Course;
+import se.liaprojekt.repository.CourseRepository;
+
+import java.util.*;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+class CourseControllerTest {
+
+    @Autowired
+    private CourseController controller;
+
+    @Autowired
+    private CourseRepository repository;
+
+    private static final int NUMBER_OF_COURSES = 10;
+    private static List<Course> preloadedCourses = new ArrayList<>();
+    private static Map<Long, Course> courseMap = new HashMap<>();
+    @Autowired
+    private CourseRepository courseRepository;
+
+//    private List<CourseRequest> courseRequests;
+
+    @BeforeAll
+    static void setUpBeforeClass() {
+        for (int i = 0; i < NUMBER_OF_COURSES; i++) {
+            preloadedCourses.add(Course.builder()
+                    .title("Course " + i)
+                    .description("CourseDescription" + i)
+                    .createdBy("CourseCreator " + i)
+                    .build()
+            );
+        }
+    }
+
+    @BeforeEach
+    void setUp() {
+        preloadedCourses = repository.saveAll(preloadedCourses);
+        for (Course course : preloadedCourses) {
+            courseMap.put(course.getId(), course);
+        }
+    }
+
+    @AfterEach
+    void tearDown() {
+        repository.deleteAll();
+    }
+
+
+    @Test
+    void getAllCoursesEmpty() {
+        repository.deleteAll();
+
+        ResponseEntity<List<CourseResponse>> responseEntity = controller.getAllCourses();
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
+
+        List<CourseResponse> courseResponses = responseEntity.getBody();
+        assertNotNull(courseResponses, "Course list is null");
+        assertTrue(courseResponses.isEmpty(), "Course list is not empty");
+    }
+
+    @Test
+    void getAllCourses() {
+        ResponseEntity<List<CourseResponse>> responseEntity = controller.getAllCourses();
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
+
+        List<CourseResponse> courseResponses = responseEntity.getBody();
+        assertNotNull(courseResponses, "Course list is null");
+        assertEquals(NUMBER_OF_COURSES, courseResponses.size(), "Wrong number of courses");
+        for (CourseResponse courseResponse : courseResponses) {
+            Course course = courseMap.get(courseResponse.getId());
+            checkCourseResponse(course, courseResponse);
+        }
+    }
+
+    @Test
+    void getCourseById() {
+        ResponseEntity<CourseResponse> responseEntity = controller.getCourseById(preloadedCourses.getFirst().getId());
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
+
+        CourseResponse courseResponse = responseEntity.getBody();
+        assertNotNull(courseResponse, "Course response is null");
+        Course course = courseMap.get(courseResponse.getId());
+        checkCourseResponse(course, courseResponse);
+    }
+
+    @Test
+    void getCourseByIdNotFound() {
+        assertThrows(ResourceNotFoundException.class, () -> controller.getCourseById(-1L));
+    }
+
+    @Test
+    void getCourseStudents() {
+        assertTrue(false);
+    }
+
+    @Test
+    void addStudentsToCourse() {
+        assertTrue(false);
+    }
+
+    @Test
+    void createCourse() {
+        CourseRequest courseRequest = new CourseRequest(
+                "TestTitle",
+                "TestDescription"
+        );
+        ResponseEntity<CourseResponse> responseEntity = controller.createCourse(courseRequest);
+        assertEquals(HttpStatus.CREATED, responseEntity.getStatusCode(), "Wrong status code");
+
+        CourseResponse courseResponse = responseEntity.getBody();
+        assertNotNull(courseResponse, "Course response is null");
+        Optional<Course> course = courseRepository.findById(courseResponse.getId());
+        assertTrue(course.isPresent(), "Course not found");
+        checkCourseResponse(course.get(), courseResponse);
+
+        assertEquals(courseRequest.title(), courseResponse.getTitle(), "Wrong title");
+        assertEquals(courseRequest.description(), courseResponse.getDescription(), "Wrong description");
+
+        List<Course> courses = courseRepository.findAll();
+        assertNotNull(courses, "Course list is null");
+        assertEquals(NUMBER_OF_COURSES+1, courses.size(), "Wrong number of courses");
+    }
+
+    @Test
+    void addSection() {
+        assertTrue(false);
+    }
+
+    @Test
+    void getSections() {
+        assertTrue(false);
+    }
+
+    @Test
+    void completeCourse() {
+        assertTrue(false);
+    }
+
+    @Test
+    void updateCourse() {
+        long courseId = preloadedCourses.getFirst().getId();
+        CourseRequest courseRequest = new CourseRequest(
+                "NewTestTitle",
+                "NewTestDescription"
+        );
+        ResponseEntity<CourseResponse> responseEntity = controller.updateCourse(courseId, courseRequest);
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
+        CourseResponse courseResponse = responseEntity.getBody();
+        assertNotNull(courseResponse, "Course response is null");
+        assertEquals(courseRequest.title(), courseResponse.getTitle(), "Wrong title in response body");
+        assertEquals(courseRequest.description(), courseResponse.getDescription(), "Wrong description in response body");
+
+        Optional<Course> updatedCourse = courseRepository.findById(courseId);
+        assertTrue(updatedCourse.isPresent(), "Course not found");
+        checkCourseResponse(updatedCourse.get(), courseResponse);
+    }
+
+    @Test
+    void deleteCourse() {
+        assertTrue(false);
+    }
+
+    @Test
+    void getProgress() {
+        assertTrue(false);
+    }
+
+    //Helpers
+
+    private void checkCourseResponse(Course course, CourseResponse courseResponse){
+        assertNotNull(courseResponse, "Course response is null");
+        assertEquals(course.getId(), courseResponse.getId(), "Wrong course id");
+        assertEquals(course.getTitle(), courseResponse.getTitle(), "Wrong course title");
+        assertEquals(course.getDescription(), courseResponse.getDescription(), "Wrong course description");
+    }
+}
