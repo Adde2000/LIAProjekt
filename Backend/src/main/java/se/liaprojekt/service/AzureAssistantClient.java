@@ -127,6 +127,15 @@ public class AzureAssistantClient {
         return response.id();
     }
 
+    public void deleteThread(String threadId) {
+
+        log.info("Deleting Azure thread {}", threadId);
+
+        delete(
+                url("/openai/threads/" + threadId)
+        );
+    }
+
     // =========================
     // MESSAGE
     // =========================
@@ -385,6 +394,45 @@ public class AzureAssistantClient {
 
             throw new AzureAssistantException(
                     "Unexpected Azure POST error",
+                    ex
+            );
+        }
+    }
+
+    // =========================
+// GENERIC DELETE
+// =========================
+
+    private void delete(String url) {
+
+        try {
+
+            restTemplate.exchange(
+                    url,
+                    HttpMethod.DELETE,
+                    new HttpEntity<>(headers()),
+                    Void.class
+            );
+
+        } catch (HttpClientErrorException ex) {
+
+            log.error(
+                    "Azure DELETE failed: {} | {}",
+                    ex.getStatusCode(),
+                    ex.getResponseBodyAsString()
+            );
+
+            throw new AzureAssistantException(
+                    "Azure DELETE request failed: " + ex.getStatusCode(),
+                    ex
+            );
+
+        } catch (Exception ex) {
+
+            log.error("Unexpected Azure DELETE error", ex);
+
+            throw new AzureAssistantException(
+                    "Unexpected Azure DELETE error",
                     ex
             );
         }

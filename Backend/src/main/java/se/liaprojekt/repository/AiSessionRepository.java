@@ -3,6 +3,8 @@ package se.liaprojekt.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import se.liaprojekt.model.AiSession;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface AiSessionRepository extends JpaRepository<AiSession, Long> {
@@ -11,5 +13,9 @@ public interface AiSessionRepository extends JpaRepository<AiSession, Long> {
             Long userId,
             Long courseId,
             Long characterId
+    );
+
+    List<AiSession> findByLastUsedAtBefore(
+            LocalDateTime cutoff
     );
 }
