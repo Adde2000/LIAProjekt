@@ -136,3 +136,15 @@ export async function addStudentsToCourse(
         "Failed to add students to course"
     );
 }
+
+export async function getMyCourses(instance: IPublicClientApplication) {
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    return safeFetch(
+        `${BASE_URL}/api/users/me/courses`,
+        token,
+        "Failed to fetch your courses"
+    );
+}
