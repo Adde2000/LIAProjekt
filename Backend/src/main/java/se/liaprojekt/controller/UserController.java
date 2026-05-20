@@ -2,10 +2,7 @@ package se.liaprojekt.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,7 +11,6 @@ import se.liaprojekt.dto.UserResponse;
 import se.liaprojekt.service.CourseService;
 import se.liaprojekt.service.UserService;
 
-import java.security.Principal;
 import java.util.List;
 
 @RestController
