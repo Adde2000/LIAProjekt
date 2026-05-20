@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import se.liaprojekt.dto.AiCharacterResponse;
 import se.liaprojekt.dto.ChatRequest;
+import se.liaprojekt.dto.ChatResponse;
 import se.liaprojekt.model.AiSession;
 import se.liaprojekt.service.AiCharacterService;
 import se.liaprojekt.service.AiChatService;
@@ -25,17 +26,18 @@ public class AiController {
      * Send message to Azure Assistant thread
      */
     @PostMapping("/chat")
-    public ResponseEntity<String> chat(
+    public ResponseEntity<ChatResponse> chat(
             @RequestBody ChatRequest request
     ) {
 
-        String response = aiChatService.chat(
+        String aiResponse = aiChatService.chat(
                 request.getSessionId(),
                 request.getMessage()
         );
 
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                new ChatResponse(aiResponse)
+        );
     }
 
     /**
