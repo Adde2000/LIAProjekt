@@ -148,3 +148,23 @@ export async function getMyCourses(instance: IPublicClientApplication) {
         "Failed to fetch your courses"
     );
 }
+
+export async function deleteCourse(
+    instance: IPublicClientApplication,
+    courseId: number
+) {
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    const res = await fetch(`${BASE_URL}/api/courses/${courseId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("API error:", res.status, text);
+        throw new Error("Failed to delete course");
+    }
+}
