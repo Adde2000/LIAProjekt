@@ -126,6 +126,7 @@ class UserControllerTest {
     @Test
     void getMyCourses() {
         //TODO write proper test when needed
-        assertEquals(HttpStatus.OK, controller.getMyCourses().getStatusCode(), "Status code is incorrect");
+//        assertEquals(HttpStatus.OK, controller.getMyCourses().getStatusCode(), "Status code is incorrect");
+        assertTrue(false);
     }
 }
