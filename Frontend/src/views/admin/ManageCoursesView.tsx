@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
-import type { CourseResponse, UserResponse, LoadState } from "../../types";
+import type { CourseResponse, UserResponse, LoadState, SectionResponse } from "../../types";
 import { idle } from "../../types";
-import { getCourses, getCourseStudents, addStudentsToCourse, getUsers, deleteCourse } from "../../api/api";
+import { getCourses, getCourseStudents, addStudentsToCourse, getUsers, deleteCourse, getCourseSections as getSections, addCourseSection as addSection } from "../../api/api";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { pad } from "../../components/Shared";
 import { FetchState } from "../../components/FetchState";
@@ -81,6 +81,12 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
     const [showConfirm, setShowConfirm] = useState(false);
     const [deleting, setDeleting]       = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
+
+    const [sections, setSections]           = useState<LoadState<SectionResponse[]>>(idle());
+    const [showAddSection, setShowAddSection] = useState(false);
+    const [sectionTitle, setSectionTitle]   = useState("");
+    const [sectionStatus, setSectionStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+    const [sectionError, setSectionError]   = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -169,6 +175,43 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
         } catch (err) {
             setAddError(err instanceof Error ? err.message : "Okänt fel");
             setAddStatus("error");
+        }
+    }
+
+    useEffect(() => {
+        let cancelled = false;
+
+        getSections(instance, course.id)
+            .then((data) => {
+                if (!cancelled) setSections({ data: data as SectionResponse[], loading: false, error: null });
+            })
+            .catch((err) => {
+                if (!cancelled) setSections({ data: null, loading: false, error: (err as Error).message });
+            });
+
+        return () => { cancelled = true; };
+    }, [instance, course.id]);
+
+    async function handleAddSection() {
+        const title = sectionTitle.trim();
+        if (!title) return;
+
+        setSectionStatus("submitting");
+        setSectionError(null);
+
+        try {
+            const added = await addSection(instance, course.id, title) as SectionResponse;
+            setSections((prev) => ({
+                data: [...(prev.data ?? []), added],
+                loading: false,
+                error: null,
+            }));
+            setSectionTitle("");
+            setSectionStatus("success");
+            setShowAddSection(false);
+        } catch (err) {
+            setSectionError(err instanceof Error ? err.message : "Okänt fel");
+            setSectionStatus("error");
         }
     }
 
@@ -333,6 +376,72 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
                         </>
                     )}
                 </div>
+            )}
+
+            {/* ── Sections ─────────────────────────────────────────────────── */}
+
+            <div className="vmv-section-head" style={{ marginTop: "1.5rem" }}>
+                Avsnitt ({sections.data?.length ?? "–"})
+            </div>
+
+            <FetchState loading={sections.loading} error={sections.error} />
+
+            {sections.data && (
+                <>
+                    {sections.data.length === 0 ? (
+                        <div className="vmv-empty" style={{ border: "1px solid var(--color-border-tertiary)" }}>
+                            Inga avsnitt tillagda ännu.
+                        </div>
+                    ) : (
+                        <div className="vmv-mgmt-section-list">
+                            {sections.data.map((s, i) => (
+                                <div key={s.id} className="vmv-mgmt-section-row">
+                                    <span className="vmv-mgmt-section-num">{pad(i + 1)}</span>
+                                    <span className="vmv-mgmt-section-title">{s.title}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="vmv-mgmt-actions">
+                        <button
+                            className="vmv-quiz-start"
+                            onClick={() => { setShowAddSection((p) => !p); setSectionTitle(""); setSectionStatus("idle"); }}
+                        >
+                            {showAddSection ? "Avbryt" : "Lägg till avsnitt ↗"}
+                        </button>
+                        {sectionStatus === "success" && (
+                            <span className="vmv-form-feedback vmv-form-feedback--success">✓ Avsnitt tillagt.</span>
+                        )}
+                        {sectionStatus === "error" && (
+                            <span className="vmv-form-feedback vmv-form-feedback--error">Fel: {sectionError}</span>
+                        )}
+                    </div>
+
+                    {showAddSection && (
+                        <div className="vmv-mgmt-add-panel">
+                            <div className="vmv-section-head">Nytt avsnitt</div>
+                            <div className="vmv-mgmt-section-form">
+                                <input
+                                    className="vmv-mgmt-section-input"
+                                    type="text"
+                                    placeholder="Avsnittets titel..."
+                                    value={sectionTitle}
+                                    onChange={(e) => setSectionTitle(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") handleAddSection(); }}
+                                    autoFocus
+                                />
+                                <button
+                                    className="vmv-quiz-start"
+                                    onClick={handleAddSection}
+                                    disabled={!sectionTitle.trim() || sectionStatus === "submitting"}
+                                >
+                                    {sectionStatus === "submitting" ? "Sparar..." : "Lägg till ↗"}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );

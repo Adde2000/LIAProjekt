@@ -168,3 +168,35 @@ export async function deleteCourse(
         throw new Error("Failed to delete course");
     }
 }
+
+export async function getCourseSections(
+    instance: IPublicClientApplication,
+    courseId: number
+) {
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    return safeFetch(
+        `${BASE_URL}/api/courses/${courseId}/sections`,
+        token,
+        "Failed to fetch course sections"
+    );
+}
+
+export async function addCourseSection(
+    instance: IPublicClientApplication,
+    courseId: number,
+    title: string
+) {
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    return safePost(
+        `${BASE_URL}/api/courses/${courseId}/sections`,
+        token,
+        { title } satisfies import("../types").SectionRequest,
+        "Failed to add section"
+    );
+}
