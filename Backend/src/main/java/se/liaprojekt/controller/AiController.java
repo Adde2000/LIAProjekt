@@ -17,7 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AiController {
 
-    private final AiChatService chatService;
+    private final AiChatService aiChatService;
     private final AiSessionInitService initService;
     private final AiCharacterService aiCharacterService;
 
@@ -29,10 +29,11 @@ public class AiController {
             @RequestBody ChatRequest request
     ) {
 
-        String response = chatService.chat(
+        String response = aiChatService.chat(
                 request.getSessionId(),
                 request.getMessage()
         );
+
 
         return ResponseEntity.ok(response);
     }

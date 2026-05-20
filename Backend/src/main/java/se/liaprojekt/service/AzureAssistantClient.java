@@ -23,8 +23,11 @@ public class AzureAssistantClient {
     private static final String AZURE_SCOPE =
             "https://cognitiveservices.azure.com/.default";
 
-    private static final int MAX_POLL_ATTEMPTS = 30;
-    private static final long POLL_INTERVAL_MS = 2000;
+    @Value("${azure.openai.poll.max-attempts}")
+    private int maxPollAttempts;
+
+    @Value("${azure.openai.poll.interval-ms}")
+    private long pollIntervalMs;
 
     private final RestTemplate restTemplate;
     private final TokenCredential credential;
@@ -176,7 +179,7 @@ public class AzureAssistantClient {
 
         int attempts = 0;
 
-        while (attempts < MAX_POLL_ATTEMPTS) {
+        while (attempts < maxPollAttempts) {
 
             String status = getRunStatus(threadId, runId);
 
@@ -218,7 +221,7 @@ public class AzureAssistantClient {
                 log.warn("Unhandled Azure run status: {}", status);
             }
 
-            sleep(POLL_INTERVAL_MS);
+            sleep(pollIntervalMs);
             attempts++;
         }
 
