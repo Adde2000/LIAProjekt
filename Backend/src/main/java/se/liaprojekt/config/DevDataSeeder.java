@@ -18,6 +18,7 @@ public class DevDataSeeder implements CommandLineRunner {
     private final CourseRepository courseRepository;
     private final SectionRepository sectionRepository;
     private final TestQuestionRepository questionRepository;
+    private final AiCharacterRepository aiCharacterRepository;
 
     @Override
     public void run(String... args) {
@@ -56,6 +57,24 @@ public class DevDataSeeder implements CommandLineRunner {
         s2.setCourse(course);
 
         sectionRepository.saveAll(List.of(s1, s2));
+
+        // =========================
+        // AI CHARACTER (NYTT)
+        // =========================
+        AiCharacter tutor = new AiCharacter();
+        tutor.setName("Lisa Andersson");
+        tutor.setDescription("Arbetar med kundreskontran (kundfakturor, betalningar, påminnelser)");
+
+        // 👇 VIKTIGT: ersätt med riktig från Azure senare
+        tutor.setAssistantId("asst_dWAq1YYVSh7jbtLNriioRIyL");
+
+        aiCharacterRepository.save(tutor);
+
+        // =========================
+        // LINK AI TO COURSE (om du har relation)
+        // =========================
+        course.setAiCharacters(List.of(tutor));
+        courseRepository.save(course);
 
         // =========================
         // QUESTIONS FOR SECTION 1

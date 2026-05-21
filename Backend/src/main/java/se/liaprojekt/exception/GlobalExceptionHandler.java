@@ -144,6 +144,28 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    // 502 - Azure OpenAI / Assistant API
+    @ExceptionHandler(AzureAssistantException.class)
+    public ResponseEntity<ErrorResponse> handleAzureAssistantException(
+            AzureAssistantException ex,
+            HttpServletRequest request
+    ) {
+
+        log.error("502 AZURE OPENAI ERROR | {} {} | {}",
+                request.getMethod(),
+                request.getRequestURI(),
+                ex.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(new ErrorResponse(
+                        502,
+                        "Azure OpenAI Error",
+                        ex.getMessage(),
+                        request.getRequestURI()
+                ));
+    }
+
     // 500
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
