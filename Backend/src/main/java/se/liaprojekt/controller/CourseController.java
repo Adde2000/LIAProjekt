@@ -41,8 +41,7 @@ public class CourseController {
     @PostMapping("/{courseId}/students")
     public ResponseEntity<List<UserResponse>> addStudentsToCourse(@PathVariable Long courseId, @RequestBody List<UserRequest> students) {
         logger.info("Adding students to course {}", courseId);
-        courseService.addStudentsToCourse(courseId, students);
-        return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(courseService.addStudentsToCourse(courseId, students));
     }
 
     @PostMapping

@@ -217,3 +217,84 @@
     gap: 12px;
     margin-top: 1rem;
 }
+
+/* ── Detail header actions ────────────────────────────────────────────────── */
+
+.vmv-mgmt-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.vmv-mgmt-detail-header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+    margin-left: 1rem;
+}
+
+/* ── Section list ─────────────────────────────────────────────────────────── */
+
+.vmv-mgmt-section-list {
+    border: 1px solid var(--color-border-secondary);
+    margin-bottom: 1rem;
+}
+
+.vmv-mgmt-section-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--color-border-tertiary);
+}
+
+.vmv-mgmt-section-row:last-child {
+    border-bottom: none;
+}
+
+.vmv-mgmt-section-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-border-secondary);
+    flex-shrink: 0;
+    width: 28px;
+    line-height: 1;
+}
+
+.vmv-mgmt-section-title {
+    font-family: 'Source Serif 4', serif;
+    font-size: 13px;
+    color: var(--color-text-primary);
+    line-height: 1.4;
+}
+
+/* ── Add section form ─────────────────────────────────────────────────────── */
+
+.vmv-mgmt-section-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.vmv-mgmt-section-input {
+    flex: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 6px 10px;
+    border: 1px solid var(--color-border-secondary);
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+    outline: none;
+}
+
+.vmv-mgmt-section-input:focus {
+    border-color: var(--color-text-primary);
+}
+
+.vmv-mgmt-section-input::placeholder {
+    color: var(--color-text-secondary);
+    opacity: 0.6;
+}
