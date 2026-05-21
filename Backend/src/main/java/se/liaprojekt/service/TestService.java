@@ -3,11 +3,15 @@ package se.liaprojekt.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 import se.liaprojekt.dto.*;
+import se.liaprojekt.event.TestResultEvent;
 import se.liaprojekt.exception.BadRequestException;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.*;
 import se.liaprojekt.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,12 +20,16 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TestService {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(TestService.class);
+
     private final TestResultRepository testResultRepository;
     private final SectionRepository sectionRepository;
     private final TestQuestionRepository questionRepository;
     private final AnsweredQuestionRepository answeredQuestionRepository;
     private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
+    private final ApplicationEventPublisher eventPublisher;
 
 
     @Transactional
@@ -277,6 +285,18 @@ public class TestService {
         );
 
         TestResult saved = testResultRepository.save(result);
+
+        if (passed) {
+
+            log.info("TEST_RESULT_EVENT | userId={} entraId={} sectionId={} score={}",
+                    saved.getUser().getId(),
+                    saved.getUser().getEntraId(),
+                    saved.getSection().getId(),
+                    score
+            );
+
+            eventPublisher.publishEvent(new TestResultEvent(saved.getId()));
+        }
 
         return mapToResponse(saved);
     }

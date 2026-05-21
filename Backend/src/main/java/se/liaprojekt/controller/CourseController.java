@@ -34,7 +34,7 @@ public class CourseController {
 
     @GetMapping("/{courseId}/students")
     public ResponseEntity<List<UserResponse>> getCourseStudents(@PathVariable Long courseId) {
-        logger.info("Get student list for course: " + courseId);
+        logger.info("Get student list for course: {}", courseId);
         return ResponseEntity.ok(courseService.getStudentsInCourse(courseId));
     }
 

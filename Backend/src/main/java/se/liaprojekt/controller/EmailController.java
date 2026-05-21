@@ -2,8 +2,10 @@ package se.liaprojekt.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-import se.liaprojekt.model.EmailEvent;
+import se.liaprojekt.event.EmailEvent;
 import se.liaprojekt.producer.EmailEventPublisher;
+
+import static se.liaprojekt.model.EmailType.WELCOME_EMAIL;
 
 /**
  * API skickar email-jobb till Azure Service Bus (async).
@@ -20,12 +22,12 @@ public class EmailController {
             @RequestParam String email,
             @RequestParam String name) {
 
-        EmailEvent event = EmailEvent.builder()
-                .to(email)
-                .subject("Välkommen " + name)
-                .body("<h1>Hej " + name + "</h1><p>Välkommen!</p>")
-                .type("WELCOME_EMAIL")
-                .build();
+        EmailEvent event = new EmailEvent(
+                email,
+                "Välkommen " + name,
+                "<h1>Hej " + name + "</h1><p>Välkommen!</p>",
+                WELCOME_EMAIL
+        );
 
         publisher.publish(event);
 

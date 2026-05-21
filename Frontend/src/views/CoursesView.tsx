@@ -1,18 +1,34 @@
-import { useState } from "react";
-import type { FilterKey } from "../types";
-import { COURSES, QUIZZES, FILTERS } from "../data";
-import { CourseCard } from "../components/CourseCard";
-import { QuizRow } from "../components/QuizRow";
+import { useCallback, useEffect, useState } from "react";
+import { useMsal } from "@azure/msal-react";
+import type { CourseResponse, LoadState } from "../types";
+import { getMyCourses } from "../api/api";
+import { FetchState } from "../components/FetchState";
 
 export function CoursesView() {
-    const [filter, setFilter] = useState<FilterKey>("all");
+    const { instance } = useMsal();
+    const [fetchKey, setFetchKey] = useState(0);
+    const [state, setState] = useState<LoadState<CourseResponse[]>>({ data: null, loading: true, error: null });
     const [search, setSearch] = useState("");
 
-    const filtered = COURSES.filter((c) => {
-        const matchFilter = filter === "all" || c.status === filter;
-        const matchSearch = c.title.toLowerCase().includes(search.toLowerCase());
-        return matchFilter && matchSearch;
-    });
+    const retry = useCallback(() => setFetchKey((k) => k + 1), []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        getMyCourses(instance)
+            .then((data) => {
+                if (!cancelled) setState({ data: data ?? [], loading: false, error: null });
+            })
+            .catch(() => {
+                if (!cancelled) setState({ data: null, loading: false, error: "Kunde inte hämta dina kurser." });
+            });
+
+        return () => { cancelled = true; };
+    }, [instance, fetchKey]);
+
+    const filtered = (state.data ?? []).filter((c) =>
+        c.title.toLowerCase().includes(search.toLowerCase())
+    );
 
     return (
         <>
@@ -26,36 +42,36 @@ export function CoursesView() {
                 />
             </div>
 
-            <div className="vmv-filters">
-                {FILTERS.map((f) => (
-                    <button
-                        key={f.key}
-                        className={`vmv-filter ${filter === f.key ? "active" : ""}`}
-                        onClick={() => setFilter(f.key)}
-                    >
-                        {f.label}
-                    </button>
-                ))}
-            </div>
+            <div className="vmv-section-head">Mina Kurser</div>
 
-            <div className="vmv-section-head">Alla Kurser</div>
+            <FetchState
+                loading={state.loading}
+                error={state.error}
+                onRetry={retry}
+            />
 
-            <div className="vmv-courses">
-                {filtered.length === 0 ? (
-                    <div className="vmv-empty">Inga kurser matchar din sökning.</div>
-                ) : (
-                    filtered.map((c) => <CourseCard key={c.id} course={c} />)
-                )}
-            </div>
-
-            <div className="vmv-bottom">
-                <div>
-                    <div className="vmv-panel-title">Examinationer</div>
-                    {QUIZZES.slice(0, 3).map((q, i) => (
-                        <QuizRow key={i} quiz={q} index={i} />
-                    ))}
+            {!state.loading && !state.error && (
+                <div className="vmv-courses">
+                    {filtered.length === 0 ? (
+                        <div className="vmv-empty">
+                            {state.data?.length === 0
+                                ? "Du är inte registrerad på några kurser."
+                                : "Inga kurser matchar din sökning."}
+                        </div>
+                    ) : (
+                        filtered.map((c) => (
+                            <div key={c.id} className="vmv-course">
+                                <div className="vmv-course-num">
+                                    {String(c.id).padStart(2, "0")}
+                                </div>
+                                <div className="vmv-course-title">{c.title}</div>
+                                <div className="vmv-course-meta">{c.createdBy}</div>
+                                <div className="vmv-course-description">{c.description}</div>
+                            </div>
+                        ))
+                    )}
                 </div>
-            </div>
+            )}
         </>
     );
 }
