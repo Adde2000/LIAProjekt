@@ -57,8 +57,8 @@ public class BlobStorageService {
             @Value("${spring.cloud.azure.storage.container-name-pdf}") String pdfContainerName,
             @Value("${spring.cloud.azure.storage.container-name-video}") String videoContainerName,
             @Value("${spring.cloud.azure.storage.sas-expiry-minutes}") long sasExpiryMinutes,
-            @Value("${spring.cloud.azure.storage.frontdoor-endpoint}") String frontDoorEndpoint) {
-
+            @Value("${spring.cloud.azure.storage.frontdoor-endpoint}") String frontDoorEndpoint,
+            @Value("${test.properties}") boolean isTesting) {
 
         if (!frontDoorEndpoint.startsWith("https://")) {
             throw new IllegalStateException(
@@ -85,8 +85,12 @@ public class BlobStorageService {
         this.videoContainerClient = serviceClient.getBlobContainerClient(videoContainerName);
 
         // Fail fast on startup if either container is misconfigured or missing
-        validateContainer(pdfContainerClient, pdfContainerName);
-        validateContainer(videoContainerClient, videoContainerName);
+        //Dont't validate if running tests
+        if (!isTesting) {
+            validateContainer(pdfContainerClient, pdfContainerName);
+            validateContainer(videoContainerClient, videoContainerName);
+        }
+
     }
 
     // -------------------------------------------------------------------------
