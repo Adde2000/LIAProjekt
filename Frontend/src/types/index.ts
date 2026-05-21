@@ -47,10 +47,13 @@ export interface SectionRequest {
     title: string;
 }
 
-// Shape returned by the API for sections
+// Shape returned by the API for sections — mirrors the Java SectionResponse record exactly
 export interface SectionResponse {
-    id:    number;
-    title: string;
+    id:         number;
+    title:      string;
+    orderIndex: number;
+    courseId:   number;
+    isLocked:   boolean;
 }
 
 export interface CourseRequest {

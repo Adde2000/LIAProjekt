@@ -3,12 +3,14 @@ import { useMsal } from "@azure/msal-react";
 import type { CourseResponse, LoadState } from "../types";
 import { getMyCourses } from "../api/api";
 import { FetchState } from "../components/FetchState";
+import { CourseSectionView } from "./CourseSectionView";
 
 export function CoursesView() {
     const { instance } = useMsal();
     const [fetchKey, setFetchKey] = useState(0);
     const [state, setState] = useState<LoadState<CourseResponse[]>>({ data: null, loading: true, error: null });
     const [search, setSearch] = useState("");
+    const [selectedCourse, setSelectedCourse] = useState<CourseResponse | null>(null);
 
     const retry = useCallback(() => setFetchKey((k) => k + 1), []);
 
@@ -29,6 +31,15 @@ export function CoursesView() {
     const filtered = (state.data ?? []).filter((c) =>
         c.title.toLowerCase().includes(search.toLowerCase())
     );
+
+    if (selectedCourse) {
+        return (
+            <CourseSectionView
+                course={selectedCourse}
+                onBack={() => setSelectedCourse(null)}
+            />
+        );
+    }
 
     return (
         <>
@@ -60,7 +71,14 @@ export function CoursesView() {
                         </div>
                     ) : (
                         filtered.map((c) => (
-                            <div key={c.id} className="vmv-course">
+                            <div
+                                key={c.id}
+                                className="vmv-course"
+                                onClick={() => setSelectedCourse(c)}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => e.key === "Enter" && setSelectedCourse(c)}
+                            >
                                 <div className="vmv-course-num">
                                     {String(c.id).padStart(2, "0")}
                                 </div>
