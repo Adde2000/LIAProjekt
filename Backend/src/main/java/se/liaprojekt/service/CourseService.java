@@ -75,7 +75,7 @@ public class CourseService {
             userProgressList.add(new UserProgress(userService.getUserById(student.id()), course));
         });
         userProgressRepository.saveAll(userProgressList);
-        return null;
+        return getStudentsInCourse(courseId);
     }
 
     //TODO return UserProgressResponse

@@ -42,7 +42,20 @@ export interface UserResponse {
     role: string[];         // Java Set<String> deserialises to an array in JSON
 }
 
-// Mirrors the Java CourseRequest record — sent as POST body when creating a course
+// Mirrors the Java SectionRequest record — sent as POST body when creating a section
+export interface SectionRequest {
+    title: string;
+}
+
+// Shape returned by the API for sections — mirrors the Java SectionResponse record exactly
+export interface SectionResponse {
+    id:         number;
+    title:      string;
+    orderIndex: number;
+    courseId:   number;
+    isLocked:   boolean;
+}
+
 export interface CourseRequest {
     id:          number | null;   // null on create; the server assigns the ID
     title:       string;
