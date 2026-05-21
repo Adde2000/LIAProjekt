@@ -136,3 +136,43 @@ export async function addStudentsToCourse(
         "Failed to add students to course"
     );
 }
+
+export async function createAiSession(
+    instance: IPublicClientApplication,
+    userId: number,
+    courseId: number,
+    characterId: number
+) {
+
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    return safePost(
+        `${BASE_URL}/api/ai/session?userId=${userId}&courseId=${courseId}&characterId=${characterId}`,
+        token,
+        {},
+        "Failed to create AI session"
+    );
+}
+
+export async function sendAiMessage(
+    instance: IPublicClientApplication,
+    sessionId: number,
+    message: string
+) {
+
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    return safePost(
+        `${BASE_URL}/api/ai/chat`,
+        token,
+        {
+            sessionId,
+            message,
+        },
+        "Failed to send AI message"
+    );
+}
