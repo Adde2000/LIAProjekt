@@ -103,6 +103,50 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    // 500 - Service Bus publish failed
+    @ExceptionHandler(EventPublishException.class)
+    public ResponseEntity<ErrorResponse> handleEventPublishException(
+            EventPublishException ex,
+            HttpServletRequest request
+    ) {
+
+        log.error("500 EVENT PUBLISH ERROR | {} {} | {}",
+                request.getMethod(),
+                request.getRequestURI(),
+                ex.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(
+                        500,
+                        "Event Publish Error",
+                        ex.getMessage(),
+                        request.getRequestURI()
+                ));
+    }
+
+    // 500
+    @ExceptionHandler(EmailProcessingException.class)
+    public ResponseEntity<ErrorResponse> handleEmailProcessingException(
+            EmailProcessingException ex,
+            HttpServletRequest request
+    ) {
+
+        log.error("500 EMAIL PROCESSING ERROR | {} {} | {}",
+                request.getMethod(),
+                request.getRequestURI(),
+                ex.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(
+                        500,
+                        "Email Processing Error",
+                        ex.getMessage(),
+                        request.getRequestURI()
+                ));
+    }
+
     // 500
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(

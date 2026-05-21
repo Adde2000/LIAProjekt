@@ -2,30 +2,47 @@ package se.liaprojekt.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import se.liaprojekt.dto.CourseProgressResponse;
-import se.liaprojekt.dto.CourseRequest;
-import se.liaprojekt.dto.CourseResponse;
+import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
-import se.liaprojekt.model.Course;
-import se.liaprojekt.model.Section;
-import se.liaprojekt.model.TestResult;
+import se.liaprojekt.model.*;
 import se.liaprojekt.repository.CourseRepository;
+import se.liaprojekt.repository.SectionRepository;
 import se.liaprojekt.repository.TestResultRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import se.liaprojekt.repository.UserProgressRepository;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class CourseService {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(CourseService.class);
+
     private final CourseRepository courseRepository;
     private final TestResultRepository testResultRepository;
+    private final SectionRepository sectionRepository;
+    private final UserProgressRepository userProgressRepository;
+    private final UserService userService;
 
     public List<CourseResponse> getAllCourses() {
         return courseRepository.findAll()
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    public List<CourseResponse> getAllRegisteredCourses(long userId) {
+        List<UserProgress> userProgressList = userProgressRepository.findByUserId(userId);
+        List<CourseResponse> courseResponseList = new ArrayList<>();
+        for (UserProgress userProgress : userProgressList) {
+            Course course = userProgress.getCourse();
+            courseResponseList.add(mapToResponse(course));
+        }
+        return courseResponseList;
     }
 
     public CourseResponse getCourseById(Long id) {
@@ -47,6 +64,28 @@ public class CourseService {
         Course saved = courseRepository.save(course);
 
         return mapToResponse(saved);
+    }
+
+    //TODO return UserProgressResponse
+    public List<UserResponse> addStudentsToCourse(Long courseId, List<UserRequest> students) {
+        Course course = courseRepository.findById(courseId).orElseThrow(() ->
+                new ResourceNotFoundException("Course not found with id: " + courseId));
+        List<UserProgress> userProgressList = new ArrayList<>();
+        students.forEach(student -> {
+            userProgressList.add(new UserProgress(userService.getUserById(student.id()), course));
+        });
+        userProgressRepository.saveAll(userProgressList);
+        return getStudentsInCourse(courseId);
+    }
+
+    //TODO return UserProgressResponse
+    public List<UserResponse> getStudentsInCourse(Long courseId) {
+        List<UserProgress> userProgressList = userProgressRepository.findByCourseId(courseId);
+        List<UserResponse> userResponseList = new ArrayList<>();
+        userProgressList.forEach(userProgress -> {
+            userResponseList.add(userService.getUserResponseById(userProgress.getUser().getId()));
+        });
+        return userResponseList;
     }
 
     public CourseResponse updateCourse(Long id, CourseRequest request) {
@@ -77,6 +116,38 @@ public class CourseService {
                 course.getDescription(),
                 course.getCreatedBy()
         );
+    }
+
+    public boolean isCourseCompleted(String entraId, Course course) {
+
+        log.debug("CHECK COURSE COMPLETION | entraId={} courseId={}",
+                entraId,
+                course.getId()
+        );
+
+        List<Section> sections = sectionRepository.findByCourseId(course.getId());
+
+        for (Section section : sections) {
+
+            TestResult lastAttempt = testResultRepository
+                    .findTopByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(
+                            entraId,
+                            section.getId()
+                    )
+                    .orElse(null);
+
+            log.debug("SECTION CHECK | sectionId={} status={}",
+                    section.getId(),
+                    lastAttempt != null ? lastAttempt.getStatus() : "NULL"
+            );
+
+            if (lastAttempt == null ||
+                    lastAttempt.getStatus() != TestResult.Status.COMPLETED) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // =========================

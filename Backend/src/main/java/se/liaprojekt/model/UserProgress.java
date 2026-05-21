@@ -1,15 +1,14 @@
 package se.liaprojekt.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 
 @Entity
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 @Table(
         name = "user_progress",
         uniqueConstraints = {
@@ -17,6 +16,11 @@ import lombok.Setter;
         }
 )
 public class UserProgress {
+
+    public UserProgress(User user, Course course) {
+        this.user = user;
+        this.course = course;
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
