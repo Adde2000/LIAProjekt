@@ -128,9 +128,11 @@ public class BlobStorageService {
 
             client.upload(data, length, true); // true = overwrite if exists
 
-            // Store both the original name and sectionId as tags
+            // Store both the original name and sectionId as tags.
+            // Azure blob tags only permit ASCII characters, so any non-ASCII filename
+            // (e.g. "på_12_v_.mp4") must be percent-encoded before being stored as a tag value.
             Map<String, String> tags = new HashMap<>();
-            tags.put("originalName", originalFileName);
+            tags.put("originalName", encodeTagValue(originalFileName));
             if (sectionId != null) {
                 tags.put("sectionId", sectionId);
             }
@@ -486,6 +488,42 @@ public class BlobStorageService {
     }
 
     /**
+     * Base64-encodes a tag value so it contains only characters permitted by Azure blob tags.
+     *
+     * <p>Azure tag values allow: {@code A-Z a-z 0-9 space + - . / : = _}
+     * Standard Base64 uses {@code A-Z a-z 0-9 + / =} — all of which are on that list,
+     * so no further substitution is needed.
+     *
+     * @param value Raw tag value (may contain non-ASCII characters such as 'å', 'ö')
+     * @return Base64-encoded string safe to store as an Azure blob tag value
+     */
+    private String encodeTagValue(String value) {
+        return Base64.getEncoder()
+                .encodeToString(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Decodes a Base64-encoded tag value back to its original form.
+     * Falls back to returning the raw string if decoding fails, which covers
+     * any blobs whose {@code originalName} tag was written before this encoding
+     * was introduced (i.e. plain-ASCII filenames stored without encoding).
+     *
+     * @param encoded Base64-encoded tag value as stored in Azure
+     * @return Original decoded string
+     */
+    private String decodeTagValue(String encoded) {
+        try {
+            return new String(
+                    Base64.getDecoder().decode(encoded),
+                    java.nio.charset.StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException ex) {
+            // Not valid Base64 — must be a legacy tag written before encoding was added
+            log.debug("Tag value '{}' is not Base64, returning as-is (legacy blob)", encoded);
+            return encoded;
+        }
+    }
+
+    /**
      * Translates a {@link BlobStorageException} from the Azure SDK into a
      * {@link BlobOperationException} that Spring's {@link BlobStorageExceptionHandler}
      * can intercept and map to an appropriate HTTP response.
@@ -513,7 +551,9 @@ public class BlobStorageService {
     private String fetchOriginalName(BlobContainerClient container, String blobName) {
         try {
             Map<String, String> tags = container.getBlobClient(blobName).getTags();
-            return tags.getOrDefault("originalName", blobName);
+            String raw = tags.getOrDefault("originalName", blobName);
+            // Decode the percent-encoded value that was stored at upload time
+            return decodeTagValue(raw);
         } catch (BlobStorageException ex) {
             log.warn("Could not fetch tags for '{}', falling back to generated name. Error: {}",
                     blobName, ex.getMessage());
