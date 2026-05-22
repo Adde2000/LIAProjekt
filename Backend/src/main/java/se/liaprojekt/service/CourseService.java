@@ -115,8 +115,7 @@ public class CourseService {
                 course.getId(),
                 course.getTitle(),
                 course.getDescription(),
-                course.getCreatedBy(),
-                course.getAssistantId()
+                course.getCreatedBy()
         );
     }
 
