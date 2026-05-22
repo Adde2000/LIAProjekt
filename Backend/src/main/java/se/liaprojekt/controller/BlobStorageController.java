@@ -139,9 +139,9 @@ public class BlobStorageController {
 
         String blobName = blobStorageService.resolveBlobName(fileId);
 
-        if (!mediaTypeResolver.isVideo(blobName)) {
-            return ResponseEntity.badRequest().build();
-        }
+//        if (!mediaTypeResolver.isVideo(blobName)) {
+//            return ResponseEntity.badRequest().build();
+//        }
 
         MediaType contentType = mediaTypeResolver.resolve(blobName);
         long fileSize = blobStorageService.getBlobSize(blobName);

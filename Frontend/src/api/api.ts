@@ -269,3 +269,31 @@ export async function deleteMaterial(
         throw new Error("Failed to delete material");
     }
 }
+
+export async function streamMaterial(
+    instance: IPublicClientApplication,
+    fileId: string,
+    rangeHeader?: string
+): Promise<Response> {
+    if (!BASE_URL) throw new Error("Missing VITE_API_BASE_URL");
+
+    const token = await getAccessToken(instance);
+
+    const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+    };
+    if (rangeHeader) {
+        headers["Range"] = rangeHeader;
+    }
+
+    const res = await fetch(
+        `${BASE_URL}/api/material/stream/${encodeURIComponent(fileId)}`,
+        { headers }
+    );
+
+    if (!res.ok && res.status !== 206) {
+        throw new Error(`Stream request failed: ${res.status}`);
+    }
+
+    return res;
+}
