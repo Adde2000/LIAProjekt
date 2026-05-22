@@ -56,6 +56,11 @@ export interface SectionResponse {
     isLocked:   boolean;
 }
 
+export interface Material {
+    fileId:       string;
+    originalName: string;
+}
+
 export interface CourseRequest {
     id:          number | null;   // null on create; the server assigns the ID
     title:       string;

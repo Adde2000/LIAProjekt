@@ -200,3 +200,72 @@ export async function addCourseSection(
         "Failed to add section"
     );
 }
+
+export async function getSectionMaterials(
+    instance: IPublicClientApplication,
+    sectionId: number
+) {
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    const res = await fetch(`${BASE_URL}/api/material/list/section/${sectionId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("API error:", res.status, text);
+        throw new Error("Failed to fetch section materials");
+    }
+
+    return await res.json();
+}
+
+export async function uploadMaterial(
+    instance: IPublicClientApplication,
+    sectionId: number,
+    file: File
+) {
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("sectionId", String(sectionId));
+
+    const res = await fetch(`${BASE_URL}/api/material/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+    });
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("API error:", res.status, text);
+        throw new Error("Failed to upload material");
+    }
+
+    return await res.json();
+}
+
+export async function deleteMaterial(
+    instance: IPublicClientApplication,
+    fileId: string
+) {
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    const res = await fetch(`${BASE_URL}/api/material/${encodeURIComponent(fileId)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("API error:", res.status, text);
+        throw new Error("Failed to delete material");
+    }
+}
