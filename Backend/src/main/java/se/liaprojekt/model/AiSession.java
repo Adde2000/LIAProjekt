@@ -15,7 +15,11 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
-@Table(name = "ai_sessions")
+@Table(name = "ai_sessions",
+    uniqueConstraints = @UniqueConstraint(
+        columnNames = {"user_id", "course_id"}
+        )
+    )
 public class AiSession {
 
     @Id
@@ -46,7 +50,7 @@ public class AiSession {
      * Vilken AI-karaktär (persona + beteende)
      */
     @ManyToOne
-    @JoinColumn(name = "ai_character_id", nullable = false)
+    @JoinColumn(name = "ai_character_id", nullable = true)
     private AiCharacter aiCharacter;
 
     private LocalDateTime createdAt = LocalDateTime.now();

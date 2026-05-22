@@ -2,12 +2,14 @@ package se.liaprojekt.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import se.liaprojekt.dto.ChatHistoryMessage;
 import se.liaprojekt.exception.BadRequestException;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.AiSession;
 import se.liaprojekt.repository.AiSessionRepository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -50,12 +52,30 @@ public class AiChatService {
                 );
 
         // =========================
+        // GET ASSISTANT ID
+        // =========================
+
+        String assistantId = session
+                .getCourse()
+                .getAssistantId();
+
+        if (assistantId == null || assistantId.isBlank()) {
+
+            throw new BadRequestException(
+                    "No assistant assigned to course"
+            );
+        }
+
+        // =========================
         // SEND MESSAGE
         // =========================
 
         String threadId = session.getThreadId();
 
-        client.addMessage(threadId, message);
+        client.addMessage(
+                threadId,
+                message
+        );
 
         // =========================
         // CREATE RUN
@@ -63,7 +83,7 @@ public class AiChatService {
 
         String runId = client.createRun(
                 threadId,
-                session.getAiCharacter().getAssistantId()
+                session.getCourse().getAssistantId()
         );
 
         // =========================
@@ -80,6 +100,26 @@ public class AiChatService {
         return client.waitForCompletion(
                 threadId,
                 runId
+        );
+    }
+
+    // =========================
+    // GET CHAT HISTORY
+    // =========================
+
+    public List<ChatHistoryMessage> getHistory(
+            Long sessionId
+    ) {
+
+        AiSession session = repo.findById(sessionId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "AI session not found"
+                        )
+                );
+
+        return client.getThreadMessages(
+                session.getThreadId()
         );
     }
 }

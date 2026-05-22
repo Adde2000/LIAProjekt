@@ -3,13 +3,12 @@ package se.liaprojekt.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import se.liaprojekt.dto.AiCharacterResponse;
-import se.liaprojekt.dto.ChatRequest;
-import se.liaprojekt.dto.ChatResponse;
+import se.liaprojekt.dto.*;
 import se.liaprojekt.model.AiSession;
 import se.liaprojekt.service.AiCharacterService;
 import se.liaprojekt.service.AiChatService;
 import se.liaprojekt.service.AiSessionInitService;
+import se.liaprojekt.service.AssistantAdminService;
 
 import java.util.List;
 
@@ -21,6 +20,7 @@ public class AiController {
     private final AiChatService aiChatService;
     private final AiSessionInitService initService;
     private final AiCharacterService aiCharacterService;
+    private final AssistantAdminService assistantAdminService;
 
     /**
      * Send message to Azure Assistant thread
@@ -46,17 +46,17 @@ public class AiController {
     @PostMapping("/session")
     public ResponseEntity<Long> createSession(
             @RequestParam Long userId,
-            @RequestParam Long courseId,
-            @RequestParam Long characterId
+            @RequestParam Long courseId
     ) {
 
         AiSession session = initService.createSession(
                 userId,
-                courseId,
-                characterId
+                courseId
         );
 
-        return ResponseEntity.ok(session.getId());
+        return ResponseEntity.ok(
+                session.getId()
+        );
     }
 
     /**
@@ -71,5 +71,26 @@ public class AiController {
                 aiCharacterService.getByCourse(courseId);
 
         return ResponseEntity.ok(characters);
+    }
+
+    /**
+     * Get all Azure OpenAI assistants
+     */
+    @GetMapping("/assistants")
+    public ResponseEntity<List<AssistantAdminResponse>> getAssistants() {
+
+        return ResponseEntity.ok(
+                assistantAdminService.getAllAssistants()
+        );
+    }
+
+    @GetMapping("/history/{sessionId}")
+    public ResponseEntity<List<ChatHistoryMessage>> getHistory(
+            @PathVariable Long sessionId
+    ) {
+
+        return ResponseEntity.ok(
+                aiChatService.getHistory(sessionId)
+        );
     }
 }

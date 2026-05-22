@@ -2,6 +2,7 @@ package se.liaprojekt.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.*;
@@ -114,7 +115,8 @@ public class CourseService {
                 course.getId(),
                 course.getTitle(),
                 course.getDescription(),
-                course.getCreatedBy()
+                course.getCreatedBy(),
+                course.getAssistantId()
         );
     }
 
@@ -151,8 +153,8 @@ public class CourseService {
     }
 
     // =========================
-// GET COURSE PROGRESS
-// =========================
+    // GET COURSE PROGRESS
+    // =========================
     public CourseProgressResponse getCourseProgress(Long courseId, String entraId) {
 
         // =========================
@@ -203,5 +205,19 @@ public class CourseService {
                 completedSections,
                 progress
         );
+    }
+
+    @Transactional
+    public void assignAssistant(
+            Long courseId,
+            String assistantId
+    ) {
+
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow();
+
+        course.setAssistantId(assistantId);
+
+        courseRepository.save(course);
     }
 }

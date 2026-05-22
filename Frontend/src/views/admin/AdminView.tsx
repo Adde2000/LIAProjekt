@@ -2,13 +2,15 @@ import { useState } from "react";
 import { UsersView } from "./UsersView";
 import { CreateCourseView } from "./CreateCourseView";
 import { ManageCoursesView } from "./ManageCoursesView.tsx";
+import { AssistantsView } from "./AssistantView";
 
-type AdminTab = "users" | "create-course" | "manage-courses";
+type AdminTab = "users" | "create-course" | "manage-courses" | "assistants";
 
 const ADMIN_TABS: { key: AdminTab; label: string }[] = [
     { key: "users",          label: "Användare"      },
     { key: "create-course",  label: "Ny kurs"        },
     { key: "manage-courses", label: "Hantera kurser" },
+    { key: "assistants",     label: "AI Assistants"  },
 ];
 
 export function AdminView() {
@@ -31,6 +33,7 @@ export function AdminView() {
             {tab === "users"          && <UsersView />}
             {tab === "create-course"  && <CreateCourseView />}
             {tab === "manage-courses" && <ManageCoursesView />}
+            {tab === "assistants" && <AssistantsView />}
         </>
     );
 }

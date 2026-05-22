@@ -10,6 +10,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import se.liaprojekt.dto.ChatHistoryMessage;
 import se.liaprojekt.dto.azure.*;
 import se.liaprojekt.exception.AzureAssistantException;
 
@@ -306,6 +307,75 @@ public class AzureAssistantClient {
         }
 
         return content.text().value();
+    }
+
+    // =========================
+    // GET ASSISTANTS
+    // =========================
+
+    public List<AzureAssistantData> getAssistants() {
+
+        log.info("Fetching Azure assistants");
+
+        AzureAssistantListResponse response = get(
+                url("/openai/assistants"),
+                AzureAssistantListResponse.class
+        );
+
+        if (response == null || response.data() == null) {
+
+            throw new AzureAssistantException(
+                    "Failed to fetch assistants"
+            );
+        }
+
+        return response.data();
+    }
+
+    // =========================
+    // GET CHAT HISTORY
+    // =========================
+
+    public List<ChatHistoryMessage> getThreadMessages(
+            String threadId
+    ) {
+
+        AzureMessageListResponse response = get(
+                url("/openai/threads/" + threadId + "/messages"),
+                AzureMessageListResponse.class
+        );
+
+        if (response == null || response.data() == null) {
+
+            throw new AzureAssistantException(
+                    "Failed to fetch thread messages"
+            );
+        }
+
+        return response.data()
+                .stream()
+                .filter(message ->
+                        message.content() != null
+                                && !message.content().isEmpty()
+                )
+                .map(message -> {
+
+                    AzureMessageContent content =
+                            message.content().getFirst();
+
+                    String text = "";
+
+                    if (content.text() != null) {
+                        text = content.text().value();
+                    }
+
+                    return new ChatHistoryMessage(
+                            message.role(),
+                            text
+                    );
+                })
+                .toList()
+                .reversed();
     }
 
     // =========================

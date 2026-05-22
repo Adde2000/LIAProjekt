@@ -5,14 +5,12 @@ import se.liaprojekt.model.AiSession;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 public interface AiSessionRepository extends JpaRepository<AiSession, Long> {
 
-    Optional<AiSession> findByUser_IdAndCourse_IdAndAiCharacter_Id(
+    List<AiSession> findAllByUser_IdAndCourse_Id(
             Long userId,
-            Long courseId,
-            Long characterId
+            Long courseId
     );
 
     List<AiSession> findByLastUsedAtBefore(

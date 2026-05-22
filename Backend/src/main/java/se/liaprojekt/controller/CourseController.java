@@ -101,4 +101,18 @@ public class CourseController {
                 courseService.getCourseProgress(courseId, entraId)
         );
     }
+
+    @PutMapping("/{courseId}/assistant/{assistantId}")
+    public ResponseEntity<Void> assignAssistant(
+            @PathVariable Long courseId,
+            @PathVariable String assistantId
+    ) {
+
+        courseService.assignAssistant(
+                courseId,
+                assistantId
+        );
+
+        return ResponseEntity.ok().build();
+    }
 }

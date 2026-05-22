@@ -2,8 +2,16 @@ package se.liaprojekt.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import se.liaprojekt.model.*;
-import se.liaprojekt.repository.*;
+import se.liaprojekt.exception.BadRequestException;
+import se.liaprojekt.exception.ResourceNotFoundException;
+import se.liaprojekt.model.AiSession;
+import se.liaprojekt.model.Course;
+import se.liaprojekt.model.User;
+import se.liaprojekt.repository.AiSessionRepository;
+import se.liaprojekt.repository.CourseRepository;
+import se.liaprojekt.repository.UserRepository;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -12,56 +20,115 @@ public class AiSessionInitService {
     private final AzureAssistantClient client;
 
     private final AiSessionRepository sessionRepo;
-    private final AiCharacterRepository characterRepo;
     private final UserRepository userRepo;
     private final CourseRepository courseRepo;
 
     public AiSession createSession(
             Long userId,
-            Long courseId,
-            Long characterId
+            Long courseId
     ) {
 
+        // =========================
+        // GET USER
+        // =========================
+
         User user = userRepo.findById(userId)
-                .orElseThrow();
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found: " + userId
+                        )
+                );
+
+        // =========================
+        // GET COURSE
+        // =========================
 
         Course course = courseRepo.findById(courseId)
-                .orElseThrow();
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Course not found: " + courseId
+                        )
+                );
 
-        AiCharacter character = characterRepo.findById(characterId)
-                .orElseThrow();
+        // =========================
+        // VALIDATE ASSISTANT
+        // =========================
 
-        boolean valid = character.getCourses()
-                .stream()
-                .anyMatch(c -> c.getId().equals(courseId));
+        String assistantId = course.getAssistantId();
 
-        if (!valid) {
-            throw new RuntimeException("Character does not belong to course");
+        if (assistantId == null || assistantId.isBlank()) {
+            throw new BadRequestException(
+                    "Course does not have an AI assistant assigned"
+            );
         }
 
-        return sessionRepo
-                .findByUser_IdAndCourse_IdAndAiCharacter_Id(
+        // =========================
+        // FIND EXISTING SESSION
+        // =========================
+
+        List<AiSession> existingSessions =
+                sessionRepo.findAllByUser_IdAndCourse_Id(
                         userId,
-                        courseId,
-                        characterId
-                )
-                .orElseGet(() -> createNewSession(user, course, character));
+                        courseId
+                );
+
+        // =========================
+        // REUSE EXISTING SESSION
+        // =========================
+
+        if (!existingSessions.isEmpty()) {
+
+            // OPTIONAL:
+            // CLEAN UP DUPLICATES IF THEY EXIST
+
+            if (existingSessions.size() > 1) {
+
+                AiSession keepSession = existingSessions.get(0);
+
+                List<AiSession> duplicates =
+                        existingSessions.subList(
+                                1,
+                                existingSessions.size()
+                        );
+
+                sessionRepo.deleteAll(duplicates);
+
+                return keepSession;
+            }
+
+            return existingSessions.get(0);
+        }
+
+        // =========================
+        // CREATE NEW SESSION
+        // =========================
+
+        return createNewSession(
+                user,
+                course
+        );
     }
 
     private AiSession createNewSession(
             User user,
-            Course course,
-            AiCharacter character
+            Course course
     ) {
 
+        // =========================
+        // CREATE AZURE THREAD
+        // =========================
+
         String threadId = client.createThread();
+
+        // =========================
+        // CREATE SESSION
+        // =========================
 
         AiSession session = new AiSession();
 
         session.setThreadId(threadId);
         session.setUser(user);
         session.setCourse(course);
-        session.setAiCharacter(character);
 
         return sessionRepo.save(session);
     }

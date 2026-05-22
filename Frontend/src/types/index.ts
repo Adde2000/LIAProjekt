@@ -68,6 +68,8 @@ export interface CourseResponse {
     title:       string;
     description: string;
     createdBy:   string;
+    //Optional assistantId
+    assistantId?: string;
 }
 
 export interface ChatMessage {
@@ -75,4 +77,10 @@ export interface ChatMessage {
     role: "user" | "assistant";
     content: string;
     timestamp: string;
+}
+
+export interface AssistantAdminResponse {
+    id: string;
+    name: string;
+    description: string;
 }
