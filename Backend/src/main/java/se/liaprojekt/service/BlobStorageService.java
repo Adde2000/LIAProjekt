@@ -234,6 +234,13 @@ public class BlobStorageService {
         }
     }
 
+    public void deleteSectionFiles(Long sectionId) {
+        List<FileEntry> fileEntries = listFilesBySectionId(String.valueOf(sectionId));
+        for (FileEntry fileEntry : fileEntries) {
+            deleteFile(resolveBlobName(fileEntry.fileId));
+        }
+    }
+
     /**
      * Lists blobs across both containers, filtered to only include files whose
      * extension is present in {@code allowedExtensions}. Returns a list of
