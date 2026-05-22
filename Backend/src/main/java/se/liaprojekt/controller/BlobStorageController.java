@@ -7,15 +7,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import se.liaprojekt.controller.util.SupportedMediaTypeResolver;
 import se.liaprojekt.exception.BadRequestException;
 import se.liaprojekt.service.BlobStorageService;
+import se.liaprojekt.service.BlobStorageService.FileEntry;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -24,6 +23,11 @@ import java.util.Set;
  * REST controller exposing endpoints for managing course material files in Azure Blob Storage.
  *
  * <p>Supports PDF and video files. All endpoints are served under {@code /api/material}.
+ *
+ * <p>Files are identified by an opaque {@code fileId} (a UUID) returned at upload time.
+ * Callers must store this ID and use it for all subsequent operations (download, stream,
+ * delete, tags). The original filename is preserved in blob tags for display purposes only
+ * and is never used as an identifier.
  *
  * <p>Upload and delete operations go directly to blob storage via SAS tokens.
  * Download issues a redirect to Azure Front Door CDN to avoid proxying bytes
@@ -54,9 +58,8 @@ public class BlobStorageController {
     // -------------------------------------------------------------------------
 
     /**
-     * Uploads a file to Azure Blob Storage under a server-generated UUID filename.
-     * The caller receives the generated filename in the response and must use it
-     * for all subsequent operations (download, delete, tags).
+     * Uploads a file to Azure Blob Storage and returns the opaque {@code fileId}
+     * that must be used for all subsequent operations on this file.
      *
      * <p>Only PDF and video files are accepted. The container is determined
      * automatically from the file extension. If a {@code sectionId} is provided,
@@ -64,12 +67,13 @@ public class BlobStorageController {
      *
      * @param file      Multipart file from the request (PDF or video)
      * @param sectionId Optional section identifier to tag the file with
-     * @return 200 with filename on success, 400 if the file type is unsupported
+     * @return 200 with {@code fileId} and {@code originalName} on success,
+     *         400 if the file type is unsupported
      */
     @PostMapping("/upload")
     public ResponseEntity<Map<String, String>> upload(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(required = false) String sectionId) throws IOException {
+            @RequestParam String sectionId) throws IOException {
 
         String originalFileName = file.getOriginalFilename();
         if (originalFileName == null || !mediaTypeResolver.isSupported(originalFileName)) {
@@ -77,11 +81,11 @@ public class BlobStorageController {
         }
 
         log.debug("Uploading file '{}' with sectionId '{}'", originalFileName, sectionId);
-        blobStorageService.uploadFile(
+        String fileId = blobStorageService.uploadFile(
                 originalFileName, file.getInputStream(), file.getSize(), sectionId);
 
-        // Return both names so the caller can display the original and reference by generated
         return ResponseEntity.ok(Map.of(
+                "fileId", fileId,
                 "originalName", originalFileName
         ));
     }
@@ -97,15 +101,15 @@ public class BlobStorageController {
      * directly from the CDN edge node. Suitable for PDFs and direct file downloads.
      * For video playback use {@link #stream} instead.
      *
-     * @param fileName Filename including extension (e.g. "lecture.pdf")
-     * @return 302 redirect to the Front Door SAS URL
+     * @param fileId Opaque file identifier returned at upload time
+     * @return 302 redirect to the Front Door SAS URL, or 404 if no file with that ID exists
      */
-    @GetMapping("/download/{fileName:.+}")
-    public ResponseEntity<Void> download(@PathVariable String fileName) {
-        log.debug("Generating download URL for '{}'", fileName);
-        String generatedFileName = blobStorageService.resolveFileName(fileName);
+    @GetMapping("/download/{fileId}")
+    public ResponseEntity<Void> download(@PathVariable String fileId) {
+        log.debug("Generating download URL for fileId '{}'", fileId);
+        String blobName = blobStorageService.resolveBlobName(fileId);
         return ResponseEntity.status(HttpStatus.FOUND)
-                .location(blobStorageService.generateDownloadUrl(generatedFileName))
+                .location(blobStorageService.generateDownloadUrl(blobName))
                 .build();
     }
 
@@ -124,23 +128,23 @@ public class BlobStorageController {
      *
      * <p>Only video files are accepted — PDF requests return {@code 400 Bad Request}.
      *
-     * @param fileName    Filename including extension (e.g. "lecture.mp4")
+     * @param fileId      Opaque file identifier returned at upload time
      * @param rangeHeader Optional HTTP {@code Range} header (e.g. "bytes=0-10485760")
      * @return 206 Partial Content with the requested byte range, or 400 for non-video files
      */
-    @GetMapping("/stream/{fileName:.+}")
+    @GetMapping("/stream/{fileId}")
     public ResponseEntity<StreamingResponseBody> stream(
-            @PathVariable String fileName,
+            @PathVariable String fileId,
             @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader) {
 
-        String generatedFileName = blobStorageService.resolveFileName(fileName);
+        String blobName = blobStorageService.resolveBlobName(fileId);
 
-        if (!mediaTypeResolver.isVideo(generatedFileName)) {
+        if (!mediaTypeResolver.isVideo(blobName)) {
             return ResponseEntity.badRequest().build();
         }
 
-        MediaType contentType = mediaTypeResolver.resolve(generatedFileName);
-        long fileSize = blobStorageService.getBlobSize(generatedFileName);
+        MediaType contentType = mediaTypeResolver.resolve(blobName);
+        long fileSize = blobStorageService.getBlobSize(blobName);
 
         // Default to full file if no Range header is provided
         long start = 0;
@@ -159,10 +163,10 @@ public class BlobStorageController {
         final long rangeStart = start;
         final long rangeLength = end - start + 1;
 
-        log.debug("Streaming '{}' bytes {}-{}/{}", generatedFileName, rangeStart, end, fileSize);
+        log.debug("Streaming fileId '{}' ({}) bytes {}-{}/{}", fileId, blobName, rangeStart, end, fileSize);
 
         StreamingResponseBody body = outputStream ->
-                blobStorageService.streamFile(generatedFileName, outputStream, rangeStart, rangeLength);
+                blobStorageService.streamFile(blobName, outputStream, rangeStart, rangeLength);
 
         return ResponseEntity
                 .status(rangeHeader != null ? HttpStatus.PARTIAL_CONTENT : HttpStatus.OK)
@@ -181,15 +185,15 @@ public class BlobStorageController {
     /**
      * Deletes a file from its container in Azure Blob Storage.
      *
-     * @param fileName Filename including extension (e.g. "lecture.pdf")
-     * @return 200 with filename on success
+     * @param fileId Opaque file identifier returned at upload time
+     * @return 200 on success, 404 if no file with that ID exists
      */
-    @DeleteMapping("/{fileName:.+}")
-    public ResponseEntity<String> delete(@PathVariable String fileName) {
-        log.debug("Deleting file '{}'", fileName);
-        String generatedFileName = blobStorageService.resolveFileName(fileName);
-        blobStorageService.deleteFile(generatedFileName);
-        return ResponseEntity.ok("Deleted: " + fileName);
+    @DeleteMapping("/{fileId}")
+    public ResponseEntity<String> delete(@PathVariable String fileId) {
+        log.debug("Deleting fileId '{}'", fileId);
+        String blobName = blobStorageService.resolveBlobName(fileId);
+        blobStorageService.deleteFile(blobName);
+        return ResponseEntity.ok("Deleted: " + fileId);
     }
 
     // -------------------------------------------------------------------------
@@ -198,12 +202,13 @@ public class BlobStorageController {
 
     /**
      * Lists files across both containers, optionally filtered by type.
+     * Each entry contains the {@code fileId} and the original filename.
      *
      * @param type Optional filter: {@code pdf}, {@code video}, or omit for all files
-     * @return 200 with list of matching filenames
+     * @return 200 with list of {@link FileEntry} objects
      */
     @GetMapping("/list")
-    public ResponseEntity<List<String>> list(
+    public ResponseEntity<List<FileEntry>> list(
             @RequestParam(required = false, defaultValue = "all") String type) {
         Set<String> extensions = mediaTypeResolver.extensionsForType(type);
         return ResponseEntity.ok(blobStorageService.listFiles(extensions));
@@ -216,10 +221,10 @@ public class BlobStorageController {
      * no client-side iteration required.
      *
      * @param sectionId Section identifier to filter by
-     * @return 200 with list of filenames belonging to the section
+     * @return 200 with list of {@link FileEntry} objects belonging to the section
      */
     @GetMapping("/list/section/{sectionId}")
-    public ResponseEntity<List<String>> listBySection(@PathVariable String sectionId) {
+    public ResponseEntity<List<FileEntry>> listBySection(@PathVariable String sectionId) {
         return ResponseEntity.ok(blobStorageService.listFilesBySectionId(sectionId));
     }
 
@@ -230,31 +235,31 @@ public class BlobStorageController {
     /**
      * Retrieves all blob tags for a file as a key-value map.
      *
-     * @param fileName Filename including extension
-     * @return 200 with tag map (e.g. {@code {"sectionId": "42"}})
+     * @param fileId Opaque file identifier returned at upload time
+     * @return 200 with tag map (e.g. {@code {"sectionId": "42", "originalName": "lecture.pdf"}})
      */
-    @GetMapping("/{fileName:.+}/tags")
-    public ResponseEntity<Map<String, String>> getTags(@PathVariable String fileName) {
-        log.debug("Fetching tags for '{}'", fileName);
-        String generatedFileName = blobStorageService.resolveFileName(fileName);
-        return ResponseEntity.ok(blobStorageService.getFileTags(generatedFileName));
+    @GetMapping("/{fileId}/tags")
+    public ResponseEntity<Map<String, String>> getTags(@PathVariable String fileId) {
+        log.debug("Fetching tags for fileId '{}'", fileId);
+        String blobName = blobStorageService.resolveBlobName(fileId);
+        return ResponseEntity.ok(blobStorageService.getFileTags(blobName));
     }
 
     /**
      * Updates the {@code sectionId} tag on an existing file.
      * All other tags on the blob are preserved.
      *
-     * @param fileName  Filename including extension
+     * @param fileId    Opaque file identifier returned at upload time
      * @param sectionId New section identifier
      * @return 200 with confirmation message
      */
-    @PatchMapping("/{fileName:.+}/tags/section")
+    @PatchMapping("/{fileId}/tags/section")
     public ResponseEntity<String> updateSection(
-            @PathVariable String fileName,
+            @PathVariable String fileId,
             @RequestParam String sectionId) {
-        log.debug("Updating sectionId tag for '{}' to '{}'", fileName, sectionId);
-        String generatedFileName = blobStorageService.resolveFileName(fileName);
-        blobStorageService.updateSectionId(generatedFileName, sectionId);
-        return ResponseEntity.ok("Updated sectionId for: " + fileName);
+        log.debug("Updating sectionId tag for fileId '{}' to '{}'", fileId, sectionId);
+        String blobName = blobStorageService.resolveBlobName(fileId);
+        blobStorageService.updateSectionId(blobName, sectionId);
+        return ResponseEntity.ok("Updated sectionId for: " + fileId);
     }
 }
