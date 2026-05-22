@@ -27,6 +27,7 @@ public class CourseService {
     private final SectionRepository sectionRepository;
     private final UserProgressRepository userProgressRepository;
     private final UserService userService;
+    private final SectionService sectionService;
 
     public List<CourseResponse> getAllCourses() {
         return courseRepository.findAll()
@@ -106,7 +107,12 @@ public class CourseService {
                         new ResourceNotFoundException("Course not found with id: " + id)
                 );
 
+        List<Section> sections = course.getSections();
+        for (Section section : sections) {
+            sectionService.deleteSection(section.getId());
+        }
         courseRepository.delete(course);
+
     }
 
     private CourseResponse mapToResponse(Course course) {
