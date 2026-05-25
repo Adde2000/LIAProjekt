@@ -1,4 +1,4 @@
-package se.liaprojekt.service;
+package se.liaprojekt.service.ai;
 
 import com.azure.core.credential.TokenCredential;
 import com.azure.core.credential.TokenRequestContext;

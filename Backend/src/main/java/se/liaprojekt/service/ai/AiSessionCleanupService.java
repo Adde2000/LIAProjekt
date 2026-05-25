@@ -1,4 +1,4 @@
-package se.liaprojekt.service;
+package se.liaprojekt.service.ai;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

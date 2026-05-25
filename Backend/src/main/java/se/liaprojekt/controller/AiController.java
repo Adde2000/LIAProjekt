@@ -5,10 +5,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.model.AiSession;
-import se.liaprojekt.service.AiCharacterService;
-import se.liaprojekt.service.AiChatService;
-import se.liaprojekt.service.AiSessionInitService;
-import se.liaprojekt.service.AssistantAdminService;
+import se.liaprojekt.service.ai.AiCharacterService;
+import se.liaprojekt.service.ai.AiChatService;
+import se.liaprojekt.service.ai.AiSessionInitService;
+import se.liaprojekt.service.ai.AssistantAdminService;
 
 import java.util.List;
 
