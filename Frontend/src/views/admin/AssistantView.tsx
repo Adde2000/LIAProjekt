@@ -61,8 +61,6 @@ export function AssistantsView() {
 
                         <p>{assistant.description}</p>
 
-                        <small>{assistant.id}</small>
-
                     </div>
                 ))}
 
