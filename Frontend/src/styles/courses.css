@@ -351,3 +351,27 @@
     color: var(--color-text-secondary);
     flex-shrink: 0;
 }
+
+/* ── Material row — clickable ─────────────────────────────────────────────── */
+
+.vmv-section-material-row--clickable {
+    cursor: pointer;
+    grid-template-columns: 20px 1fr auto auto;
+    transition: background 0.12s, border-color 0.12s;
+    text-decoration: none;
+    color: inherit;
+}
+
+.vmv-section-material-row--clickable:hover {
+    background: var(--color-background-primary);
+    border-color: var(--color-border-secondary);
+}
+
+.vmv-section-material-open {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+    margin-left: 4px;
+}
+

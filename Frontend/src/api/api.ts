@@ -270,30 +270,48 @@ export async function deleteMaterial(
     }
 }
 
-export async function streamMaterial(
+
+export async function getStreamToken(
     instance: IPublicClientApplication,
-    fileId: string,
-    rangeHeader?: string
-): Promise<Response> {
+    fileId: string
+): Promise<{ streamToken: string; streamUrl: string; expiresIn: number }> {
     if (!BASE_URL) throw new Error("Missing VITE_API_BASE_URL");
 
     const token = await getAccessToken(instance);
 
-    const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-    };
-    if (rangeHeader) {
-        headers["Range"] = rangeHeader;
-    }
-
     const res = await fetch(
-        `${BASE_URL}/api/material/stream/${encodeURIComponent(fileId)}`,
-        { headers }
+        `${BASE_URL}/api/material/stream-token/${encodeURIComponent(fileId)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    if (!res.ok && res.status !== 206) {
-        throw new Error(`Stream request failed: ${res.status}`);
+    if (!res.ok) {
+        throw new Error(`Failed to get stream token: ${res.status}`);
     }
 
-    return res;
+    return res.json();
+}
+
+export async function getDownloadUrl(
+    instance: IPublicClientApplication,
+    fileId: string
+): Promise<string> {
+    if (!BASE_URL) throw new Error("Missing VITE_API_BASE_URL");
+
+    const token = await getAccessToken(instance);
+
+    const res = await fetch(
+        `${BASE_URL}/api/material/download/${encodeURIComponent(fileId)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+
+    // Backend returns the pre-signed URL as a plain string or JSON
+    const text = await res.text();
+    try {
+        const json = JSON.parse(text);
+        return json.url ?? json.downloadUrl ?? json.sasUrl ?? text;
+    } catch {
+        return text.trim();
+    }
 }

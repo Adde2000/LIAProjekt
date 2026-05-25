@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMsal } from "@azure/msal-react";
 import type { CourseResponse, LoadState, SectionResponse } from "../types";
-import { getCourseSections, getSectionMaterials, streamMaterial } from "../api/api";
+import { getCourseSections, getSectionMaterials, getStreamToken, getDownloadUrl } from "../api/api";
 import { FetchState } from "../components/FetchState";
 
 interface Props {
@@ -33,6 +33,13 @@ interface MaterialItem {
     originalName: string;
 }
 
+interface ActiveStream {
+    material: MaterialItem;
+    streamUrl: string;
+    fileId: string;
+    expiresIn: number;
+}
+
 function extOf(filename: string): string {
     return filename.split(".").pop()?.toLowerCase() ?? "";
 }
@@ -43,78 +50,38 @@ function fileIcon(ext: string) {
     return "📎";
 }
 
-function MediaViewer({ material, onClose }: { material: MaterialItem; onClose: () => void }) {
-    const { instance } = useMsal();
-    const [objectUrl, setObjectUrl] = useState<string | null>(null);
-    const [loadError, setLoadError] = useState<string | null>(null);
-    const ext = extOf(material.originalName);
-    const isVideo = ["mp4", "mov", "avi", "mkv"].includes(ext);
-    const isPdf   = ext === "pdf";
-
-    useEffect(() => {
-        let url: string | null = null;
-        streamMaterial(instance, material.fileId)
-            .then((res) => res.blob())
-            .then((blob) => {
-                url = URL.createObjectURL(blob);
-                setObjectUrl(url);
-            })
-            .catch((err) => setLoadError(err instanceof Error ? err.message : "Kunde inte ladda filen"));
-
-        return () => { if (url) URL.revokeObjectURL(url); };
-    }, [instance, material.fileId]);
-
-    return (
-        <div className="vmv-media-backdrop" onClick={onClose}>
-            <div className="vmv-media-modal" onClick={(e) => e.stopPropagation()}>
-                <div className="vmv-media-modal-header">
-                    <span className="vmv-media-modal-title">{material.originalName}</span>
-                    <button className="vmv-media-modal-close" onClick={onClose}>✕</button>
-                </div>
-                <div className="vmv-media-modal-body">
-                    {loadError && (
-                        <div className="vmv-section-material-status vmv-section-material-status--error">
-                            Fel: {loadError}
-                        </div>
-                    )}
-                    {!objectUrl && !loadError && (
-                        <div className="vmv-section-material-status">Laddar…</div>
-                    )}
-                    {objectUrl && isVideo && (
-                        <video
-                            className="vmv-media-video"
-                            src={objectUrl}
-                            controls
-                            autoPlay
-                        />
-                    )}
-                    {objectUrl && isPdf && (
-                        <iframe
-                            className="vmv-media-pdf"
-                            src={objectUrl}
-                            title={material.originalName}
-                        />
-                    )}
-                    {objectUrl && !isVideo && !isPdf && (
-                        <div className="vmv-section-material-status">
-                            Förhandsvisning ej tillgänglig.{" "}
-                            <a href={objectUrl} download={material.originalName}>Ladda ned</a>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function SectionItem({ section }: { section: SectionResponse }) {
+function SectionItem({ section, onOpen }: { section: SectionResponse; onOpen: (s: ActiveStream) => void }) {
     const { instance } = useMsal();
     const [expanded, setExpanded] = useState(false);
     const [materials, setMaterials] = useState<MaterialItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [activeMaterial, setActiveMaterial] = useState<MaterialItem | null>(null);
     const fetchedRef = useRef(false);
+    const [openingId, setOpeningId] = useState<string | null>(null);
+    const [streamError, setStreamError] = useState<string | null>(null);
+
+    async function openMaterial(m: MaterialItem) {
+        if (openingId) return;
+        setOpeningId(m.fileId);
+        setStreamError(null);
+        try {
+            const isPdf = extOf(m.originalName) === "pdf";
+            if (isPdf) {
+                // PDFs use the download endpoint — no stream token needed
+                onOpen({ material: m, streamUrl: "", fileId: m.fileId, expiresIn: 0 });
+            } else {
+                const result = await getStreamToken(instance, m.fileId);
+                const fullUrl = `${import.meta.env.VITE_API_BASE_URL ?? ""}${result.streamUrl}`;
+                onOpen({ material: m, streamUrl: fullUrl, fileId: m.fileId, expiresIn: result.expiresIn });
+            }
+        } catch (err) {
+            setStreamError(err instanceof Error ? err.message : "Kunde inte öppna filen");
+        } finally {
+            setOpeningId(null);
+        }
+    }
+
+
 
     function handleToggle() {
         if (section.isLocked) return;
@@ -166,14 +133,16 @@ function SectionItem({ section }: { section: SectionResponse }) {
                                     return (
                                         <div
                                             key={m.fileId}
-                                            className="vmv-section-material-row vmv-section-material-row--clickable"
-                                            onClick={() => setActiveMaterial(m)}
+                                            className={`vmv-section-material-row vmv-section-material-row--clickable${openingId === m.fileId ? " vmv-section-material-row--loading" : ""}`}
+                                            onClick={() => openMaterial(m)}
                                             title="Öppna"
                                         >
                                             <span className="vmv-section-material-icon">{fileIcon(ext)}</span>
                                             <span className="vmv-section-material-name">{m.originalName}</span>
                                             <span className="vmv-section-material-type">{ext.toUpperCase()}</span>
-                                            <span className="vmv-section-material-open">↗</span>
+                                            <span className="vmv-section-material-open">
+                                                {openingId === m.fileId ? "…" : "▶"}
+                                            </span>
                                         </div>
                                     );
                                 })}
@@ -181,10 +150,14 @@ function SectionItem({ section }: { section: SectionResponse }) {
                         )}
                     </div>
                 )}
-                {activeMaterial && (
-                    <MediaViewer material={activeMaterial} onClose={() => setActiveMaterial(null)} />
-                )}
+
             </div>
+
+            {streamError && (
+                <div className="vmv-section-material-status vmv-section-material-status--error" style={{ padding: "0.5rem 1rem" }}>
+                    Fel: {streamError}
+                </div>
+            )}
 
             {section.isLocked ? (
                 <div className="vmv-section-item-lock">
@@ -198,8 +171,97 @@ function SectionItem({ section }: { section: SectionResponse }) {
     );
 }
 
+function MediaView({ stream, onBack }: { stream: ActiveStream; onBack: () => void }) {
+    const { instance } = useMsal();
+    const [videoUrl, setVideoUrl] = useState(stream.streamUrl);
+
+    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+    const [pdfLoading, setPdfLoading] = useState(false);
+    const [pdfError, setPdfError] = useState<string | null>(null);
+    const ext = extOf(stream.material.originalName);
+    const isVideo = ["mp4", "mov", "avi", "mkv"].includes(ext);
+    const isPdf   = ext === "pdf";
+    const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    function scheduleRefresh(expiresIn: number) {
+        if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+        const delay = Math.max((expiresIn * 0.8) * 1000, 5000);
+        refreshTimerRef.current = setTimeout(async () => {
+            try {
+                const result = await getStreamToken(instance, stream.fileId);
+                setVideoUrl(`${import.meta.env.VITE_API_BASE_URL ?? ""}${result.streamUrl}`);
+                scheduleRefresh(result.expiresIn);
+            } catch { /* silently ignore */ }
+        }, delay);
+    }
+
+    useEffect(() => {
+        if (isVideo) {
+            scheduleRefresh(stream.expiresIn);
+        }
+
+        if (isPdf) {
+            setPdfLoading(true);
+            setPdfError(null);
+            getDownloadUrl(instance, stream.fileId)
+                .then((sasUrl) => setPdfUrl(sasUrl))
+                .catch((err) => setPdfError(err instanceof Error ? err.message : "Kunde inte ladda PDF"))
+                .finally(() => setPdfLoading(false));
+        }
+
+        return () => {
+            if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+        };
+    }, []);
+
+    return (
+        <>
+            <button className="vmv-back-btn" onClick={onBack}>
+                ← Tillbaka
+            </button>
+
+            <div className="vmv-section-head">{stream.material.originalName}</div>
+
+            <div className="vmv-media-view">
+                {isVideo && (
+                    <video
+                        className="vmv-media-view-video"
+                        src={videoUrl}
+                        controls
+                        autoPlay
+                    />
+                )}
+
+                {isPdf && pdfLoading && (
+                    <div className="vmv-section-material-status">Laddar PDF…</div>
+                )}
+                {isPdf && pdfError && (
+                    <div className="vmv-section-material-status vmv-section-material-status--error">
+                        Fel: {pdfError}
+                    </div>
+                )}
+                {isPdf && pdfUrl && (
+                    <iframe
+                        className="vmv-media-view-pdf"
+                        src={pdfUrl}
+                        title={stream.material.originalName}
+                    />
+                )}
+                {!isVideo && !isPdf && (
+                    <div className="vmv-section-material-status">
+                        <a href={stream.streamUrl} download={stream.material.originalName}>
+                            Ladda ned {stream.material.originalName}
+                        </a>
+                    </div>
+                )}
+            </div>
+        </>
+    );
+}
+
 export function CourseSectionView({ course, onBack }: Props) {
     const { instance } = useMsal();
+    const [activeStream, setActiveStream] = useState<ActiveStream | null>(null);
     const [fetchKey, setFetchKey] = useState(0);
     const [state, setState] = useState<LoadState<SectionResponse[]>>({
         data: null,
@@ -231,6 +293,10 @@ export function CourseSectionView({ course, onBack }: Props) {
 
     // Sort by orderIndex so display order always matches the server's intent
     const sorted = [...(state.data ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
+
+    if (activeStream) {
+        return <MediaView stream={activeStream} onBack={() => setActiveStream(null)} />;
+    }
 
     return (
         <>
@@ -264,7 +330,7 @@ export function CourseSectionView({ course, onBack }: Props) {
                         </div>
                     ) : (
                         sorted.map((section) => (
-                            <SectionItem key={section.id} section={section} />
+                            <SectionItem key={section.id} section={section} onOpen={setActiveStream} />
                         ))
                     )}
                 </div>

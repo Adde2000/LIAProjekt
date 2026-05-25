@@ -1,4 +1,5 @@
 import { type JSX, useState } from "react";
+import { useStreamServiceWorker } from "./auth/useStreamServiceWorker";
 import type { ViewKey } from "./types";
 import { VIEWS } from "./data";
 import { CoursesView } from "./views/CoursesView";
@@ -13,8 +14,10 @@ import "./styles/admin-layout.css";
 import "./styles/admin-users.css";
 import "./styles/admin-courses.css";
 import "./styles/admin-forms.css";
+import "./styles/confirm-dialog.css";
 
 export default function LearningPortal() {
+    useStreamServiceWorker();
     const [view, setView] = useState<ViewKey>("courses");
 
     const viewMap: Record<ViewKey, JSX.Element> = {

@@ -13,8 +13,10 @@ import se.liaprojekt.controller.util.SupportedMediaTypeResolver;
 import se.liaprojekt.exception.BadRequestException;
 import se.liaprojekt.service.BlobStorageService;
 import se.liaprojekt.service.BlobStorageService.FileEntry;
+import se.liaprojekt.service.StreamTokenService;
 
 import java.io.IOException;
+import org.springframework.web.bind.annotation.RequestParam;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,11 +48,14 @@ public class BlobStorageController {
 
     private final BlobStorageService blobStorageService;
     private final SupportedMediaTypeResolver mediaTypeResolver;
+    private final StreamTokenService streamTokenService;
 
     public BlobStorageController(BlobStorageService blobStorageService,
-                                 SupportedMediaTypeResolver mediaTypeResolver) {
+                                 SupportedMediaTypeResolver mediaTypeResolver,
+                                 StreamTokenService streamTokenService) {
         this.blobStorageService = blobStorageService;
         this.mediaTypeResolver = mediaTypeResolver;
+        this.streamTokenService = streamTokenService;
     }
 
     // -------------------------------------------------------------------------
@@ -95,22 +100,46 @@ public class BlobStorageController {
     // -------------------------------------------------------------------------
 
     /**
-     * Redirects the client to a short-lived SAS URL served via Azure Front Door CDN.
+     * Serves a file for display or download.
      *
-     * <p>The application does not proxy the file bytes — the client fetches
-     * directly from the CDN edge node. Suitable for PDFs and direct file downloads.
-     * For video playback use {@link #stream} instead.
+     * <p>PDFs are proxied through the app server with {@code Content-Disposition: inline}
+     * so the browser renders them directly in an {@code <iframe>} or tab rather than
+     * triggering a file download. Proxying is necessary because Azure Front Door does not
+     * forward SAS response-header overrides (rscd), making it impossible to control
+     * Content-Disposition via a CDN redirect for PDFs.
+     *
+     * <p>Non-PDF files (videos, etc.) are not expected to use this endpoint — they are
+     * handled by {@link #streamToken} and {@link #stream}. If a non-PDF fileId is passed,
+     * a CDN URL is returned as JSON for the caller to handle.
      *
      * @param fileId Opaque file identifier returned at upload time
-     * @return 302 redirect to the Front Door SAS URL, or 404 if no file with that ID exists
+     * @return For PDFs: 200 with the file bytes and {@code Content-Disposition: inline}.
+     *         For other types: 200 with {@code {"url": "<CDN SAS URL>"}}.
      */
     @GetMapping("/download/{fileId}")
-    public ResponseEntity<Void> download(@PathVariable String fileId) {
-        log.debug("Generating download URL for fileId '{}'", fileId);
+    public ResponseEntity<?> download(@PathVariable String fileId) {
+        log.debug("Downloading fileId '{}'", fileId);
         String blobName = blobStorageService.resolveBlobName(fileId);
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .location(blobStorageService.generateDownloadUrl(blobName))
-                .build();
+
+        if (getExtension(blobName).equals("pdf")) {
+            String originalName = blobStorageService.getFileTags(blobName)
+                    .getOrDefault("originalName", blobName);
+
+            StreamingResponseBody body = outputStream ->
+                    blobStorageService.streamFile(blobName, outputStream, 0,
+                            blobStorageService.getBlobSize(blobName));
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + originalName + "\"")
+                    .header(HttpHeaders.CONTENT_LENGTH,
+                            String.valueOf(blobStorageService.getBlobSize(blobName)))
+                    .body(body);
+        }
+
+        // Non-PDF fallback — return CDN URL for the caller to handle
+        String url = blobStorageService.generateDownloadUrl(blobName).toString();
+        return ResponseEntity.ok(Map.of("url", url));
     }
 
     // -------------------------------------------------------------------------
@@ -118,30 +147,72 @@ public class BlobStorageController {
     // -------------------------------------------------------------------------
 
     /**
+     * Issues a short-lived signed token that authorises one streaming session for a video file.
+     *
+     * <p>Because the browser's {@code <video src="...">} element cannot attach an
+     * {@code Authorization} header to its range requests, the normal bearer-token auth
+     * flow does not work for video streaming. The frontend must therefore:
+     * <ol>
+     *   <li>Call this endpoint (with the normal auth header) to obtain a stream token.</li>
+     *   <li>Append the token as {@code ?streamToken=<value>} to the stream URL.</li>
+     *   <li>Set that URL as the {@code src} of the {@code <video>} element.</li>
+     * </ol>
+     *
+     * <p>Tokens are valid for a short window (default 5 minutes, configurable via
+     * {@code stream.token.ttl-seconds}) and are scoped to a single {@code fileId}.
+     *
+     * @param fileId Opaque file identifier returned at upload time
+     * @return 200 with {@code {"streamToken": "<token>", "streamUrl": "...", "expiresIn": <seconds>}}
+     */
+    @GetMapping("/stream-token/{fileId}")
+    public ResponseEntity<Map<String, Object>> streamToken(@PathVariable String fileId) {
+        // Resolve early so we return 404 immediately if the file doesn't exist
+        String blobName = blobStorageService.resolveBlobName(fileId);
+        if (!mediaTypeResolver.isVideo(blobName)) {
+            throw new BadRequestException("Stream tokens can only be issued for video files. Use /download for PDFs.");
+        }
+        String token = streamTokenService.issue(fileId);
+        String url = "/api/material/stream/%s?streamToken=%s".formatted(fileId, token);
+        log.debug("Issued stream token for fileId '{}'", fileId);
+        return ResponseEntity.ok(Map.of(
+                "streamToken", token,
+                "streamUrl",   url,
+                "expiresIn",   streamTokenService.getTtlSeconds()
+        ));
+    }
+
+    /**
      * Streams a video file with HTTP range request support.
      *
-     * <p>The browser's {@code <video>} element sends a {@code Range} header automatically,
-     * and this endpoint responds with {@code 206 Partial Content} containing only the
-     * requested byte range. This enables seeking, resumable playback, and efficient buffering.
+     * <p>This endpoint is intentionally excluded from Spring Security's bearer-token
+     * filter chain (configured in {@code SecurityConfig}) because the browser's
+     * {@code <video>} element cannot attach an {@code Authorization} header to range
+     * requests. Authentication is instead provided by the {@code streamToken} query
+     * parameter, which must be a valid token previously issued by
+     * {@link #streamToken(String)}.
      *
-     * <p>If no {@code Range} header is present the full file is streamed with {@code 200 OK}.
+     * <p>The endpoint responds with {@code 206 Partial Content} for range requests and
+     * {@code 200 OK} when no {@code Range} header is present.
      *
      * <p>Only video files are accepted — PDF requests return {@code 400 Bad Request}.
      *
      * @param fileId      Opaque file identifier returned at upload time
+     * @param streamToken Signed token issued by {@link #streamToken(String)}
      * @param rangeHeader Optional HTTP {@code Range} header (e.g. "bytes=0-10485760")
-     * @return 206 Partial Content with the requested byte range, or 400 for non-video files
+     * @return 206 Partial Content with the requested byte range, or 400/401 on error
      */
     @GetMapping("/stream/{fileId}")
     public ResponseEntity<StreamingResponseBody> stream(
             @PathVariable String fileId,
+            @RequestParam String streamToken,
             @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader) {
 
+        streamTokenService.validate(streamToken, fileId);
         String blobName = blobStorageService.resolveBlobName(fileId);
 
-//        if (!mediaTypeResolver.isVideo(blobName)) {
-//            return ResponseEntity.badRequest().build();
-//        }
+        if (!mediaTypeResolver.isVideo(blobName)) {
+            return ResponseEntity.badRequest().build();
+        }
 
         MediaType contentType = mediaTypeResolver.resolve(blobName);
         long fileSize = blobStorageService.getBlobSize(blobName);
@@ -261,5 +332,14 @@ public class BlobStorageController {
         String blobName = blobStorageService.resolveBlobName(fileId);
         blobStorageService.updateSectionId(blobName, sectionId);
         return ResponseEntity.ok("Updated sectionId for: " + fileId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    private String getExtension(String blobName) {
+        int dot = blobName.lastIndexOf('.');
+        return dot >= 0 ? blobName.substring(dot + 1).toLowerCase() : "";
     }
 }
