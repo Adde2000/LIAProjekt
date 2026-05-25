@@ -29,8 +29,8 @@ public class Section {
     @JoinColumn(name = "course_id")
     private Course course;
 
-    @OneToMany(mappedBy = "section", cascade = CascadeType.ALL)
-    private List<Material> materials;
+//    @OneToMany(mappedBy = "section", cascade = CascadeType.ALL)
+//    private List<Material> materials;
 
     @OneToMany(mappedBy = "section", cascade = CascadeType.ALL)
     private List<TestQuestion> testQuestions = new ArrayList<>();

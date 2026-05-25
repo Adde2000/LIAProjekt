@@ -20,6 +20,7 @@ public class SectionService {
     private final SectionRepository sectionRepository;
     private final CourseRepository courseRepository;
     private final TestResultRepository testResultRepository;
+    private final BlobStorageService blobStorageService;
 
     public SectionResponse addSection(Long courseId, String title) {
 
@@ -70,6 +71,14 @@ public class SectionService {
                 .stream()
                 .map(section -> mapToResponse(section, entraId))
                 .toList();
+    }
+
+    // =========================
+    // DELETE SECTIONS
+    // =========================
+    public void deleteSection(Long sectionId) {
+        blobStorageService.deleteSectionFiles(sectionId);
+        sectionRepository.deleteById(sectionId);
     }
 
     // =========================
