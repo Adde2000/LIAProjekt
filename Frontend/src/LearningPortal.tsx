@@ -3,6 +3,7 @@ import type { ViewKey } from "./types";
 import { VIEWS } from "./data";
 import { CoursesView } from "./views/CoursesView";
 import { AdminView }   from "./views/admin/AdminView";
+import AIChatView from "./views/AIChatView";
 
 // CSS — one import per concern, all pulled in here
 import "./styles/global.css";
@@ -13,6 +14,7 @@ import "./styles/admin-layout.css";
 import "./styles/admin-users.css";
 import "./styles/admin-courses.css";
 import "./styles/admin-forms.css";
+import "./styles/ai-chat.css";
 
 export default function LearningPortal() {
     const [view, setView] = useState<ViewKey>("courses");
@@ -21,6 +23,7 @@ export default function LearningPortal() {
         courses: <CoursesView />,
         quizzes: <></>,          // reserved for future QuizzesView
         admin:   <AdminView />,
+        aiChat: <AIChatView />,
     };
 
     return (

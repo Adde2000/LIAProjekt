@@ -7,6 +7,9 @@ import org.springframework.http.*;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+
+import java.io.IOException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -144,26 +147,60 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-    // 500
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(
-            Exception ex,
+    // 502 - Azure OpenAI / Assistant API
+    @ExceptionHandler(AzureAssistantException.class)
+    public ResponseEntity<ErrorResponse> handleAzureAssistantException(
+            AzureAssistantException ex,
             HttpServletRequest request
     ) {
 
-        log.error("500 INTERNAL ERROR | {} {}",
+        log.error("502 AZURE OPENAI ERROR | {} {} | {}",
                 request.getMethod(),
                 request.getRequestURI(),
-                ex
+                ex.getMessage()
         );
 
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(new ErrorResponse(
-                        500,
-                        "Internal Server Error: " + ex.getClass().getName(),
-//                        "Unexpected error occurred",
+                        502,
+                        "Azure OpenAI Error",
                         ex.getMessage(),
                         request.getRequestURI()
                 ));
+    }
+
+    // 500
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGenericException(
+            Exception ex, HttpServletRequest request) {
+
+        if (isClientDisconnect(ex)) {
+            log.debug("Client disconnected during streaming: {}", ex.getMessage());
+            return null;
+        }
+
+        log.error("{} | {} {}", HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                request.getMethod(), request.getRequestURI(), ex);
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                        "An unexpected error occurred.",
+                        ex.getMessage(),
+                        request.getRequestURI()
+                ));
+    }
+
+    private boolean isClientDisconnect(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            if (current instanceof IOException) return true;
+            if (current instanceof AsyncRequestNotUsableException) return true;
+            // Matches the Swedish/any locale broken pipe message as a last resort
+            if (current.getMessage() != null &&
+                    current.getMessage().toLowerCase().contains("broken pipe")) return true;
+            current = current.getCause();
+        }
+        return false;
     }
 }

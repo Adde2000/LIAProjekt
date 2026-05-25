@@ -19,6 +19,9 @@ public class Course {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "assistant_id")
+    private String assistantId;
+
     @Column(nullable = false)
     private String title;
 
@@ -32,7 +35,7 @@ public class Course {
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL)
     private List<Section> sections = new ArrayList<>();
 
-    @OneToMany(mappedBy = "course")
+    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL)
     private List<UserProgress> userProgress;
 
     @ManyToMany

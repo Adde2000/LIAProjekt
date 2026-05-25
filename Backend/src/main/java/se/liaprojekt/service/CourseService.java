@@ -2,11 +2,16 @@ package se.liaprojekt.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.*;
 import se.liaprojekt.repository.CourseRepository;
+import se.liaprojekt.repository.SectionRepository;
 import se.liaprojekt.repository.TestResultRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import se.liaprojekt.repository.UserProgressRepository;
 
 import java.util.ArrayList;
@@ -16,10 +21,16 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CourseService {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(CourseService.class);
+
     private final CourseRepository courseRepository;
     private final TestResultRepository testResultRepository;
+    private final SectionRepository sectionRepository;
     private final UserProgressRepository userProgressRepository;
     private final UserService userService;
+    private final SectionService sectionService;
+    private final CurrentUserService currentUserService;
 
     public List<CourseResponse> getAllCourses() {
         return courseRepository.findAll()
@@ -47,12 +58,17 @@ public class CourseService {
         return mapToResponse(course);
     }
 
-    public CourseResponse createCourse(CourseRequest request) {
+    public CourseResponse createCourse(CourseRequest request, Authentication authentication) {
+
         Course course = new Course();
+
         course.setTitle(request.title());
         course.setDescription(request.description());
-        // TODO: ändra CreatedBy till authenticatied user
-        course.setCreatedBy("system");
+
+        // namn från JWT token
+        course.setCreatedBy(
+                currentUserService.getName()
+        );
 
         Course saved = courseRepository.save(course);
 
@@ -68,7 +84,7 @@ public class CourseService {
             userProgressList.add(new UserProgress(userService.getUserById(student.id()), course));
         });
         userProgressRepository.saveAll(userProgressList);
-        return null;
+        return getStudentsInCourse(courseId);
     }
 
     //TODO return UserProgressResponse
@@ -99,7 +115,12 @@ public class CourseService {
                         new ResourceNotFoundException("Course not found with id: " + id)
                 );
 
+        List<Section> sections = course.getSections();
+        for (Section section : sections) {
+            sectionService.deleteSection(section.getId());
+        }
         courseRepository.delete(course);
+
     }
 
     private CourseResponse mapToResponse(Course course) {
@@ -111,9 +132,41 @@ public class CourseService {
         );
     }
 
+    public boolean isCourseCompleted(String entraId, Course course) {
+
+        log.debug("CHECK COURSE COMPLETION | entraId={} courseId={}",
+                entraId,
+                course.getId()
+        );
+
+        List<Section> sections = sectionRepository.findByCourseId(course.getId());
+
+        for (Section section : sections) {
+
+            TestResult lastAttempt = testResultRepository
+                    .findTopByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(
+                            entraId,
+                            section.getId()
+                    )
+                    .orElse(null);
+
+            log.debug("SECTION CHECK | sectionId={} status={}",
+                    section.getId(),
+                    lastAttempt != null ? lastAttempt.getStatus() : "NULL"
+            );
+
+            if (lastAttempt == null ||
+                    lastAttempt.getStatus() != TestResult.Status.COMPLETED) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     // =========================
-// GET COURSE PROGRESS
-// =========================
+    // GET COURSE PROGRESS
+    // =========================
     public CourseProgressResponse getCourseProgress(Long courseId, String entraId) {
 
         // =========================
@@ -164,5 +217,19 @@ public class CourseService {
                 completedSections,
                 progress
         );
+    }
+
+    @Transactional
+    public void assignAssistant(
+            Long courseId,
+            String assistantId
+    ) {
+
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow();
+
+        course.setAssistantId(assistantId);
+
+        courseRepository.save(course);
     }
 }
