@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.service.CourseService;
@@ -45,9 +46,12 @@ public class CourseController {
     }
 
     @PostMapping
-    public ResponseEntity<CourseResponse> createCourse(@RequestBody CourseRequest courseRequest) {
+    public ResponseEntity<CourseResponse> createCourse(
+            @RequestBody CourseRequest courseRequest,
+            Authentication authentication
+    ) {
         logger.info("Creating new course {}", courseRequest);
-        return ResponseEntity.ok(courseService.createCourse(courseRequest));
+        return ResponseEntity.ok(courseService.createCourse(courseRequest, authentication));
     }
 
     @PostMapping("/{courseId}/sections")

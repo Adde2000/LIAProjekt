@@ -3,6 +3,8 @@ package se.liaprojekt.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.*;
@@ -55,12 +57,25 @@ public class CourseService {
         return mapToResponse(course);
     }
 
-    public CourseResponse createCourse(CourseRequest request) {
+    public CourseResponse createCourse(
+            CourseRequest request,
+            Authentication authentication
+    ) {
+
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+
         Course course = new Course();
+
         course.setTitle(request.title());
         course.setDescription(request.description());
-        // TODO: ändra CreatedBy till authenticatied user
-        course.setCreatedBy("system");
+
+        // =========================
+        // CREATED BY LOGGED IN USER
+        // =========================
+
+        course.setCreatedBy(
+                jwt.getClaimAsString("name")
+        );
 
         Course saved = courseRepository.save(course);
 
