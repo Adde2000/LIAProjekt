@@ -4,16 +4,22 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import se.liaprojekt.dto.CourseRequest;
 import se.liaprojekt.dto.CourseResponse;
+import se.liaprojekt.dto.SectionRequest;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.Course;
+import se.liaprojekt.model.Section;
 import se.liaprojekt.repository.CourseRepository;
+import se.liaprojekt.repository.SectionRepository;
+import se.liaprojekt.service.CurrentUserService;
 
 import java.util.*;
 
@@ -27,15 +33,17 @@ class CourseControllerTest {
     private CourseController controller;
 
     @Autowired
-    private CourseRepository repository;
+    private CourseRepository courseRepository;
+
+    @Autowired
+    private SectionRepository sectionRepository;
+
+    @MockBean
+    private CurrentUserService currentUserService;
 
     private static final int NUMBER_OF_COURSES = 10;
     private static List<Course> preloadedCourses = new ArrayList<>();
-    private static Map<Long, Course> courseMap = new HashMap<>();
-    @Autowired
-    private CourseRepository courseRepository;
-
-//    private List<CourseRequest> courseRequests;
+    private static final Map<Long, Course> courseMap = new HashMap<>();
 
     @BeforeAll
     static void setUpBeforeClass() {
@@ -51,7 +59,7 @@ class CourseControllerTest {
 
     @BeforeEach
     void setUp() {
-        preloadedCourses = repository.saveAll(preloadedCourses);
+        preloadedCourses = courseRepository.saveAll(preloadedCourses);
         for (Course course : preloadedCourses) {
             courseMap.put(course.getId(), course);
         }
@@ -59,13 +67,13 @@ class CourseControllerTest {
 
     @AfterEach
     void tearDown() {
-        repository.deleteAll();
+        courseRepository.deleteAll();
     }
 
 
     @Test
     void getAllCoursesEmpty() {
-        repository.deleteAll();
+        courseRepository.deleteAll();
 
         ResponseEntity<List<CourseResponse>> responseEntity = controller.getAllCourses();
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
@@ -117,6 +125,8 @@ class CourseControllerTest {
 
     @Test
     void createCourse() {
+        Mockito.when(currentUserService.getName()).thenReturn("Test");
+
         CourseRequest courseRequest = new CourseRequest(
                 "TestTitle",
                 "TestDescription"
@@ -140,7 +150,24 @@ class CourseControllerTest {
 
     @Test
     void addSection() {
-        assertTrue(false);
+        long courseId = preloadedCourses.getFirst().getId();
+        List<SectionRequest> sectionRequests = new ArrayList<>();
+        for (int i = 0; i < NUMBER_OF_COURSES; i++) {
+            SectionRequest sectionRequest = new SectionRequest("TestSection" + i);
+            sectionRequests.add(sectionRequest);
+            controller.addSection(courseId, sectionRequest);
+        }
+
+        List<Section> sections = sectionRepository.findAll();
+        assertNotNull(sections, "Section list is null");
+        assertEquals(NUMBER_OF_COURSES, sections.size(), "Wrong number of courses");
+        for (int i = 0; i < NUMBER_OF_COURSES; i++) {
+            Section section = sections.get(i);
+            SectionRequest sectionRequest = sectionRequests.get(i);
+            assertEquals(courseId, section.getCourse().getId(), "Wrong course id");
+            assertEquals(sectionRequest.title(), section.getTitle(), "Wrong title");
+        }
+
     }
 
     @Test
@@ -174,7 +201,12 @@ class CourseControllerTest {
 
     @Test
     void deleteCourse() {
-        assertTrue(false);
+        long courseId = preloadedCourses.getFirst().getId();
+        ResponseEntity<Void> responseEntity = controller.deleteCourse(courseId);
+        assertEquals(HttpStatus.NO_CONTENT, responseEntity.getStatusCode(), "Wrong status code");
+
+        assertFalse(courseRepository.findById(courseId).isPresent(), "Course not deleted");
+        assertEquals(NUMBER_OF_COURSES-1, courseRepository.findAll().size(), "Wrong number of courses");
     }
 
     @Test

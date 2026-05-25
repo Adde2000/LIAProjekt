@@ -58,7 +58,7 @@ public class CourseService {
         return mapToResponse(course);
     }
 
-    public CourseResponse createCourse(CourseRequest request, Authentication authentication) {
+    public CourseResponse createCourse(CourseRequest request) {
 
         Course course = new Course();
 

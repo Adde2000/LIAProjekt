@@ -32,7 +32,7 @@ public class Course {
     private String createdBy;
 
     @OrderBy("orderIndex ASC")
-    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, mappedBy = "course", cascade = CascadeType.ALL)
     private List<Section> sections = new ArrayList<>();
 
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL)

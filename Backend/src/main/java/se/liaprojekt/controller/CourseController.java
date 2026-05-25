@@ -47,12 +47,9 @@ public class CourseController {
     }
 
     @PostMapping
-    public ResponseEntity<CourseResponse> createCourse(
-            @RequestBody CourseRequest courseRequest,
-            Authentication authentication
-    ) {
+    public ResponseEntity<CourseResponse> createCourse(@RequestBody CourseRequest courseRequest) {
         logger.info("Creating new course {}", courseRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body(courseService.createCourse(courseRequest, authentication));
+        return ResponseEntity.status(HttpStatus.CREATED).body(courseService.createCourse(courseRequest));
     }
 
     @PostMapping("/{courseId}/sections")
