@@ -1,6 +1,8 @@
 package se.liaprojekt.service;
 
+import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import se.liaprojekt.dto.GraphResponse;
 import se.liaprojekt.dto.UserResponse;
@@ -12,12 +14,28 @@ import se.liaprojekt.repository.UserRepository;
 
 import java.util.*;
 
+@Slf4j
 @Service
 @AllArgsConstructor
 public class UserService {
     private final GraphService graphService;
     private final ApplicationEventPublisher eventPublisher;
     UserRepository userRepository;
+
+    @PostConstruct
+    public void init() {
+        try {
+            log.info("Starting user sync from Graph API...");
+
+            List<GraphResponse> graphResponseList = graphService.getAllUsers();
+            updateFromGraphAPI(graphResponseList);
+
+            log.info("User sync completed successfully");
+
+        } catch (Exception e) {
+            log.error("User sync failed during startup. App will continue running.", e);
+        }
+    }
 
     public UserResponse getUserResponseById(long userId) {
         User user = userRepository.findById(userId)
