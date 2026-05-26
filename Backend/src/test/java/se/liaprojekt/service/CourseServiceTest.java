@@ -125,10 +125,7 @@ class CourseServiceTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         CourseResponse response =
-                courseService.createCourse(
-                        request,
-                        mock(Authentication.class)
-                );
+                courseService.createCourse(request);
 
         assertEquals("Spring", response.getTitle());
         assertEquals("Teacher", response.getCreatedBy());
