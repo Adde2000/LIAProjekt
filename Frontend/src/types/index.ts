@@ -67,6 +67,18 @@ export interface CourseRequest {
     description: string;
 }
 
+// Mirrors the Java TestAnswerRequest record
+export interface TestAnswerRequest {
+    answerText: string;
+    correct: boolean;
+}
+
+// Mirrors the Java TestQuestionRequest record — sent as POST body when adding a question
+export interface TestQuestionRequest {
+    questionText: string;
+    answers: TestAnswerRequest[];
+}
+
 // Shape returned by the API for courses — mirrors the Java CourseResponse class
 export interface CourseResponse {
     id:          number;

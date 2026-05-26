@@ -1,6 +1,6 @@
 import type { IPublicClientApplication } from "@azure/msal-browser";
 import { getAccessToken } from "../auth/getAccessToken";
-import type { CourseRequest, UserResponse } from "../types";
+import type { CourseRequest, UserResponse, TestQuestionRequest } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -314,4 +314,39 @@ export async function getDownloadUrl(
     } catch {
         return text.trim();
     }
+}
+
+export async function downloadMaterialBlob(
+    instance: IPublicClientApplication,
+    fileId: string
+): Promise<Blob> {
+    if (!BASE_URL) throw new Error("Missing VITE_API_BASE_URL");
+
+    const token = await getAccessToken(instance);
+
+    const res = await fetch(
+        `${BASE_URL}/api/material/download/${encodeURIComponent(fileId)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+
+    return res.blob();
+}
+
+export async function addTestQuestion(
+    instance: IPublicClientApplication,
+    sectionId: number,
+    question: TestQuestionRequest
+) {
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    return safePost(
+        `${BASE_URL}/api/courses/sections/tests/${sectionId}/questions`,
+        token,
+        question,
+        "Failed to add test question"
+    );
 }
