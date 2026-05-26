@@ -35,8 +35,8 @@ public class Course {
     @OneToMany(fetch = FetchType.EAGER, mappedBy = "course", cascade = CascadeType.ALL)
     private List<Section> sections = new ArrayList<>();
 
-    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL)
-    private List<UserProgress> userProgress;
+    @OneToMany(fetch = FetchType.EAGER, mappedBy = "course", cascade = CascadeType.ALL)
+    private List<UserProgress> userProgress = new ArrayList<>();
 
     @ManyToMany
     @JoinTable(

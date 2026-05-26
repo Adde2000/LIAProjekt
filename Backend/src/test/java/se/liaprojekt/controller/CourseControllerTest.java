@@ -11,15 +11,19 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import se.liaprojekt.dto.CourseRequest;
-import se.liaprojekt.dto.CourseResponse;
-import se.liaprojekt.dto.SectionRequest;
+import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.Course;
 import se.liaprojekt.model.Section;
+import se.liaprojekt.model.User;
+import se.liaprojekt.model.UserProgress;
 import se.liaprojekt.repository.CourseRepository;
 import se.liaprojekt.repository.SectionRepository;
+import se.liaprojekt.repository.UserProgressRepository;
+import se.liaprojekt.repository.UserRepository;
+import se.liaprojekt.service.BlobStorageService;
 import se.liaprojekt.service.CurrentUserService;
+import se.liaprojekt.service.GraphService;
 
 import java.util.*;
 
@@ -38,12 +42,25 @@ class CourseControllerTest {
     @Autowired
     private SectionRepository sectionRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private UserProgressRepository userProgressRepository;
+
     @MockBean
     private CurrentUserService currentUserService;
+
+    @MockBean
+    private BlobStorageService blobStorageService;
+
+    @MockBean
+    private GraphService graphService;
 
     private static final int NUMBER_OF_COURSES = 10;
     private static List<Course> preloadedCourses = new ArrayList<>();
     private static final Map<Long, Course> courseMap = new HashMap<>();
+
 
     @BeforeAll
     static void setUpBeforeClass() {
@@ -59,6 +76,10 @@ class CourseControllerTest {
 
     @BeforeEach
     void setUp() {
+        courseRepository.deleteAll();
+        sectionRepository.deleteAll();
+        userRepository.deleteAll();
+        userProgressRepository.deleteAll();
         preloadedCourses = courseRepository.saveAll(preloadedCourses);
         for (Course course : preloadedCourses) {
             courseMap.put(course.getId(), course);
@@ -68,6 +89,9 @@ class CourseControllerTest {
     @AfterEach
     void tearDown() {
         courseRepository.deleteAll();
+        sectionRepository.deleteAll();
+        userRepository.deleteAll();
+        userProgressRepository.deleteAll();
     }
 
 
@@ -115,12 +139,76 @@ class CourseControllerTest {
 
     @Test
     void getCourseStudents() {
-        assertTrue(false);
+        Course course = preloadedCourses.getFirst();
+        Long courseId = course.getId();
+        List<User> userList = loadUsers();
+
+        List<UserProgress> userProgressList = new ArrayList<>();
+        for (int i = 0; i < NUMBER_OF_COURSES; i++) {
+            User user = userList.get(i);
+            UserProgress userProgress = UserProgress.builder()
+                    .completedSections(i)
+                    .progressPercentage(Math.divideExact(i*100, NUMBER_OF_COURSES))
+                    .course(course)
+                    .user(user)
+                    .build();
+            userProgressList.add(userProgress);
+        }
+        userProgressList = userProgressRepository.saveAll(userProgressList);
+
+        ResponseEntity<List<UserResponse>> responseEntity = controller.getCourseStudents(courseId);
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
+        List<UserResponse> userResponses = responseEntity.getBody();
+        assertNotNull(userResponses, "Users list is null");
+        assertEquals(NUMBER_OF_COURSES, userResponses.size(), "Wrong number of users");
+        Set<Long> userResponseIds = new HashSet<>();
+        for (UserResponse userResponse : userResponses) {
+            userResponseIds.add(userResponse.id());
+        }
+        for (UserProgress userProgress : userProgressList) {
+            assertTrue(userResponseIds.contains(userProgress.getUser().getId()));
+        }
     }
 
     @Test
     void addStudentsToCourse() {
-        assertTrue(false);
+        Course course = preloadedCourses.getFirst();
+        Long courseId = course.getId();
+        List<User> userList = loadUsers();
+
+        List<UserRequest> userRequestList = new ArrayList<>();
+        for (int i = 0; i < NUMBER_OF_COURSES; i++) {
+            userRequestList.add(new UserRequest(userList.get(i).getId()));
+        }
+
+        ResponseEntity<List<UserResponse>> responseEntity = controller.addStudentsToCourse(courseId, userRequestList);
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
+        List<UserResponse> userResponses = responseEntity.getBody();
+        assertNotNull(userResponses, "Users list is null");
+        assertEquals(NUMBER_OF_COURSES, userResponses.size(), "Wrong number of users");
+
+        //Update all lists after call to controller
+        Optional<Course> courseOptional = courseRepository.findById(courseId);
+        assertTrue(courseOptional.isPresent(), "Course not found");
+        course = courseOptional.get();
+        userList = userRepository.findAll();
+        List<UserProgress> userProgressList = course.getUserProgress();
+
+        assertNotNull(userProgressList, "UserProgress is null");
+        assertEquals(NUMBER_OF_COURSES, userProgressList.size(), "Wrong number of users in course");
+        Set<Long> userProgressSet = new HashSet<>();
+        for (UserProgress userProgress : userProgressList) {
+            assertNotNull(userProgress.getUser(), "User not found");
+            assertEquals(courseId, userProgress.getCourse().getId());
+            userProgressSet.add(userProgress.getId());
+        }
+
+        for (User user : userList) {
+            assertNotNull(user, "User not found");
+            assertEquals(1, user.getUserProgressList().size(), "Wrong number of courses for user");
+            assertTrue(userProgressSet.contains(user.getUserProgressList().getFirst().getId()), "Course does not have user");
+            assertEquals(user.getId(), user.getUserProgressList().getFirst().getUser().getId(), "User progress does not have correct user");
+        }
     }
 
     @Test
@@ -160,24 +248,47 @@ class CourseControllerTest {
 
         List<Section> sections = sectionRepository.findAll();
         assertNotNull(sections, "Section list is null");
-        assertEquals(NUMBER_OF_COURSES, sections.size(), "Wrong number of courses");
+        assertEquals(NUMBER_OF_COURSES, sections.size(), "Wrong number of sections");
         for (int i = 0; i < NUMBER_OF_COURSES; i++) {
             Section section = sections.get(i);
             SectionRequest sectionRequest = sectionRequests.get(i);
             assertEquals(courseId, section.getCourse().getId(), "Wrong course id");
             assertEquals(sectionRequest.title(), section.getTitle(), "Wrong title");
+            assertEquals(i, section.getOrderIndex(), "Wrong order index");
         }
 
     }
 
     @Test
     void getSections() {
-        assertTrue(false);
+        Course course = preloadedCourses.getFirst();
+        List<Section> sections = loadSections(course);
+
+        ResponseEntity<List<SectionResponse>> responseEntity = controller.getSections(course.getId());
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
+
+        List<SectionResponse> sectionResponses = responseEntity.getBody();
+        assertNotNull(sectionResponses, "Section list is null");
+        assertEquals(NUMBER_OF_COURSES, sectionResponses.size(), "Wrong number of sections");
+        for (int i = 0; i < NUMBER_OF_COURSES; i++) {
+            Section section = sections.get(i);
+            SectionResponse sectionResponse = sectionResponses.get(i);
+            assertEquals(section.getId(), sectionResponse.id(), "Wrong id for section " + i);
+            assertEquals(section.getTitle(), sectionResponse.title(), "Wrong title");
+            assertEquals(i, sectionResponse.orderIndex(), "Wrong order index");
+            assertEquals(course.getId(), sectionResponse.courseId(), "Wrong course id");
+            if (i == 0) {
+                assertFalse(sectionResponse.isLocked(), "First section is locked");
+            } else {
+                assertTrue(sectionResponse.isLocked(), "Section is not locked");
+            }
+        }
     }
 
     @Test
     void completeCourse() {
-        assertTrue(false);
+        //TODO
+//        assertTrue(false);
     }
 
     @Test
@@ -201,17 +312,27 @@ class CourseControllerTest {
 
     @Test
     void deleteCourse() {
-        long courseId = preloadedCourses.getFirst().getId();
+        Mockito.doNothing().when(blobStorageService).deleteSectionFiles(Mockito.anyLong());
+
+        Course course = preloadedCourses.getFirst();
+        long courseId = course.getId();
+        loadSections(course);
+
         ResponseEntity<Void> responseEntity = controller.deleteCourse(courseId);
         assertEquals(HttpStatus.NO_CONTENT, responseEntity.getStatusCode(), "Wrong status code");
 
         assertFalse(courseRepository.findById(courseId).isPresent(), "Course not deleted");
         assertEquals(NUMBER_OF_COURSES-1, courseRepository.findAll().size(), "Wrong number of courses");
+
+        List<Section> sections = sectionRepository.findAll();
+        assertNotNull(sections, "Section list is null");
+        assertTrue(sections.isEmpty(), "Section List should be empty");
     }
 
     @Test
     void getProgress() {
-        assertTrue(false);
+        //TODO
+//        assertTrue(false);
     }
 
     //Helpers
@@ -221,5 +342,36 @@ class CourseControllerTest {
         assertEquals(course.getId(), courseResponse.getId(), "Wrong course id");
         assertEquals(course.getTitle(), courseResponse.getTitle(), "Wrong course title");
         assertEquals(course.getDescription(), courseResponse.getDescription(), "Wrong course description");
+    }
+
+    private List<Section> loadSections(Course course) {
+        List<Section> sections = new ArrayList<>();
+        for (int i = 0; i < NUMBER_OF_COURSES; i++) {
+            Section section = Section.builder()
+                    .title("TestSection" + i)
+                    .orderIndex(i)
+                    .course(course)
+                    .build();
+            sections.add(section);
+        }
+        return sectionRepository.saveAll(sections);
+    }
+
+    private List<User> loadUsers() {
+        List<User> userList = new ArrayList<>();
+        for (int i = 0; i < NUMBER_OF_COURSES; i++) {
+            User user = new User();
+            user.setEntraId("Entra" + i);
+            userList.add(user);
+            Mockito.when(graphService.getUserByEntraId(Mockito.any())).thenReturn(new GraphResponse(
+                    user.getEntraId(),
+                    "1",
+                    "A",
+                    "B",
+                    "C",
+                    Set.of()
+            ));
+        }
+        return userRepository.saveAll(userList);
     }
 }

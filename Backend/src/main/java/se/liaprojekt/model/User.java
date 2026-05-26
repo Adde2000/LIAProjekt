@@ -26,6 +26,6 @@ public class User {
     @OneToMany(mappedBy = "user")
     private List<AiSession> aiSessions;
 
-    @OneToMany(mappedBy = "user")
+    @OneToMany(fetch = FetchType.EAGER, mappedBy = "user")
     private List<UserProgress> userProgressList;
 }
