@@ -121,21 +121,22 @@ public class BlobStorageController {
         log.debug("Downloading fileId '{}'", fileId);
         String blobName = blobStorageService.resolveBlobName(fileId);
 
-        if (getExtension(blobName).equals("pdf")) {
-            String originalName = blobStorageService.getFileTags(blobName)
-                    .getOrDefault("originalName", blobName);
-
-            StreamingResponseBody body = outputStream ->
-                    blobStorageService.streamFile(blobName, outputStream, 0,
-                            blobStorageService.getBlobSize(blobName));
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + originalName + "\"")
-                    .header(HttpHeaders.CONTENT_LENGTH,
-                            String.valueOf(blobStorageService.getBlobSize(blobName)))
-                    .body(body);
-        }
+        //TODO Fix so that the pdf can be displayed on the frontend
+//        if (getExtension(blobName).equals("pdf")) {
+//            String originalName = blobStorageService.getFileTags(blobName)
+//                    .getOrDefault("originalName", blobName);
+//
+//            StreamingResponseBody body = outputStream ->
+//                    blobStorageService.streamFile(blobName, outputStream, 0,
+//                            blobStorageService.getBlobSize(blobName));
+//
+//            return ResponseEntity.ok()
+//                    .contentType(MediaType.APPLICATION_PDF)
+//                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + originalName + "\"")
+//                    .header(HttpHeaders.CONTENT_LENGTH,
+//                            String.valueOf(blobStorageService.getBlobSize(blobName)))
+//                    .body(body);
+//        }
 
         // Non-PDF fallback — return CDN URL for the caller to handle
         String url = blobStorageService.generateDownloadUrl(blobName).toString();
