@@ -176,11 +176,11 @@ function MediaView({ stream, onBack }: { stream: ActiveStream; onBack: () => voi
     const [videoUrl, setVideoUrl] = useState(stream.streamUrl);
 
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-    const [pdfLoading, setPdfLoading] = useState(false);
     const [pdfError, setPdfError] = useState<string | null>(null);
     const ext = extOf(stream.material.originalName);
     const isVideo = ["mp4", "mov", "avi", "mkv"].includes(ext);
     const isPdf   = ext === "pdf";
+    const pdfLoading = isPdf && pdfUrl === null && pdfError === null;
     const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     function scheduleRefresh(expiresIn: number) {
@@ -201,12 +201,9 @@ function MediaView({ stream, onBack }: { stream: ActiveStream; onBack: () => voi
         }
 
         if (isPdf) {
-            setPdfLoading(true);
-            setPdfError(null);
             getDownloadUrl(instance, stream.fileId)
                 .then((sasUrl) => setPdfUrl(sasUrl))
-                .catch((err) => setPdfError(err instanceof Error ? err.message : "Kunde inte ladda PDF"))
-                .finally(() => setPdfLoading(false));
+                .catch((err) => setPdfError(err instanceof Error ? err.message : "Kunde inte ladda PDF"));
         }
 
         return () => {
