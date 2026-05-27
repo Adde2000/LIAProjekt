@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useMsal } from "@azure/msal-react";
-import type { CourseResponse, UserResponse, LoadState, SectionResponse } from "../../types";
+import type { CourseResponse, UserResponse, LoadState, SectionResponse, AssistantAdminResponse } from "../../types";
 import { idle } from "../../types";
-import { getCourses, getCourseStudents, addStudentsToCourse, getUsers, deleteCourse, getCourseSections as getSections, addCourseSection as addSection, uploadMaterial, deleteMaterial, getSectionMaterials } from "../../api/api";
+import { getCourses, getCourseStudents, addStudentsToCourse, getUsers, deleteCourse, getAssistants, assignAssistantToCourse, getCourseSections as getSections, addCourseSection as addSection, uploadMaterial, deleteMaterial, getSectionMaterials } from "../../api/api";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { pad } from "../../components/Shared";
 import { FetchState } from "../../components/FetchState";
@@ -281,6 +281,9 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
     const [sectionError, setSectionError]   = useState<string | null>(null);
     const [quizSection, setQuizSection]     = useState<SectionResponse | null>(null);
 
+    const [assistants, setAssistants] = useState<AssistantAdminResponse[]>([]);
+    const [selectedAssistant, setSelectedAssistant] = useState(course.assistantId ?? "");
+
     useEffect(() => {
         let cancelled = false;
 
@@ -385,6 +388,36 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
         return () => { cancelled = true; };
     }, [instance, course.id]);
 
+    useEffect(() => {
+
+        let cancelled = false;
+
+        async function fetchAssistants() {
+
+            try {
+
+                const data = await getAssistants(instance);
+
+                if (!cancelled) {setAssistants( data as AssistantAdminResponse[]);
+                }
+
+            } catch (err) {
+
+                console.error(
+                    "Failed to fetch assistants",
+                    err
+                );
+            }
+        }
+
+        fetchAssistants();
+
+        return () => {
+            cancelled = true;
+        };
+
+    }, [instance]);
+
     async function handleAddSection() {
         const title = sectionTitle.trim();
         if (!title) return;
@@ -405,6 +438,29 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
         } catch (err) {
             setSectionError(err instanceof Error ? err.message : "Okänt fel");
             setSectionStatus("error");
+        }
+    }
+
+    async function handleAssistantChange(
+        assistantId: string
+    ) {
+
+        try {
+
+            await assignAssistantToCourse(
+                instance,
+                course.id,
+                assistantId
+            );
+
+            setSelectedAssistant(assistantId);
+
+        } catch (err) {
+
+            console.error(
+                "Failed to assign assistant",
+                err
+            );
         }
     }
 
@@ -433,6 +489,39 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
                     <div className="vmv-mgmt-detail-title">{course.title}</div>
                     <div className="vmv-mgmt-detail-desc">{course.description}</div>
                     <div className="vmv-mgmt-detail-meta">Skapad av: {course.createdBy}</div>
+
+                    <div style={{ marginTop: "1rem" }}>
+
+                        <div className="vmv-section-head">
+                            AI Assistant
+                        </div>
+
+                        <select
+                            className="vmv-mgmt-section-input"
+                            value={selectedAssistant}
+                            onChange={(e) =>
+                                handleAssistantChange(e.target.value)
+                            }
+                        >
+
+                            <option value="">
+                                Välj AI Assistant
+                            </option>
+
+                            {assistants.map((assistant) => (
+
+                                <option
+                                    key={assistant.id}
+                                    value={assistant.id}
+                                >
+                                    {assistant.name}
+                                </option>
+
+                            ))}
+
+                        </select>
+
+                    </div>
                 </div>
                 <div className="vmv-mgmt-detail-header-actions">
                     <button

@@ -5,7 +5,7 @@ export type LoadState<T> = { data: T | null; loading: boolean; error: string | n
 export function idle<T>(): LoadState<T> {
     return { data: null, loading: false, error: null };
 }
-export type ViewKey = "courses" | "quizzes" | "admin";
+export type ViewKey = "courses" | "quizzes" | "admin" | "aiChat";
 export type FilterKey = "all" | Status;
 export type UserRole = "admin" | "student" | "courseAdmin";
 
@@ -115,4 +115,19 @@ export interface CourseResponse {
     title:       string;
     description: string;
     createdBy:   string;
+    //Optional assistantId
+    assistantId?: string;
+}
+
+export interface ChatMessage {
+    id: string;
+    role: "user" | "assistant";
+    content: string;
+    timestamp: string;
+}
+
+export interface AssistantAdminResponse {
+    id: string;
+    name: string;
+    description: string;
 }

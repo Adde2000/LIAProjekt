@@ -1,5 +1,6 @@
 package se.liaprojekt.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +21,7 @@ public class TestController {
     private final CurrentUserService currentUserService;
 
     // CREATE QUESTION (ADMIN)
+    @Operation(summary = "Create a question")
     @PostMapping("/{sectionId}/questions")
     public ResponseEntity<TestQuestionResponse> createQuestion(
             @PathVariable Long sectionId,
@@ -41,31 +43,30 @@ public class TestController {
         return ResponseEntity.ok(testQuestionResponse);
     }
 
-//    // START TEST
-//    @PostMapping("/{sectionId}/start")
-//    public ResponseEntity<TestResultResponse> startTest(@PathVariable Long sectionId) {
-//
-//        String entraId = currentUserService.getEntraId();
-//
-//        return ResponseEntity.ok(
-//                testService.startTest(entraId, sectionId)
-//        );
-//    }
+    @Operation(summary = "Update question")
+    @PutMapping("/{sectionId}/questions/{questionId}")
+    public ResponseEntity<TestQuestionResponse> updateQuestion(
+            @PathVariable Long sectionId,
+            @PathVariable Long questionId,
+            @RequestBody TestQuestionRequest request
+    ) {
+        return ResponseEntity.ok(
+                testService.updateQuestion(sectionId, questionId, request)
+        );
+    }
 
-//    // SUBMIT ANSWER
-//    @PostMapping("/answer")
-//    public ResponseEntity<Void> submitAnswer(@RequestBody SubmitAnswerRequest request) {
-//
-//        testService.submitAnswer(
-//                request.testResultId(),
-//                request.questionId(),
-//                request.answerId()
-//        );
-//
-//        return ResponseEntity.ok().build();
-//    }
+    @Operation(summary = "Delete question")
+    @DeleteMapping("/{sectionId}/questions/{questionId}")
+    public ResponseEntity<Void> deleteQuestion(
+            @PathVariable Long sectionId,
+            @PathVariable Long questionId
+    ) {
+        testService.deleteQuestion(sectionId, questionId);
+        return ResponseEntity.noContent().build();
+    }
 
     // SUBMIT TEST
+    @Operation(summary = "Submit test")
     @PostMapping("/{sectionId}/submit")
     public ResponseEntity<TestResultResponse> submitTest(
             @PathVariable Long sectionId,
@@ -88,6 +89,7 @@ public class TestController {
     }
 
     // GET TEST QUESTIONS
+    @Operation(summary = "Get all questions in section test")
     @GetMapping("/{sectionId}/questions")
     public ResponseEntity<List<TestQuestionResponse>> getQuestions(
             @PathVariable Long sectionId) {
@@ -97,6 +99,7 @@ public class TestController {
         );
     }
 
+    @Operation(summary = "Get your test attempts")
     @GetMapping("/{sectionId}/attempts")
     public ResponseEntity<List<TestResultResponse>> getAttempts(
             @PathVariable Long sectionId

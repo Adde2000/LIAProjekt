@@ -39,6 +39,7 @@ class CourseFlowNegativeIntegrationTest {
     void setup() throws Exception {
 
         when(currentUserService.getEntraId()).thenReturn(TEST_USER);
+        when(currentUserService.getName()).thenReturn("Negative Test User");
 
         userRepository.findByEntraId(TEST_USER)
                 .orElseGet(() -> {
@@ -175,7 +176,7 @@ class CourseFlowNegativeIntegrationTest {
                           "createdBy": "system"
                         }
                         """))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();

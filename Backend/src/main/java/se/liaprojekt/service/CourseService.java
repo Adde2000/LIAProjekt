@@ -2,6 +2,8 @@ package se.liaprojekt.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.*;
@@ -28,6 +30,7 @@ public class CourseService {
     private final UserProgressRepository userProgressRepository;
     private final UserService userService;
     private final SectionService sectionService;
+    private final CurrentUserService currentUserService;
 
     public List<CourseResponse> getAllCourses() {
         return courseRepository.findAll()
@@ -56,11 +59,16 @@ public class CourseService {
     }
 
     public CourseResponse createCourse(CourseRequest request) {
+
         Course course = new Course();
+
         course.setTitle(request.title());
         course.setDescription(request.description());
-        // TODO: ändra CreatedBy till authenticatied user
-        course.setCreatedBy("system");
+
+        // namn från JWT token
+        course.setCreatedBy(
+                currentUserService.getName()
+        );
 
         Course saved = courseRepository.save(course);
 
@@ -157,8 +165,8 @@ public class CourseService {
     }
 
     // =========================
-// GET COURSE PROGRESS
-// =========================
+    // GET COURSE PROGRESS
+    // =========================
     public CourseProgressResponse getCourseProgress(Long courseId, String entraId) {
 
         // =========================
@@ -209,5 +217,19 @@ public class CourseService {
                 completedSections,
                 progress
         );
+    }
+
+    @Transactional
+    public void assignAssistant(
+            Long courseId,
+            String assistantId
+    ) {
+
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow();
+
+        course.setAssistantId(assistantId);
+
+        courseRepository.save(course);
     }
 }

@@ -19,6 +19,9 @@ public class Course {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "assistant_id")
+    private String assistantId;
+
     @Column(nullable = false)
     private String title;
 
@@ -29,11 +32,11 @@ public class Course {
     private String createdBy;
 
     @OrderBy("orderIndex ASC")
-    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, mappedBy = "course", cascade = CascadeType.ALL)
     private List<Section> sections = new ArrayList<>();
 
-    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL)
-    private List<UserProgress> userProgress;
+    @OneToMany(fetch = FetchType.EAGER, mappedBy = "course", cascade = CascadeType.ALL)
+    private List<UserProgress> userProgress = new ArrayList<>();
 
     @ManyToMany
     @JoinTable(

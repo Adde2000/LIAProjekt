@@ -82,9 +82,73 @@ public class TestService {
         return questionRepository.save(question);
     }
 
+    @Transactional
+    public TestQuestionResponse updateQuestion(Long sectionId, Long questionId, TestQuestionRequest request) {
+
+        TestQuestion question = questionRepository.findByIdWithAnswers(questionId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Question not found: " + questionId));
+
+        if (!question.getSection().getId().equals(sectionId)) {
+            throw new BadRequestException("Question does not belong to section");
+        }
+
+        long correctCount = request.answers()
+                .stream()
+                .filter(TestAnswerRequest::isCorrect)
+                .count();
+
+        if (correctCount != 1) {
+            throw new BadRequestException("A question must have exactly one correct answer");
+        }
+
+        question.setQuestionText(request.questionText());
+
+        question.getAnswers().clear();
+
+        List<TestAnswer> newAnswers = request.answers().stream()
+                .map(dto -> {
+                    TestAnswer answer = new TestAnswer();
+                    answer.setAnswerText(dto.answerText());
+                    answer.setIsCorrect(dto.isCorrect());
+                    answer.setQuestion(question);
+                    return answer;
+                })
+                .toList();
+
+        question.getAnswers().addAll(newAnswers);
+
+        TestQuestion saved = questionRepository.save(question);
+
+        return new TestQuestionResponse(
+                saved.getId(),
+                saved.getQuestionText(),
+                saved.getAnswers().stream()
+                        .map(a -> new TestAnswerResponse(
+                                a.getId(),
+                                a.getAnswerText()
+                        ))
+                        .toList()
+        );
+    }
+
+    @Transactional
+    public void deleteQuestion(Long sectionId, Long questionId) {
+
+        TestQuestion question = questionRepository.findById(questionId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Question not found: " + questionId));
+
+        if (!question.getSection().getId().equals(sectionId)) {
+            throw new BadRequestException("Question does not belong to section");
+        }
+
+        questionRepository.delete(question);
+    }
+
     // =========================
-// START TEST (MULTI ATTEMPT)
-// =========================
+    // START TEST (MULTI ATTEMPT)
+    // =========================
     @Transactional
     public TestResultResponse startTest(String entraId, Long sectionId) {
 

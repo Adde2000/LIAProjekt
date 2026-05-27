@@ -3,7 +3,9 @@ package se.liaprojekt.controller;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.service.CourseService;
@@ -47,7 +49,7 @@ public class CourseController {
     @PostMapping
     public ResponseEntity<CourseResponse> createCourse(@RequestBody CourseRequest courseRequest) {
         logger.info("Creating new course {}", courseRequest);
-        return ResponseEntity.ok(courseService.createCourse(courseRequest));
+        return ResponseEntity.status(HttpStatus.CREATED).body(courseService.createCourse(courseRequest));
     }
 
     @PostMapping("/{courseId}/sections")
@@ -100,5 +102,19 @@ public class CourseController {
         return ResponseEntity.ok(
                 courseService.getCourseProgress(courseId, entraId)
         );
+    }
+
+    @PutMapping("/{courseId}/assistant/{assistantId}")
+    public ResponseEntity<Void> assignAssistant(
+            @PathVariable Long courseId,
+            @PathVariable String assistantId
+    ) {
+
+        courseService.assignAssistant(
+                courseId,
+                assistantId
+        );
+
+        return ResponseEntity.ok().build();
     }
 }

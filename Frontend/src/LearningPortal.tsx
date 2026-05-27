@@ -4,6 +4,7 @@ import type { ViewKey } from "./types";
 import { VIEWS } from "./data";
 import { CoursesView } from "./views/CoursesView";
 import { AdminView }   from "./views/admin/AdminView";
+import AIChatView from "./views/AIChatView";
 
 // CSS — one import per concern, all pulled in here
 import "./styles/global.css";
@@ -15,6 +16,7 @@ import "./styles/admin-users.css";
 import "./styles/admin-courses.css";
 import "./styles/admin-forms.css";
 import "./styles/confirm-dialog.css";
+import "./styles/ai-chat.css";
 
 export default function LearningPortal() {
     useStreamServiceWorker();
@@ -24,6 +26,7 @@ export default function LearningPortal() {
         courses: <CoursesView />,
         quizzes: <></>,          // reserved for future QuizzesView
         admin:   <AdminView />,
+        aiChat: <AIChatView />,
     };
 
     return (

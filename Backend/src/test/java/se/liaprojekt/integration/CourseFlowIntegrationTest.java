@@ -41,6 +41,9 @@ class CourseFlowIntegrationTest {
         when(currentUserService.getEntraId())
                 .thenReturn(TEST_USER);
 
+        when(currentUserService.getName())
+                .thenReturn("Test User");
+
         userRepository.findByEntraId(TEST_USER)
                 .orElseGet(() -> {
                     User u = new User();
@@ -87,7 +90,7 @@ class CourseFlowIntegrationTest {
                           "createdBy": "admin"
                         }
                         """))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
