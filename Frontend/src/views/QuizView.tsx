@@ -87,7 +87,7 @@ export function QuizView({ section, onDone }: Props) {
             )}
 
             {phase === "error" && (
-                <FetchState loading={false} error={loadError} onRetry={onBack} />
+                <FetchState loading={false} error={loadError} onRetry={onDone} />
             )}
 
             {(phase === "taking" || phase === "submitting") && (
