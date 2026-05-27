@@ -358,7 +358,7 @@ class TestServiceTest {
         assertEquals(1, result.size());
         assertEquals(
                 "Best language?",
-                result.get(0).questionText()
+                result.getFirst().questionText()
         );
     }
 
@@ -394,7 +394,7 @@ class TestServiceTest {
         assertEquals(1, responses.size());
         assertEquals(
                 "COMPLETED",
-                responses.get(0).status()
+                responses.getFirst().status()
         );
     }
 

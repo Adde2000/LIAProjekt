@@ -6,14 +6,10 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import se.liaprojekt.dto.CourseResponse;
-import se.liaprojekt.dto.UserProgressResponse;
 import se.liaprojekt.dto.UserResponse;
-import se.liaprojekt.model.UserProgress;
 import se.liaprojekt.service.CourseService;
 import se.liaprojekt.service.UserService;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 

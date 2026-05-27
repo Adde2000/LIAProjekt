@@ -6,7 +6,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.core.Authentication;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.*;
@@ -82,7 +81,7 @@ class CourseServiceTest {
                 courseService.getAllCourses();
 
         assertEquals(1, result.size());
-        assertEquals("Java", result.get(0).getTitle());
+        assertEquals("Java", result.getFirst().getTitle());
     }
 
     @Test
