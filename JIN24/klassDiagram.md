@@ -6,7 +6,6 @@ classDiagram
     Course "1" --> "*" UserProgress
     Course "1" --> "*" AiSession
 
-    Section "1" --> "*" Material
     Section "1" --> "*" TestQuestion
 
     User "1" --> "*" UserProgress
@@ -160,12 +159,6 @@ classDiagram
             +List~TestQuestion~ test
         }
 
-        class Material {
-            +Long id
-            +String title
-            +String contentType
-            +String contentUrl
-        }
         class TestQuestion {
             +Long id
             +String questionText
