@@ -67,7 +67,14 @@ class CourseFlowNegativeIntegrationTest {
     @Test
     void shouldReturn404_whenSectionDoesNotExist() throws Exception {
 
-        mockMvc.perform(post("/api/courses/sections/tests/999999/start"))
+        mockMvc.perform(post("/api/courses/sections/tests/999999/submit")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                        [{
+                          "questionId": 999999,
+                          "answerId": 999999
+                        }]
+                        """))
                 .andExpect(status().isNotFound());
     }
 
@@ -111,7 +118,14 @@ class CourseFlowNegativeIntegrationTest {
     @Test
     void shouldReturn404_whenStartingTestForInvalidSection() throws Exception {
 
-        mockMvc.perform(post("/api/courses/sections/tests/999999/start"))
+        mockMvc.perform(post("/api/courses/sections/tests/999999/submit")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                        [{
+                          "questionId": 999999,
+                          "answerId": 999999
+                        }]
+                        """))
                 .andExpect(status().isNotFound());
     }
 
@@ -127,25 +141,24 @@ class CourseFlowNegativeIntegrationTest {
     @Test
     void shouldReturn404_whenSubmittingAnswerForInvalidTest() throws Exception {
 
-        mockMvc.perform(post("/api/courses/sections/tests/answer")
+        mockMvc.perform(post("/api/courses/sections/tests/" + sectionId + "/submit")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                        {
-                          "testResultId": 999999,
+                        [{
                           "questionId": 999999,
                           "answerId": 999999
-                        }
+                        }]
                         """))
                 .andExpect(status().isNotFound());
     }
 
-    // Testar att API returnerar 404 när användaren försöker submit:a ett test i felaktigt flöde
-    @Test
-    void shouldReturn404_whenUserTriesInvalidFlow() throws Exception {
-
-        mockMvc.perform(post("/api/courses/sections/tests/" + sectionId + "/submit"))
-                .andExpect(status().isNotFound());
-    }
+//    // Testar att API returnerar 404 när användaren försöker submit:a ett test i felaktigt flöde
+//    @Test
+//    void shouldReturn404_whenUserTriesInvalidFlow() throws Exception {
+//
+//        mockMvc.perform(post("/api/courses/sections/tests/" + sectionId + "/submit"))
+//                .andExpect(status().isNotFound());
+//    }
 
     // ---------------------------
     // HELPERS (ROBUST VERSION)

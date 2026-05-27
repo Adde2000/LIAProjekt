@@ -41,16 +41,16 @@ public class TestController {
         return ResponseEntity.ok(testQuestionResponse);
     }
 
-    // START TEST
-    @PostMapping("/{sectionId}/start")
-    public ResponseEntity<TestResultResponse> startTest(@PathVariable Long sectionId) {
-
-        String entraId = currentUserService.getEntraId();
-
-        return ResponseEntity.ok(
-                testService.startTest(entraId, sectionId)
-        );
-    }
+//    // START TEST
+//    @PostMapping("/{sectionId}/start")
+//    public ResponseEntity<TestResultResponse> startTest(@PathVariable Long sectionId) {
+//
+//        String entraId = currentUserService.getEntraId();
+//
+//        return ResponseEntity.ok(
+//                testService.startTest(entraId, sectionId)
+//        );
+//    }
 
 //    // SUBMIT ANSWER
 //    @PostMapping("/answer")
