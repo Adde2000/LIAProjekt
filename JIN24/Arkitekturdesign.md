@@ -21,9 +21,7 @@ Det är samma steg för både dev- och main-branchen, men de deployas till olika
 - Godkänt resultat defineras som minst 100 procent rätt
 
 ### Om användaren stänger webbläsaren:
-- Teststatus sparas som "pågående"
-- Testet kan återupptas vid nästa inloggning så länge kursen finns
-- inga resultat registreras föränn alla frågar har blivit svarade
+Då tester kommer vara korta och kräva alla rätt så kommer testet inte sparas föränn det är färdigt och inlämnat.
 
 ### Vid avklarat test
 - Antal rätt svar räknas ihop och kontrolleras om godkänt
