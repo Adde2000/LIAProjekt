@@ -82,7 +82,6 @@ public class TestService {
         return questionRepository.save(question);
     }
 
-    //TODO: UpdateQuestion
     @Transactional
     public TestQuestionResponse updateQuestion(Long sectionId, Long questionId, TestQuestionRequest request) {
 
@@ -133,7 +132,6 @@ public class TestService {
         );
     }
 
-    //TODO: DeleteQuestion
     @Transactional
     public void deleteQuestion(Long sectionId, Long questionId) {
 
