@@ -607,6 +607,56 @@ export async function getTestQuestions(
     );
 }
 
+export async function updateTestQuestion(
+    instance: IPublicClientApplication,
+    sectionId: number,
+    questionId: number,
+    question: TestQuestionRequest
+): Promise<void> {
+    if (!BASE_URL) return;
+
+    const token = await getAccessToken(instance);
+
+    try {
+        const res = await fetch(
+            `${BASE_URL}/api/courses/sections/tests/${sectionId}/questions/${questionId}`,
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(question),
+            }
+        );
+
+        if (!res.ok) {
+            const text = await res.text().catch(() => "");
+            console.error("API error:", res.status, text);
+            throw new Error("Failed to update test question");
+        }
+    } catch (err) {
+        console.error("Network/API failure:", err);
+        throw err;
+    }
+}
+
+export async function deleteTestQuestion(
+    instance: IPublicClientApplication,
+    sectionId: number,
+    questionId: number
+): Promise<void> {
+    if (!BASE_URL) return;
+
+    const token = await getAccessToken(instance);
+
+    return safeDelete(
+        `${BASE_URL}/api/courses/sections/tests/${sectionId}/questions/${questionId}`,
+        token,
+        "Failed to delete test question"
+    );
+}
+
 export async function submitQuiz(
     instance: IPublicClientApplication,
     sectionId: number,
