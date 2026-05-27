@@ -1,5 +1,6 @@
 package se.liaprojekt.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,7 @@ public class TestController {
     private final CurrentUserService currentUserService;
 
     // CREATE QUESTION (ADMIN)
+    @Operation(summary = "Create a question")
     @PostMapping("/{sectionId}/questions")
     public ResponseEntity<Void> createQuestion(
             @PathVariable Long sectionId,
@@ -27,7 +29,30 @@ public class TestController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "Update question")
+    @PutMapping("/{sectionId}/questions/{questionId}")
+    public ResponseEntity<TestQuestionResponse> updateQuestion(
+            @PathVariable Long sectionId,
+            @PathVariable Long questionId,
+            @RequestBody TestQuestionRequest request
+    ) {
+        return ResponseEntity.ok(
+                testService.updateQuestion(sectionId, questionId, request)
+        );
+    }
+
+    @Operation(summary = "Delete question")
+    @DeleteMapping("/{sectionId}/questions/{questionId}")
+    public ResponseEntity<Void> deleteQuestion(
+            @PathVariable Long sectionId,
+            @PathVariable Long questionId
+    ) {
+        testService.deleteQuestion(sectionId, questionId);
+        return ResponseEntity.noContent().build();
+    }
+
     // START TEST
+    @Operation(summary = "Start test to answer questions")
     @PostMapping("/{sectionId}/start")
     public ResponseEntity<TestResultResponse> startTest(@PathVariable Long sectionId) {
 
@@ -39,6 +64,7 @@ public class TestController {
     }
 
     // SUBMIT ANSWER
+    @Operation(summary = "Submit answer for questions")
     @PostMapping("/answer")
     public ResponseEntity<Void> submitAnswer(@RequestBody SubmitAnswerRequest request) {
 
@@ -52,6 +78,7 @@ public class TestController {
     }
 
     // SUBMIT TEST
+    @Operation(summary = "Submit test")
     @PostMapping("/{testResultId}/submit")
     public ResponseEntity<TestResultResponse> submitTest(
             @PathVariable Long testResultId) {
@@ -62,6 +89,7 @@ public class TestController {
     }
 
     // GET TEST QUESTIONS
+    @Operation(summary = "Get all questions in section test")
     @GetMapping("/{sectionId}/questions")
     public ResponseEntity<List<TestQuestionResponse>> getQuestions(
             @PathVariable Long sectionId) {
@@ -71,6 +99,7 @@ public class TestController {
         );
     }
 
+    @Operation(summary = "Get your test attempts")
     @GetMapping("/{sectionId}/attempts")
     public ResponseEntity<List<TestResultResponse>> getAttempts(
             @PathVariable Long sectionId
