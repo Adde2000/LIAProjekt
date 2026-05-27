@@ -67,6 +67,36 @@ export interface CourseRequest {
     description: string;
 }
 
+// Mirrors the Java SubmitAnswerRequest record
+export interface SubmitAnswerRequest {
+    questionId: number;
+    answerId: number;
+}
+
+// Mirrors the Java TestAnswerResponse record
+export interface TestAnswerResponse {
+    id: number;
+    answerText: string;
+}
+
+// Mirrors the Java TestQuestionResponse record
+export interface TestQuestionResponse {
+    id: number;
+    questionText: string;
+    answers: TestAnswerResponse[];
+}
+
+// Mirrors the Java TestResultResponse record
+export interface TestResultResponse {
+    id: number;
+    status: string;
+    score: number;
+    passed: boolean;
+    startedAt: string;
+    completedAt: string;
+    attemptNumber: number;
+}
+
 // Mirrors the Java TestAnswerRequest record
 export interface TestAnswerRequest {
     answerText: string;

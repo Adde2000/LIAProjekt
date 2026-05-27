@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { useMsal } from "@azure/msal-react";
 import type { CourseResponse, UserResponse, LoadState, SectionResponse } from "../../types";
 import { idle } from "../../types";
-import { getCourses, getCourseStudents, addStudentsToCourse, getUsers, deleteCourse, getCourseSections as getSections, addCourseSection as addSection, uploadMaterial, deleteMaterial, getSectionMaterials, addTestQuestion } from "../../api/api";
-import type { TestAnswerRequest } from "../../types";
+import { getCourses, getCourseStudents, addStudentsToCourse, getUsers, deleteCourse, getCourseSections as getSections, addCourseSection as addSection, uploadMaterial, deleteMaterial, getSectionMaterials } from "../../api/api";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { pad } from "../../components/Shared";
 import { FetchState } from "../../components/FetchState";
+import { SectionQuizView } from "./SectionQuizView";
 
 // ── Course list panel ─────────────────────────────────────────────────────────
 
@@ -102,7 +102,7 @@ function fileIcon(ext: string) {
     return "📎";
 }
 
-function SectionRow({ section, index }: { section: SectionResponse; index: number }) {
+function SectionRow({ section, index, onOpenQuiz }: { section: SectionResponse; index: number; onOpenQuiz: (s: SectionResponse) => void }) {
     const { instance } = useMsal();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -115,58 +115,6 @@ function SectionRow({ section, index }: { section: SectionResponse; index: numbe
     const [deleting,    setDeleting]    = useState<string | null>(null);
     const [deleteErr,   setDeleteErr]   = useState<string | null>(null);
     const fetchedRef = useRef(false);
-
-    // ── Quiz builder state ────────────────────────────────────────────────────
-    const [showQuiz,       setShowQuiz]       = useState(false);
-    const [questionText,   setQuestionText]   = useState("");
-    const [answers,        setAnswers]        = useState<TestAnswerRequest[]>([
-        { answerText: "", correct: false },
-        { answerText: "", correct: false },
-    ]);
-    const [quizStatus,     setQuizStatus]     = useState<"idle" | "submitting" | "success" | "error">("idle");
-    const [quizError,      setQuizError]      = useState<string | null>(null);
-
-    function addAnswer() {
-        setAnswers((prev) => [...prev, { answerText: "", correct: false }]);
-    }
-
-    function removeAnswer(i: number) {
-        setAnswers((prev) => prev.filter((_, idx) => idx !== i));
-    }
-
-    function updateAnswerText(i: number, text: string) {
-        setAnswers((prev) => prev.map((a, idx) => idx === i ? { ...a, answerText: text } : a));
-    }
-
-    function toggleCorrect(i: number) {
-        setAnswers((prev) => prev.map((a, idx) => ({ ...a, correct: idx === i })));
-    }
-
-    async function handleSaveQuestion(e: React.MouseEvent) {
-        e.stopPropagation();
-        const trimmedQuestion = questionText.trim();
-        const validAnswers = answers.filter((a) => a.answerText.trim());
-        if (!trimmedQuestion || validAnswers.length < 2) return;
-
-        setQuizStatus("submitting");
-        setQuizError(null);
-        try {
-            await addTestQuestion(instance, section.id, {
-                questionText: trimmedQuestion,
-                answers: validAnswers.map((a) => ({ answerText: a.answerText.trim(), correct: a.correct })),
-            });
-            setQuizStatus("success");
-            setQuestionText("");
-            setAnswers([
-                { answerText: "", correct: false },
-                { answerText: "", correct: false },
-            ]);
-            setTimeout(() => setQuizStatus("idle"), 2500);
-        } catch (err) {
-            setQuizStatus("error");
-            setQuizError(err instanceof Error ? err.message : "Okänt fel");
-        }
-    }
 
     async function loadMaterials() {
         setLoadingFiles(true);
@@ -292,100 +240,17 @@ function SectionRow({ section, index }: { section: SectionResponse; index: numbe
                         )}
                     </div>
 
-                    {/* ── Quiz builder ─────────────────────────────────────── */}
+                    {/* ── Quiz link ─────────────────────────────────────────── */}
                     <div className="vmv-mgmt-quiz-section" onClick={(e) => e.stopPropagation()}>
                         <div className="vmv-mgmt-quiz-header">
                             <span className="vmv-mgmt-quiz-label">Quiz</span>
                             <button
                                 className="vmv-quiz-start"
-                                onClick={(e) => { e.stopPropagation(); setShowQuiz((p) => !p); }}
+                                onClick={(e) => { e.stopPropagation(); onOpenQuiz(section); }}
                             >
-                                {showQuiz ? "Stäng ✕" : "Lägg till fråga ↗"}
+                                Hantera quiz ↗
                             </button>
                         </div>
-
-                        {showQuiz && (
-                            <div className="vmv-mgmt-quiz-builder">
-                                {/* Question text */}
-                                <div className="vmv-mgmt-quiz-field">
-                                    <label className="vmv-mgmt-quiz-field-label">Fråga</label>
-                                    <input
-                                        className="vmv-mgmt-section-input vmv-mgmt-quiz-question-input"
-                                        type="text"
-                                        placeholder="Skriv frågan här…"
-                                        value={questionText}
-                                        onChange={(e) => setQuestionText(e.target.value)}
-                                    />
-                                </div>
-
-                                {/* Answers */}
-                                <div className="vmv-mgmt-quiz-field">
-                                    <label className="vmv-mgmt-quiz-field-label">
-                                        Svarsalternativ
-                                        <span className="vmv-mgmt-quiz-field-hint"> — markera rätt svar med ✓</span>
-                                    </label>
-                                    <div className="vmv-mgmt-quiz-answers">
-                                        {answers.map((a, i) => (
-                                            <div key={i} className="vmv-mgmt-quiz-answer-row">
-                                                <button
-                                                    className={`vmv-mgmt-quiz-correct-btn${a.correct ? " vmv-mgmt-quiz-correct-btn--active" : ""}`}
-                                                    title={a.correct ? "Rätt svar" : "Markera som rätt"}
-                                                    onClick={() => toggleCorrect(i)}
-                                                    type="button"
-                                                >
-                                                    ✓
-                                                </button>
-                                                <input
-                                                    className="vmv-mgmt-section-input vmv-mgmt-quiz-answer-input"
-                                                    type="text"
-                                                    placeholder={`Svar ${i + 1}…`}
-                                                    value={a.answerText}
-                                                    onChange={(e) => updateAnswerText(i, e.target.value)}
-                                                />
-                                                {answers.length > 2 && (
-                                                    <button
-                                                        className="vmv-mgmt-material-delete"
-                                                        onClick={() => removeAnswer(i)}
-                                                        title="Ta bort svar"
-                                                        type="button"
-                                                    >
-                                                        ✕
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <button
-                                        className="vmv-mgmt-quiz-add-answer"
-                                        onClick={addAnswer}
-                                        type="button"
-                                    >
-                                        + Lägg till svar
-                                    </button>
-                                </div>
-
-                                {/* Save */}
-                                <div className="vmv-mgmt-quiz-footer">
-                                    <button
-                                        className="vmv-quiz-start"
-                                        onClick={handleSaveQuestion}
-                                        disabled={
-                                            quizStatus === "submitting" ||
-                                            !questionText.trim() ||
-                                            answers.filter((a) => a.answerText.trim()).length < 2
-                                        }
-                                    >
-                                        {quizStatus === "submitting" ? "Sparar…" : "Spara fråga ↗"}
-                                    </button>
-                                    {quizStatus === "success" && (
-                                        <span className="vmv-form-feedback vmv-form-feedback--success">✓ Fråga sparad.</span>
-                                    )}
-                                    {quizStatus === "error" && (
-                                        <span className="vmv-form-feedback vmv-form-feedback--error">Fel: {quizError}</span>
-                                    )}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
             )}
@@ -414,6 +279,7 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
     const [sectionTitle, setSectionTitle]   = useState("");
     const [sectionStatus, setSectionStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
     const [sectionError, setSectionError]   = useState<string | null>(null);
+    const [quizSection, setQuizSection]     = useState<SectionResponse | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -553,6 +419,10 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
             setDeleting(false);
             setShowConfirm(false);
         }
+    }
+
+    if (quizSection) {
+        return <SectionQuizView section={quizSection} onBack={() => setQuizSection(null)} />;
     }
 
     return (
@@ -716,7 +586,7 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
                     ) : (
                         <div className="vmv-mgmt-section-list">
                             {sections.data.map((s, i) => (
-                                <SectionRow key={s.id} section={s} index={i} />
+                                <SectionRow key={s.id} section={s} index={i} onOpenQuiz={setQuizSection} />
                             ))}
                         </div>
                     )}

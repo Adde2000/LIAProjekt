@@ -3,6 +3,7 @@ import { useMsal } from "@azure/msal-react";
 import type { CourseResponse, LoadState, SectionResponse } from "../types";
 import { getCourseSections, getSectionMaterials, getStreamToken, getDownloadUrl } from "../api/api";
 import { FetchState } from "../components/FetchState";
+import { QuizView } from "./QuizView";
 
 interface Props {
     course: CourseResponse;
@@ -50,7 +51,7 @@ function fileIcon(ext: string) {
     return "📎";
 }
 
-function SectionItem({ section, onOpen }: { section: SectionResponse; onOpen: (s: ActiveStream) => void }) {
+function SectionItem({ section, onOpen, onOpenQuiz }: { section: SectionResponse; onOpen: (s: ActiveStream) => void; onOpenQuiz: (s: SectionResponse) => void }) {
     const { instance } = useMsal();
     const [expanded, setExpanded] = useState(false);
     const [materials, setMaterials] = useState<MaterialItem[]>([]);
@@ -146,6 +147,16 @@ function SectionItem({ section, onOpen }: { section: SectionResponse; onOpen: (s
                                         </div>
                                     );
                                 })}
+                            </div>
+                        )}
+                        {!loading && !error && (
+                            <div className="vmv-section-quiz-footer">
+                                <button
+                                    className="vmv-quiz-start"
+                                    onClick={() => onOpenQuiz(section)}
+                                >
+                                    Ta quiz ↗
+                                </button>
                             </div>
                         )}
                     </div>
@@ -259,6 +270,7 @@ function MediaView({ stream, onBack }: { stream: ActiveStream; onBack: () => voi
 export function CourseSectionView({ course, onBack }: Props) {
     const { instance } = useMsal();
     const [activeStream, setActiveStream] = useState<ActiveStream | null>(null);
+    const [quizSection, setQuizSection]   = useState<SectionResponse | null>(null);
     const [fetchKey, setFetchKey] = useState(0);
     const [state, setState] = useState<LoadState<SectionResponse[]>>({
         data: null,
@@ -290,6 +302,14 @@ export function CourseSectionView({ course, onBack }: Props) {
 
     // Sort by orderIndex so display order always matches the server's intent
     const sorted = [...(state.data ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
+
+    if (quizSection) {
+        return <QuizView
+            section={quizSection}
+            onBack={() => setQuizSection(null)}
+            onDone={() => { setFetchKey((k) => k + 1); setQuizSection(null); }}
+        />;
+    }
 
     if (activeStream) {
         return <MediaView stream={activeStream} onBack={() => setActiveStream(null)} />;
@@ -327,7 +347,7 @@ export function CourseSectionView({ course, onBack }: Props) {
                         </div>
                     ) : (
                         sorted.map((section) => (
-                            <SectionItem key={section.id} section={section} onOpen={setActiveStream} />
+                            <SectionItem key={section.id} section={section} onOpen={setActiveStream} onOpenQuiz={setQuizSection} />
                         ))
                     )}
                 </div>

@@ -558,3 +558,63 @@
     gap: 0.75rem;
     flex-wrap: wrap;
 }
+
+/* ── Quiz question cards (SectionQuizView) ────────────────────────────────── */
+
+.vmv-quiz-question-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 0.5rem;
+}
+
+.vmv-quiz-question-card {
+    border: 1px solid var(--color-border-secondary);
+    background: var(--color-background-secondary);
+    padding: 0.75rem 1rem;
+}
+
+.vmv-quiz-question-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    margin-bottom: 0.5rem;
+}
+
+.vmv-quiz-question-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+}
+
+.vmv-quiz-question-text {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.vmv-quiz-answer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-left: 1.4rem;
+}
+
+.vmv-quiz-answer-item {
+    display: flex;
+    gap: 0.4rem;
+    align-items: baseline;
+}
+
+.vmv-quiz-answer-bullet {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+}
+
+.vmv-quiz-answer-text {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+}

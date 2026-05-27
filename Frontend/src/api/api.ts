@@ -1,6 +1,6 @@
 import type { IPublicClientApplication } from "@azure/msal-browser";
 import { getAccessToken } from "../auth/getAccessToken";
-import type { CourseRequest, UserResponse, TestQuestionRequest } from "../types";
+import type { CourseRequest, UserResponse, TestQuestionRequest, TestQuestionResponse, SubmitAnswerRequest, TestResultResponse } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -22,6 +22,8 @@ async function safeFetch(url: string, token: string, errorMessage: string) {
             throw new Error(errorMessage);
         }
 
+        const contentType = res.headers.get("content-type") ?? "";
+        if (res.status === 204 || !contentType.includes("application/json")) return null;
         return await res.json();
     } catch (err) {
         console.error("Network/API failure:", err);
@@ -348,5 +350,37 @@ export async function addTestQuestion(
         token,
         question,
         "Failed to add test question"
+    );
+}
+
+export async function getTestQuestions(
+    instance: IPublicClientApplication,
+    sectionId: number
+): Promise<TestQuestionResponse[]> {
+    if (!BASE_URL) return [];
+
+    const token = await getAccessToken(instance);
+
+    return safeFetch(
+        `${BASE_URL}/api/courses/sections/tests/${sectionId}/questions`,
+        token,
+        "Failed to fetch test questions"
+    );
+}
+
+export async function submitQuiz(
+    instance: IPublicClientApplication,
+    sectionId: number,
+    answers: SubmitAnswerRequest[]
+): Promise<TestResultResponse> {
+    if (!BASE_URL) throw new Error("Missing VITE_API_BASE_URL");
+
+    const token = await getAccessToken(instance);
+
+    return safePost(
+        `${BASE_URL}/api/courses/sections/tests/${sectionId}/submit`,
+        token,
+        answers,
+        "Failed to submit quiz"
     );
 }
