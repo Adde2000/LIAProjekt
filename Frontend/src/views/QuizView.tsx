@@ -6,13 +6,12 @@ import { FetchState } from "../components/FetchState";
 
 interface Props {
     section: SectionResponse;
-    onBack: () => void;
     onDone: () => void;
 }
 
 type QuizPhase = "loading" | "error" | "taking" | "submitting" | "done";
 
-export function QuizView({ section, onBack, onDone }: Props) {
+export function QuizView({ section, onDone }: Props) {
     const { instance } = useMsal();
 
     const [questions,  setQuestions]  = useState<TestQuestionResponse[]>([]);
@@ -77,7 +76,7 @@ export function QuizView({ section, onBack, onDone }: Props) {
 
     return (
         <>
-            <button className="vmv-back-btn" onClick={onBack}>
+            <button className="vmv-back-btn" onClick={onDone}>
                 ← Tillbaka
             </button>
 
@@ -176,7 +175,7 @@ export function QuizView({ section, onBack, onDone }: Props) {
                             <div className="vmv-quiz-take-done-title">Quiz inlämnat!</div>
                         </>
                     )}
-                    <button className="vmv-quiz-start" onClick={result ? onDone : onBack}>
+                    <button className="vmv-quiz-start" onClick={onDone}>
                         ← Tillbaka till kursen
                     </button>
                 </div>

@@ -306,7 +306,6 @@ export function CourseSectionView({ course, onBack }: Props) {
     if (quizSection) {
         return <QuizView
             section={quizSection}
-            onBack={() => setQuizSection(null)}
             onDone={() => { setFetchKey((k) => k + 1); setQuizSection(null); }}
         />;
     }
