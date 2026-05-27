@@ -6,6 +6,7 @@ import { getCourses, getCourseStudents, addStudentsToCourse, getUsers, deleteCou
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { pad } from "../../components/Shared";
 import { FetchState } from "../../components/FetchState";
+import { SectionQuizView } from "./SectionQuizView";
 
 // ── Course list panel ─────────────────────────────────────────────────────────
 
@@ -101,7 +102,7 @@ function fileIcon(ext: string) {
     return "📎";
 }
 
-function SectionRow({ section, index }: { section: SectionResponse; index: number }) {
+function SectionRow({ section, index, onOpenQuiz }: { section: SectionResponse; index: number; onOpenQuiz: (s: SectionResponse) => void }) {
     const { instance } = useMsal();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -238,6 +239,19 @@ function SectionRow({ section, index }: { section: SectionResponse; index: numbe
                             <span className="vmv-form-feedback vmv-form-feedback--error">Fel: {uploadErr}</span>
                         )}
                     </div>
+
+                    {/* ── Quiz link ─────────────────────────────────────────── */}
+                    <div className="vmv-mgmt-quiz-section" onClick={(e) => e.stopPropagation()}>
+                        <div className="vmv-mgmt-quiz-header">
+                            <span className="vmv-mgmt-quiz-label">Quiz</span>
+                            <button
+                                className="vmv-quiz-start"
+                                onClick={(e) => { e.stopPropagation(); onOpenQuiz(section); }}
+                            >
+                                Hantera quiz ↗
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
@@ -265,6 +279,7 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
     const [sectionTitle, setSectionTitle]   = useState("");
     const [sectionStatus, setSectionStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
     const [sectionError, setSectionError]   = useState<string | null>(null);
+    const [quizSection, setQuizSection]     = useState<SectionResponse | null>(null);
 
     const [assistants, setAssistants] = useState<AssistantAdminResponse[]>([]);
     const [selectedAssistant, setSelectedAssistant] = useState(course.assistantId ?? "");
@@ -462,6 +477,10 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
         }
     }
 
+    if (quizSection) {
+        return <SectionQuizView section={quizSection} onBack={() => setQuizSection(null)} />;
+    }
+
     return (
         <div className="vmv-mgmt-detail">
 
@@ -656,7 +675,7 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
                     ) : (
                         <div className="vmv-mgmt-section-list">
                             {sections.data.map((s, i) => (
-                                <SectionRow key={s.id} section={s} index={i} />
+                                <SectionRow key={s.id} section={s} index={i} onOpenQuiz={setQuizSection} />
                             ))}
                         </div>
                     )}

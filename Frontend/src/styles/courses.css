@@ -249,3 +249,418 @@
     color: var(--color-text-primary);
     line-height: 1.4;
 }
+
+/* ── Expandable section items ─────────────────────────────────────────────── */
+
+.vmv-section-item--expandable {
+    flex-direction: column;
+    align-items: stretch;
+    cursor: pointer;
+    gap: 0;
+    padding: 0;
+}
+
+.vmv-section-item--expandable > .vmv-section-item-num,
+.vmv-section-item--expandable > .vmv-section-chevron,
+.vmv-section-item--expandable > .vmv-section-item-lock {
+    /* These are now inside a flex row wrapper */
+    flex-shrink: 0;
+}
+
+/* Inner header row */
+.vmv-section-item--expandable .vmv-section-item-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+/* Re-layout the top row of the item */
+.vmv-section-item--expandable {
+    display: grid;
+    grid-template-columns: 48px 1fr auto;
+    align-items: start;
+    padding: 0.875rem 1rem;
+    gap: 0 1rem;
+}
+
+.vmv-section-item--expandable .vmv-section-item-title {
+    padding-top: 2px;
+}
+
+.vmv-section-chevron {
+    font-size: 9px;
+    color: var(--color-text-secondary);
+    padding-top: 4px;
+}
+
+/* ── Material panel (student view) ───────────────────────────────────────── */
+
+.vmv-section-material-panel {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-border-tertiary);
+}
+
+.vmv-section-material-status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--color-text-secondary);
+}
+
+.vmv-section-material-status--error {
+    color: #c0392b;
+}
+
+.vmv-section-material-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.vmv-section-material-row {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: 1px solid var(--color-border-tertiary);
+    background: var(--color-background-secondary);
+    cursor: default;
+}
+
+.vmv-section-material-icon {
+    font-size: 13px;
+    line-height: 1;
+}
+
+.vmv-section-material-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--color-text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vmv-section-material-type {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+}
+
+/* ── Material row — clickable ─────────────────────────────────────────────── */
+
+.vmv-section-material-row--clickable {
+    cursor: pointer;
+    grid-template-columns: 20px 1fr auto auto;
+    transition: background 0.12s, border-color 0.12s;
+    text-decoration: none;
+    color: inherit;
+}
+
+.vmv-section-material-row--clickable:hover {
+    background: var(--color-background-primary);
+    border-color: var(--color-border-secondary);
+}
+
+.vmv-section-material-open {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+    margin-left: 4px;
+}
+
+
+/* ── Material row — loading state ────────────────────────────────────────── */
+
+.vmv-section-material-row--loading {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+/* ── Media viewer modal ───────────────────────────────────────────────────── */
+
+.vmv-media-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+}
+
+.vmv-media-modal {
+    background: var(--color-background-primary);
+    border: 1px solid var(--color-border-secondary);
+    display: flex;
+    flex-direction: column;
+    width: min(860px, 100%);
+    max-height: 90vh;
+    overflow: hidden;
+}
+
+.vmv-media-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--color-border-secondary);
+    flex-shrink: 0;
+}
+
+.vmv-media-modal-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--color-text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vmv-media-modal-close {
+    background: none;
+    border: none;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 0 4px;
+    flex-shrink: 0;
+    line-height: 1;
+    transition: color 0.12s;
+}
+
+.vmv-media-modal-close:hover {
+    color: var(--color-text-primary);
+}
+
+.vmv-media-modal-body {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    min-height: 200px;
+}
+
+.vmv-media-video {
+    width: 100%;
+    max-height: 70vh;
+    outline: none;
+}
+
+.vmv-media-pdf {
+    width: 100%;
+    height: 70vh;
+    border: none;
+}
+
+/* ── In-page media view ───────────────────────────────────────────────────── */
+
+.vmv-media-view {
+    margin-top: 1rem;
+    border: 1px solid var(--color-border-secondary);
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+}
+
+.vmv-media-view-video {
+    width: 100%;
+    max-height: 75vh;
+    display: block;
+    outline: none;
+}
+
+.vmv-media-view-pdf {
+    width: 100%;
+    height: 80vh;
+    border: none;
+    background: #fff;
+}
+
+/* ── Quiz taking view (QuizView) ─────────────────────────────────────────── */
+
+.vmv-section-quiz-footer {
+    padding: 0.75rem 0 0.25rem;
+    border-top: 1px solid var(--color-border-tertiary);
+    margin-top: 0.5rem;
+}
+
+.vmv-quiz-progress {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--color-text-secondary);
+    margin-bottom: 1rem;
+}
+
+.vmv-quiz-take-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.vmv-quiz-take-card {
+    border: 1px solid var(--color-border-secondary);
+    background: var(--color-background-secondary);
+    padding: 1rem;
+}
+
+.vmv-quiz-take-question {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    margin-bottom: 0.75rem;
+}
+
+.vmv-quiz-take-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+}
+
+.vmv-quiz-take-question-text {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    line-height: 1.4;
+}
+
+.vmv-quiz-take-answers {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.vmv-quiz-take-answer {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.55rem 0.75rem;
+    background: none;
+    border: 1px solid var(--color-border-secondary);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, background 0.15s;
+    width: 100%;
+}
+
+.vmv-quiz-take-answer:hover {
+    border-color: var(--color-text-secondary);
+}
+
+.vmv-quiz-take-answer--selected {
+    border-color: var(--color-text-primary);
+    background: var(--color-background-primary);
+}
+
+.vmv-quiz-take-answer-indicator {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--color-border-secondary);
+    flex-shrink: 0;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.vmv-quiz-take-answer--selected .vmv-quiz-take-answer-indicator {
+    border-color: var(--color-text-primary);
+    background: var(--color-text-primary);
+}
+
+.vmv-quiz-take-answer-text {
+    font-size: 0.85rem;
+    color: var(--color-text-primary);
+    line-height: 1.4;
+}
+
+.vmv-quiz-take-footer {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.vmv-quiz-take-hint {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: var(--color-text-secondary);
+}
+
+.vmv-quiz-take-done {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 3rem 1rem;
+    text-align: center;
+}
+
+.vmv-quiz-take-done-icon {
+    width: 48px;
+    height: 48px;
+    border: 2px solid var(--color-text-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: var(--color-text-primary);
+}
+
+.vmv-quiz-take-done-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.vmv-quiz-take-done-sub {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin: 0 0 0.5rem;
+}
+
+.vmv-quiz-take-done-icon--passed {
+    border-color: #27ae60;
+    color: #27ae60;
+}
+
+.vmv-quiz-take-done-icon--failed {
+    border-color: #e74c3c;
+    color: #e74c3c;
+}
+
+.vmv-quiz-take-done-score {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.vmv-quiz-take-done-meta {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+}
+
+.vmv-quiz-take-done-meta-sep {
+    opacity: 0.4;
+}

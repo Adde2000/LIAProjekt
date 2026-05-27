@@ -5,9 +5,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import se.liaprojekt.dto.*;
+import se.liaprojekt.model.TestQuestion;
 import se.liaprojekt.service.CurrentUserService;
 import se.liaprojekt.service.TestService;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -21,12 +23,24 @@ public class TestController {
     // CREATE QUESTION (ADMIN)
     @Operation(summary = "Create a question")
     @PostMapping("/{sectionId}/questions")
-    public ResponseEntity<Void> createQuestion(
+    public ResponseEntity<TestQuestionResponse> createQuestion(
             @PathVariable Long sectionId,
             @RequestBody TestQuestionRequest request
     ) {
-        testService.createQuestion(sectionId, request);
-        return ResponseEntity.ok().build();
+        TestQuestion testQuestion = testService.createQuestion(sectionId, request);
+        List<TestAnswerResponse> testAnswerResponseList = new ArrayList<>();
+        testQuestion.getAnswers().forEach(testAnswer -> {
+             testAnswerResponseList.add( new TestAnswerResponse(
+                    testAnswer.getId(),
+                    testAnswer.getAnswerText()
+            ));
+        });
+        TestQuestionResponse testQuestionResponse = new TestQuestionResponse(
+                testQuestion.getId(),
+                testQuestion.getQuestionText(),
+                testAnswerResponseList
+                );
+        return ResponseEntity.ok(testQuestionResponse);
     }
 
     @Operation(summary = "Update question")
@@ -51,37 +65,23 @@ public class TestController {
         return ResponseEntity.noContent().build();
     }
 
-    // START TEST
-    @Operation(summary = "Start test to answer questions")
-    @PostMapping("/{sectionId}/start")
-    public ResponseEntity<TestResultResponse> startTest(@PathVariable Long sectionId) {
-
-        String entraId = currentUserService.getEntraId();
-
-        return ResponseEntity.ok(
-                testService.startTest(entraId, sectionId)
-        );
-    }
-
-    // SUBMIT ANSWER
-    @Operation(summary = "Submit answer for questions")
-    @PostMapping("/answer")
-    public ResponseEntity<Void> submitAnswer(@RequestBody SubmitAnswerRequest request) {
-
-        testService.submitAnswer(
-                request.testResultId(),
-                request.questionId(),
-                request.answerId()
-        );
-
-        return ResponseEntity.ok().build();
-    }
-
     // SUBMIT TEST
     @Operation(summary = "Submit test")
-    @PostMapping("/{testResultId}/submit")
+    @PostMapping("/{sectionId}/submit")
     public ResponseEntity<TestResultResponse> submitTest(
-            @PathVariable Long testResultId) {
+            @PathVariable Long sectionId,
+            @RequestBody List<SubmitAnswerRequest> requestList) {
+
+        String entraId = currentUserService.getEntraId();
+        Long testResultId = testService.startTest(entraId, sectionId).id();
+
+        for (SubmitAnswerRequest request : requestList) {
+            testService.submitAnswer(
+                    testResultId,
+                    request.questionId(),
+                    request.answerId()
+            );
+        }
 
         return ResponseEntity.ok(
                 testService.submitTest(testResultId)

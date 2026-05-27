@@ -3,7 +3,11 @@ import { getAccessToken } from "../auth/getAccessToken";
 import type {
     CourseRequest,
     UserResponse,
-    ChatMessage
+    ChatMessage,
+    TestQuestionRequest,
+    TestQuestionResponse,
+    SubmitAnswerRequest,
+    TestResultResponse
 } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -25,7 +29,6 @@ async function safeFetch(
 ) {
 
     try {
-
         const res = await fetch(url, {
             headers: {
                 Authorization: `Bearer ${token}`
@@ -33,23 +36,15 @@ async function safeFetch(
         });
 
         if (!res.ok) {
-
-            const text = await res.text()
-                .catch(() => "");
-
-            console.error(
-                "API error:",
-                res.status,
-                text
-            );
-
+            const text = await res.text().catch(() => "");
+            console.error("API error:", res.status, text);
             throw new Error(errorMessage);
         }
 
+        const contentType = res.headers.get("content-type") ?? "";
+        if (res.status === 204 || !contentType.includes("application/json")) return null;
         return await res.json();
-
     } catch (err) {
-
         console.error(
             "Network/API failure:",
             err
@@ -67,7 +62,6 @@ async function safePost(
 ) {
 
     try {
-
         const res = await fetch(url, {
             method: "POST",
             headers: {
@@ -78,28 +72,14 @@ async function safePost(
         });
 
         if (!res.ok) {
-
-            const text = await res.text()
-                .catch(() => "");
-
-            console.error(
-                "API error:",
-                res.status,
-                text
-            );
-
+            const text = await res.text().catch(() => "");
+            console.error("API error:", res.status, text);
             throw new Error(errorMessage);
         }
 
         return await res.json();
-
     } catch (err) {
-
-        console.error(
-            "Network/API failure:",
-            err
-        );
-
+        console.error("Network/API failure:", err);
         throw err;
     }
 }
@@ -207,9 +187,7 @@ export async function getHealth(
 // USERS
 // =========================
 
-export async function getUsers(
-    instance: IPublicClientApplication
-) {
+export async function getUsers(instance: IPublicClientApplication) {
 
     if (!BASE_URL) return null;
 
@@ -230,7 +208,6 @@ export async function createCourse(
     instance: IPublicClientApplication,
     course: CourseRequest
 ) {
-
     if (!BASE_URL) return null;
 
     const token = await getAccessToken(instance);
@@ -243,10 +220,7 @@ export async function createCourse(
     );
 }
 
-export async function getCourses(
-    instance: IPublicClientApplication
-) {
-
+export async function getCourses(instance: IPublicClientApplication) {
     if (!BASE_URL) return null;
 
     const token = await getAccessToken(instance);
@@ -297,7 +271,6 @@ export async function getCourseStudents(
     instance: IPublicClientApplication,
     courseId: number
 ) {
-
     if (!BASE_URL) return null;
 
     const token = await getAccessToken(instance);
@@ -314,7 +287,6 @@ export async function addStudentsToCourse(
     courseId: number,
     students: UserResponse[]
 ) {
-
     if (!BASE_URL) return null;
 
     const token = await getAccessToken(instance);
@@ -335,7 +307,6 @@ export async function getCourseSections(
     instance: IPublicClientApplication,
     courseId: number
 ) {
-
     if (!BASE_URL) return null;
 
     const token = await getAccessToken(instance);
@@ -352,7 +323,6 @@ export async function addCourseSection(
     courseId: number,
     title: string
 ) {
-
     if (!BASE_URL) return null;
 
     const token = await getAccessToken(instance);
@@ -360,9 +330,7 @@ export async function addCourseSection(
     return safePost(
         `${BASE_URL}/api/courses/${courseId}/sections`,
         token,
-        {
-            title
-        } satisfies import("../types").SectionRequest,
+        { title } satisfies import("../types").SectionRequest,
         "Failed to add section"
     );
 }
@@ -541,4 +509,117 @@ export async function deleteMaterial(
         console.error("API error:", res.status, text);
         throw new Error("Failed to delete material");
     }
+}
+
+
+export async function getStreamToken(
+    instance: IPublicClientApplication,
+    fileId: string
+): Promise<{ streamToken: string; streamUrl: string; expiresIn: number }> {
+    if (!BASE_URL) throw new Error("Missing VITE_API_BASE_URL");
+
+    const token = await getAccessToken(instance);
+
+    const res = await fetch(
+        `${BASE_URL}/api/material/stream-token/${encodeURIComponent(fileId)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (!res.ok) {
+        throw new Error(`Failed to get stream token: ${res.status}`);
+    }
+
+    return res.json();
+}
+
+export async function getDownloadUrl(
+    instance: IPublicClientApplication,
+    fileId: string
+): Promise<string> {
+    if (!BASE_URL) throw new Error("Missing VITE_API_BASE_URL");
+
+    const token = await getAccessToken(instance);
+
+    const res = await fetch(
+        `${BASE_URL}/api/material/download/${encodeURIComponent(fileId)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+
+    // Backend returns the pre-signed URL as a plain string or JSON
+    const text = await res.text();
+    try {
+        const json = JSON.parse(text);
+        return json.url ?? json.downloadUrl ?? json.sasUrl ?? text;
+    } catch {
+        return text.trim();
+    }
+}
+
+export async function downloadMaterialBlob(
+    instance: IPublicClientApplication,
+    fileId: string
+): Promise<Blob> {
+    if (!BASE_URL) throw new Error("Missing VITE_API_BASE_URL");
+
+    const token = await getAccessToken(instance);
+
+    const res = await fetch(
+        `${BASE_URL}/api/material/download/${encodeURIComponent(fileId)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+
+    return res.blob();
+}
+
+export async function addTestQuestion(
+    instance: IPublicClientApplication,
+    sectionId: number,
+    question: TestQuestionRequest
+) {
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    return safePost(
+        `${BASE_URL}/api/courses/sections/tests/${sectionId}/questions`,
+        token,
+        question,
+        "Failed to add test question"
+    );
+}
+
+export async function getTestQuestions(
+    instance: IPublicClientApplication,
+    sectionId: number
+): Promise<TestQuestionResponse[]> {
+    if (!BASE_URL) return [];
+
+    const token = await getAccessToken(instance);
+
+    return safeFetch(
+        `${BASE_URL}/api/courses/sections/tests/${sectionId}/questions`,
+        token,
+        "Failed to fetch test questions"
+    );
+}
+
+export async function submitQuiz(
+    instance: IPublicClientApplication,
+    sectionId: number,
+    answers: SubmitAnswerRequest[]
+): Promise<TestResultResponse> {
+    if (!BASE_URL) throw new Error("Missing VITE_API_BASE_URL");
+
+    const token = await getAccessToken(instance);
+
+    return safePost(
+        `${BASE_URL}/api/courses/sections/tests/${sectionId}/submit`,
+        token,
+        answers,
+        "Failed to submit quiz"
+    );
 }
