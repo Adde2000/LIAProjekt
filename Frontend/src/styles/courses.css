@@ -48,15 +48,33 @@
 
 .vmv-course-footer {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-top: 6px;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.vmv-course-progress-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--color-border-secondary);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.vmv-course-progress-bar-fill {
+    height: 100%;
+    background: var(--color-text-primary);
+    border-radius: 2px;
+    transition: width 0.4s ease;
 }
 
 .vmv-course-pct {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 10px;
     color: var(--color-text-secondary);
+    flex-shrink: 0;
+    min-width: 30px;
+    text-align: right;
 }
 
 /* ── Quiz list ────────────────────────────────────────────────────────────── */

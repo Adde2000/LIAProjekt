@@ -15,7 +15,9 @@ import org.slf4j.LoggerFactory;
 import se.liaprojekt.repository.UserProgressRepository;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -39,14 +41,18 @@ public class CourseService {
                 .toList();
     }
 
-    public List<CourseResponse> getAllRegisteredCourses(long userId) {
+    public List<Map<String, Object>> getAllRegisteredCourses(long userId) {
         List<UserProgress> userProgressList = userProgressRepository.findByUserId(userId);
-        List<CourseResponse> courseResponseList = new ArrayList<>();
+        List<Map<String, Object>> responseList = new ArrayList<>();
         for (UserProgress userProgress : userProgressList) {
             Course course = userProgress.getCourse();
-            courseResponseList.add(mapToResponse(course));
+            Map<String, Object> response = Map.of(
+                    "courseResponse", mapToResponse(course),
+                    "userProgressResponse", mapToResponse(userProgress)
+            );
+            responseList.add(response);
         }
-        return courseResponseList;
+        return responseList;
     }
 
     public CourseResponse getCourseById(Long id) {
@@ -76,7 +82,7 @@ public class CourseService {
     }
 
     //TODO return UserProgressResponse
-    public List<UserResponse> addStudentsToCourse(Long courseId, List<UserRequest> students) {
+    public List<UserProgressResponse> addStudentsToCourse(Long courseId, List<UserRequest> students) {
         Course course = courseRepository.findById(courseId).orElseThrow(() ->
                 new ResourceNotFoundException("Course not found with id: " + courseId));
         List<UserProgress> userProgressList = new ArrayList<>();
@@ -88,13 +94,13 @@ public class CourseService {
     }
 
     //TODO return UserProgressResponse
-    public List<UserResponse> getStudentsInCourse(Long courseId) {
+    public List<UserProgressResponse> getStudentsInCourse(Long courseId) {
         List<UserProgress> userProgressList = userProgressRepository.findByCourseId(courseId);
-        List<UserResponse> userResponseList = new ArrayList<>();
+        List<UserProgressResponse> userProgressResponseList = new ArrayList<>();
         userProgressList.forEach(userProgress -> {
-            userResponseList.add(userService.getUserResponseById(userProgress.getUser().getId()));
+            userProgressResponseList.add(mapToResponse(userProgress));
         });
-        return userResponseList;
+        return userProgressResponseList;
     }
 
     public CourseResponse updateCourse(Long id, CourseRequest request) {
@@ -121,15 +127,6 @@ public class CourseService {
         }
         courseRepository.delete(course);
 
-    }
-
-    private CourseResponse mapToResponse(Course course) {
-        return new CourseResponse(
-                course.getId(),
-                course.getTitle(),
-                course.getDescription(),
-                course.getCreatedBy()
-        );
     }
 
     public boolean isCourseCompleted(String entraId, Course course) {
@@ -231,5 +228,23 @@ public class CourseService {
         course.setAssistantId(assistantId);
 
         courseRepository.save(course);
+    }
+
+    private CourseResponse mapToResponse(Course course) {
+        return new CourseResponse(
+                course.getId(),
+                course.getTitle(),
+                course.getDescription(),
+                course.getCreatedBy()
+        );
+    }
+
+    private UserProgressResponse mapToResponse(UserProgress userProgress) {
+        System.out.println(userProgress.getCompletedSections() + " " + userProgress.getProgressPercentage());
+        return new UserProgressResponse(
+                userService.getUserResponseById(userProgress.getUser().getId()),
+                userProgress.getCompletedSections(),
+                userProgress.getProgressPercentage()
+        );
     }
 }

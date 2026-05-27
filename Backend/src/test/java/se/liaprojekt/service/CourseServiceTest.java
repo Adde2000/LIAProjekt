@@ -201,7 +201,7 @@ class CourseServiceTest {
         when(userService.getUserResponseById(1L))
                 .thenReturn(userResponse);
 
-        List<UserResponse> result =
+        List<UserProgressResponse> result =
                 courseService.addStudentsToCourse(
                         1L,
                         List.of(request)
@@ -235,11 +235,11 @@ class CourseServiceTest {
         when(userService.getUserResponseById(1L))
                 .thenReturn(response);
 
-        List<UserResponse> result =
+        List<UserProgressResponse> result =
                 courseService.getStudentsInCourse(1L);
 
         assertEquals(1, result.size());
-        assertEquals("Test", result.get(0).displayName());
+        assertEquals("Test", result.getFirst().userResponse().displayName());
     }
 
     @Test

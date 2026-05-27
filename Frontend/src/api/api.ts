@@ -3,6 +3,8 @@ import { getAccessToken } from "../auth/getAccessToken";
 import type {
     CourseRequest,
     UserResponse,
+    UserProgressResponse,
+    MyCourseEntry,
     ChatMessage,
     TestQuestionRequest,
     TestQuestionResponse,
@@ -234,9 +236,9 @@ export async function getCourses(instance: IPublicClientApplication) {
 
 export async function getMyCourses(
     instance: IPublicClientApplication
-) {
+): Promise<MyCourseEntry[]> {
 
-    if (!BASE_URL) return null;
+    if (!BASE_URL) return [];
 
     const token = await getAccessToken(instance);
 
@@ -270,8 +272,8 @@ export async function deleteCourse(
 export async function getCourseStudents(
     instance: IPublicClientApplication,
     courseId: number
-) {
-    if (!BASE_URL) return null;
+): Promise<UserProgressResponse[]> {
+    if (!BASE_URL) return [];
 
     const token = await getAccessToken(instance);
 

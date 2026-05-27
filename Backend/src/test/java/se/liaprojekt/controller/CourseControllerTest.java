@@ -156,14 +156,14 @@ class CourseControllerTest {
         }
         userProgressList = userProgressRepository.saveAll(userProgressList);
 
-        ResponseEntity<List<UserResponse>> responseEntity = controller.getCourseStudents(courseId);
+        ResponseEntity<List<UserProgressResponse>> responseEntity = controller.getCourseStudents(courseId);
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
-        List<UserResponse> userResponses = responseEntity.getBody();
-        assertNotNull(userResponses, "Users list is null");
-        assertEquals(NUMBER_OF_COURSES, userResponses.size(), "Wrong number of users");
+        List<UserProgressResponse> userProgressResponses = responseEntity.getBody();
+        assertNotNull(userProgressResponses, "Users list is null");
+        assertEquals(NUMBER_OF_COURSES, userProgressResponses.size(), "Wrong number of users");
         Set<Long> userResponseIds = new HashSet<>();
-        for (UserResponse userResponse : userResponses) {
-            userResponseIds.add(userResponse.id());
+        for (UserProgressResponse userProgressResponse : userProgressResponses) {
+            userResponseIds.add(userProgressResponse.userResponse().id());
         }
         for (UserProgress userProgress : userProgressList) {
             assertTrue(userResponseIds.contains(userProgress.getUser().getId()));
@@ -181,11 +181,11 @@ class CourseControllerTest {
             userRequestList.add(new UserRequest(userList.get(i).getId()));
         }
 
-        ResponseEntity<List<UserResponse>> responseEntity = controller.addStudentsToCourse(courseId, userRequestList);
+        ResponseEntity<List<UserProgressResponse>> responseEntity = controller.addStudentsToCourse(courseId, userRequestList);
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
-        List<UserResponse> userResponses = responseEntity.getBody();
-        assertNotNull(userResponses, "Users list is null");
-        assertEquals(NUMBER_OF_COURSES, userResponses.size(), "Wrong number of users");
+        List<UserProgressResponse> userProgressResponses = responseEntity.getBody();
+        assertNotNull(userProgressResponses, "Users list is null");
+        assertEquals(NUMBER_OF_COURSES, userProgressResponses.size(), "Wrong number of users");
 
         //Update all lists after call to controller
         Optional<Course> courseOptional = courseRepository.findById(courseId);

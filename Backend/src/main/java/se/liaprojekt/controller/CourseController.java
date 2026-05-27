@@ -35,13 +35,13 @@ public class CourseController {
     }
 
     @GetMapping("/{courseId}/students")
-    public ResponseEntity<List<UserResponse>> getCourseStudents(@PathVariable Long courseId) {
+    public ResponseEntity<List<UserProgressResponse>> getCourseStudents(@PathVariable Long courseId) {
         logger.info("Get student list for course: {}", courseId);
         return ResponseEntity.ok(courseService.getStudentsInCourse(courseId));
     }
 
     @PostMapping("/{courseId}/students")
-    public ResponseEntity<List<UserResponse>> addStudentsToCourse(@PathVariable Long courseId, @RequestBody List<UserRequest> students) {
+    public ResponseEntity<List<UserProgressResponse>> addStudentsToCourse(@PathVariable Long courseId, @RequestBody List<UserRequest> students) {
         logger.info("Adding students to course {}", courseId);
         return ResponseEntity.ok(courseService.addStudentsToCourse(courseId, students));
     }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useMsal } from "@azure/msal-react";
-import type { CourseResponse, LoadState } from "../types";
+import type { CourseResponse, MyCourseEntry, LoadState } from "../types";
 import { getMyCourses } from "../api/api";
 import { FetchState } from "../components/FetchState";
 import { CourseSectionView } from "./CourseSectionView";
@@ -8,7 +8,7 @@ import { CourseSectionView } from "./CourseSectionView";
 export function CoursesView() {
     const { instance } = useMsal();
     const [fetchKey, setFetchKey] = useState(0);
-    const [state, setState] = useState<LoadState<CourseResponse[]>>({ data: null, loading: true, error: null });
+    const [state, setState] = useState<LoadState<MyCourseEntry[]>>({ data: null, loading: true, error: null });
     const [search, setSearch] = useState("");
     const [selectedCourse, setSelectedCourse] = useState<CourseResponse | null>(null);
 
@@ -28,8 +28,8 @@ export function CoursesView() {
         return () => { cancelled = true; };
     }, [instance, fetchKey]);
 
-    const filtered = (state.data ?? []).filter((c) =>
-        c.title.toLowerCase().includes(search.toLowerCase())
+    const filtered = (state.data ?? []).filter((entry) =>
+        entry.courseResponse.title.toLowerCase().includes(search.toLowerCase())
     );
 
     if (selectedCourse) {
@@ -70,7 +70,7 @@ export function CoursesView() {
                                 : "Inga kurser matchar din sökning."}
                         </div>
                     ) : (
-                        filtered.map((c) => (
+                        filtered.map(({ courseResponse: c, userProgressResponse: p }) => (
                             <div
                                 key={c.id}
                                 className="vmv-course"
@@ -85,6 +85,16 @@ export function CoursesView() {
                                 <div className="vmv-course-title">{c.title}</div>
                                 <div className="vmv-course-meta">{c.createdBy}</div>
                                 <div className="vmv-course-description">{c.description}</div>
+
+                                <div className="vmv-course-footer">
+                                    <div className="vmv-course-progress-bar-wrap">
+                                        <div
+                                            className="vmv-course-progress-bar-fill"
+                                            style={{ width: `${p.progressPercentage}%` }}
+                                        />
+                                    </div>
+                                    <span className="vmv-course-pct">{p.progressPercentage}%</span>
+                                </div>
                             </div>
                         ))
                     )}

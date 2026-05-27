@@ -109,6 +109,19 @@ export interface TestQuestionRequest {
     answers: TestAnswerRequest[];
 }
 
+// Mirrors the Map returned by /api/users/me/courses
+export interface MyCourseEntry {
+    courseResponse: CourseResponse;
+    userProgressResponse: UserProgressResponse;
+}
+
+// Mirrors the Java UserProgressResponse record
+export interface UserProgressResponse {
+    userResponse: UserResponse;
+    completedSections: number;
+    progressPercentage: number;
+}
+
 // Shape returned by the API for courses — mirrors the Java CourseResponse class
 export interface CourseResponse {
     id:          number;

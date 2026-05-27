@@ -41,6 +41,9 @@ class TestServiceTest {
     private UserRepository userRepository;
 
     @Mock
+    private UserProgressRepository userProgressRepository;
+
+    @Mock
     private CurrentUserService currentUserService;
 
     @Mock
@@ -256,6 +259,11 @@ class TestServiceTest {
         // Arrange
         when(currentUserService.getEntraId())
                 .thenReturn("entra-123");
+
+        when(userProgressRepository.findByCourseIdAndUserId(course.getId(), user.getId()))
+                .thenReturn(UserProgress.builder().user(user).build());
+
+        when(userProgressRepository.save(any(UserProgress.class))).thenReturn(null);
 
         TestResult result = new TestResult();
         result.setId(1L);

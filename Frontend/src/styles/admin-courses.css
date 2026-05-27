@@ -618,3 +618,48 @@
     font-size: 0.8125rem;
     color: var(--color-text-secondary);
 }
+
+/* ── Progress columns (enrolled student table) ──────────────────────────── */
+
+.vmv-mgmt-student-table--progress .vmv-mgmt-student-thead,
+.vmv-mgmt-student-table--progress .vmv-mgmt-student-row {
+    grid-template-columns: 36px 1.4fr 2fr 1fr 60px 120px;
+}
+
+.vmv-user-progress-sections {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    text-align: center;
+}
+
+.vmv-user-progress-pct {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 18px;
+    background: var(--color-border-tertiary);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.vmv-user-progress-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: var(--color-accent, #4f8ef7);
+    opacity: 0.35;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.vmv-user-progress-label {
+    position: relative;
+    z-index: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    padding: 0 6px;
+}
