@@ -20,6 +20,8 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/health").permitAll()
+                        //Stream security is handled via StreamToken
+                        .requestMatchers("/api/material/stream/**").permitAll()
 //                        .requestMatchers("/api/users/**").permitAll()
                         .requestMatchers("/api/courses/**").authenticated()
                         .requestMatchers("/api/email/**").authenticated()
@@ -31,7 +33,6 @@ public class SecurityConfig {
 //                        .requestMatchers("/swagger-ui/**").permitAll()
 //                        .requestMatchers("/swagger-ui.html").permitAll()
 //                        .requestMatchers("/api/material/**").permitAll()
-//                        .requestMatchers("/api/material/stream/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth ->
