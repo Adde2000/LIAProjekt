@@ -36,6 +36,9 @@ class SectionServiceTest {
     private TestResultRepository testResultRepository;
 
     @Mock
+    private TestService testService;
+
+    @Mock
     private BlobStorageService blobStorageService;
 
     @InjectMocks

@@ -147,6 +147,11 @@ public class TestService {
         questionRepository.delete(question);
     }
 
+    @Transactional
+    public void deleteSectionQuestions(Long sectionId) {
+        questionRepository.deleteBySectionId(sectionId);
+    }
+
     // =========================
     // START TEST (MULTI ATTEMPT)
     // =========================
