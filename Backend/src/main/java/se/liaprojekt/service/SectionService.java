@@ -6,7 +6,6 @@ import se.liaprojekt.dto.SectionResponse;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.Course;
 import se.liaprojekt.model.Section;
-import se.liaprojekt.model.TestQuestion;
 import se.liaprojekt.model.TestResult;
 import se.liaprojekt.repository.CourseRepository;
 import se.liaprojekt.repository.SectionRepository;
@@ -42,7 +41,7 @@ public class SectionService {
                         : course.getSections()
 
                         //  Ta sista section i listan (högst orderIndex pga @OrderBy("orderIndex ASC"))
-                          .get(course.getSections().size() - 1)
+                          .getLast()
 
                         //  Hämta dess orderIndex
                           .getOrderIndex()
