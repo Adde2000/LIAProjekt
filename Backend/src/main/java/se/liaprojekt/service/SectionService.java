@@ -21,6 +21,7 @@ public class SectionService {
     private final CourseRepository courseRepository;
     private final TestResultRepository testResultRepository;
     private final BlobStorageService blobStorageService;
+    private final TestService testService;
 
     public SectionResponse addSection(Long courseId, String title) {
 
@@ -40,7 +41,7 @@ public class SectionService {
                         : course.getSections()
 
                         //  Ta sista section i listan (högst orderIndex pga @OrderBy("orderIndex ASC"))
-                          .get(course.getSections().size() - 1)
+                          .getLast()
 
                         //  Hämta dess orderIndex
                           .getOrderIndex()
@@ -78,6 +79,7 @@ public class SectionService {
     // =========================
     public void deleteSection(Long sectionId) {
         blobStorageService.deleteSectionFiles(sectionId);
+        testService.deleteSectionQuestions(sectionId);
         sectionRepository.deleteById(sectionId);
     }
 

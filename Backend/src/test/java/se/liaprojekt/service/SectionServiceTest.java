@@ -36,6 +36,9 @@ class SectionServiceTest {
     private TestResultRepository testResultRepository;
 
     @Mock
+    private TestService testService;
+
+    @Mock
     private BlobStorageService blobStorageService;
 
     @InjectMocks
@@ -130,7 +133,7 @@ class SectionServiceTest {
         // Assert
         assertEquals(1, result.size());
 
-        SectionResponse response = result.get(0);
+        SectionResponse response = result.getFirst();
 
         assertEquals("Intro", response.title());
         assertFalse(response.isLocked());

@@ -9,6 +9,7 @@ import java.util.Optional;
 
 public interface TestQuestionRepository extends JpaRepository<TestQuestion, Long> {
     List<TestQuestion> findBySectionId(Long sectionId);
+    void deleteBySectionId(Long sectionId);
 
     @Query("SELECT q FROM TestQuestion q LEFT JOIN FETCH q.answers WHERE q.id = :id")
     Optional<TestQuestion> findByIdWithAnswers(Long id);
