@@ -6,12 +6,12 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import se.liaprojekt.dto.CourseResponse;
 import se.liaprojekt.dto.UserResponse;
 import se.liaprojekt.service.CourseService;
 import se.liaprojekt.service.UserService;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -39,10 +39,10 @@ public class UserController {
     }
 
     @GetMapping("/me/courses")
-    public ResponseEntity<List<CourseResponse>> getMyCourses(@AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<List<Map<String, Object>>> getMyCourses(@AuthenticationPrincipal Jwt jwt) {
         String entraId = jwt.getClaim("oid");
         long userId = userService.getUserByEntraId(entraId).getId();
-        List<CourseResponse> courseResponseList = courseService.getAllRegisteredCourses(userId);
+        List<Map<String, Object>> courseResponseList = courseService.getAllRegisteredCourses(userId);
         return ResponseEntity.ok(courseResponseList);
     }
 

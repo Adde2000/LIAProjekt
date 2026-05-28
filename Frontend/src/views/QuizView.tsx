@@ -161,7 +161,7 @@ export function QuizView({ section, onDone }: Props) {
                                 {result.passed ? "Godkänd!" : "Ej godkänd"}
                             </div>
                             <div className="vmv-quiz-take-done-score">
-                                {result.score} / {questions.length} rätt
+                                {result.score}% rätt
                             </div>
                             <div className="vmv-quiz-take-done-meta">
                                 <span>Försök {result.attemptNumber}</span>

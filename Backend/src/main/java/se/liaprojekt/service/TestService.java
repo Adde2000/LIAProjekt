@@ -30,6 +30,7 @@ public class TestService {
     private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
     private final ApplicationEventPublisher eventPublisher;
+    private final UserProgressRepository userProgressRepository;
 
 
     @Transactional
@@ -358,6 +359,22 @@ public class TestService {
                     saved.getSection().getId(),
                     score
             );
+
+            //Update userProgress
+            UserProgress userProgress = userProgressRepository.findByCourseIdAndUserId(saved.getSection().getCourse().getId(), saved.getUser().getId());
+            if (userProgress == null) {
+                userProgress = new UserProgress();
+                userProgress.setCourse(saved.getSection().getCourse());
+                userProgress.setUser(saved.getUser());
+            }
+            userProgress.setCompletedSections(userProgress.getCompletedSections() + 1);
+            int nbrOfSections = saved.getSection().getCourse().getSections().size();
+            if(nbrOfSections == 0) {
+                userProgress.setProgressPercentage(0);
+            } else {
+                userProgress.setProgressPercentage(Math.divideExact(userProgress.getCompletedSections()*100, nbrOfSections));
+            }
+            userProgressRepository.save(userProgress);
 
             eventPublisher.publishEvent(new TestResultEvent(saved.getId()));
         }

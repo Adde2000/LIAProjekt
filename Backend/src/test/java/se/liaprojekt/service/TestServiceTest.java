@@ -41,6 +41,9 @@ class TestServiceTest {
     private UserRepository userRepository;
 
     @Mock
+    private UserProgressRepository userProgressRepository;
+
+    @Mock
     private CurrentUserService currentUserService;
 
     @Mock
@@ -257,6 +260,11 @@ class TestServiceTest {
         when(currentUserService.getEntraId())
                 .thenReturn("entra-123");
 
+        when(userProgressRepository.findByCourseIdAndUserId(course.getId(), user.getId()))
+                .thenReturn(UserProgress.builder().user(user).build());
+
+        when(userProgressRepository.save(any(UserProgress.class))).thenReturn(null);
+
         TestResult result = new TestResult();
         result.setId(1L);
         result.setUser(user);
@@ -350,7 +358,7 @@ class TestServiceTest {
         assertEquals(1, result.size());
         assertEquals(
                 "Best language?",
-                result.get(0).questionText()
+                result.getFirst().questionText()
         );
     }
 
@@ -386,7 +394,7 @@ class TestServiceTest {
         assertEquals(1, responses.size());
         assertEquals(
                 "COMPLETED",
-                responses.get(0).status()
+                responses.getFirst().status()
         );
     }
 

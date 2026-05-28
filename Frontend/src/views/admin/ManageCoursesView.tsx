@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useMsal } from "@azure/msal-react";
-import type { CourseResponse, UserResponse, LoadState, SectionResponse, AssistantAdminResponse } from "../../types";
+import type { CourseResponse, UserResponse, UserProgressResponse, LoadState, SectionResponse, AssistantAdminResponse } from "../../types";
 import { idle } from "../../types";
 import { getCourses, getCourseStudents, addStudentsToCourse, getUsers, deleteCourse, getAssistants, assignAssistantToCourse, getCourseSections as getSections, addCourseSection as addSection, uploadMaterial, deleteMaterial, getSectionMaterials } from "../../api/api";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -47,8 +47,9 @@ function CourseList({
 
 // ── Student row ───────────────────────────────────────────────────────────────
 
-function StudentRow({ user, index, action, checked, onToggle }: {
+function StudentRow({ user, progress, index, action, checked, onToggle }: {
     user: UserResponse;
+    progress?: { completedSections: number; progressPercentage: number };
     index: number;
     action?: React.ReactNode;
     checked?: boolean;
@@ -78,6 +79,18 @@ function StudentRow({ user, index, action, checked, onToggle }: {
                     <span key={r} className="vmv-mgmt-role-badge">{r}</span>
                 ))}
             </span>
+            {progress !== undefined && (
+                <>
+                    <span className="vmv-user-progress-sections">{progress.completedSections}</span>
+                    <span className="vmv-user-progress-pct">
+                        <span
+                            className="vmv-user-progress-bar"
+                            style={{ width: `${progress.progressPercentage}%` }}
+                        />
+                        <span className="vmv-user-progress-label">{progress.progressPercentage}%</span>
+                    </span>
+                </>
+            )}
             {action && <span>{action}</span>}
         </div>
     );
@@ -263,7 +276,7 @@ function SectionRow({ section, index, onOpenQuiz }: { section: SectionResponse; 
 function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: (id: number) => void }) {
     const { instance } = useMsal();
 
-    const [enrolled, setEnrolled]   = useState<LoadState<UserResponse[]>>(idle());
+    const [enrolled, setEnrolled]   = useState<LoadState<UserProgressResponse[]>>(idle());
     const [allUsers, setAllUsers]   = useState<LoadState<UserResponse[]>>(idle());
     const [staged, setStaged]       = useState<Set<number>>(new Set());
     const [addStatus, setAddStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
@@ -296,7 +309,7 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
             try {
                 const data = await getCourseStudents(instance, course.id);
                 if (!cancelled) {
-                    setEnrolled({ data: data as UserResponse[], loading: false, error: null });
+                    setEnrolled({ data: data as UserProgressResponse[], loading: false, error: null });
                 }
             } catch (err) {
                 if (!cancelled) {
@@ -335,7 +348,7 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
         return () => { cancelled = true; };
     }, [showAdd, instance, allUsers.data]);
 
-    const enrolledIds = new Set((enrolled.data ?? []).map((u) => u.id));
+    const enrolledIds = new Set((enrolled.data ?? []).map((u) => u.userResponse.id));
 
     const available = (allUsers.data ?? []).filter(
         (u) => !enrolledIds.has(u.id) &&
@@ -364,7 +377,7 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
 
         try {
             const updated = await addStudentsToCourse(instance, course.id, toAdd);
-            setEnrolled({ data: updated as UserResponse[], loading: false, error: null });
+            setEnrolled({ data: updated as UserProgressResponse[], loading: false, error: null });
             setStaged(new Set());
             setShowAdd(false);
             setAddStatus("success");
@@ -563,15 +576,22 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
                             Inga studenter inregistrerade ännu.
                         </div>
                     ) : (
-                        <div className="vmv-mgmt-student-table">
+                        <div className="vmv-mgmt-student-table vmv-mgmt-student-table--progress">
                             <div className="vmv-mgmt-student-thead">
                                 <span>#</span>
                                 <span>Namn</span>
                                 <span>Email</span>
                                 <span>Roll</span>
+                                <span>Avsnitt</span>
+                                <span>Framsteg</span>
                             </div>
-                            {enrolled.data.map((u, i) => (
-                                <StudentRow key={u.id} user={u} index={i} />
+                            {enrolled.data.map((entry, i) => (
+                                <StudentRow
+                                    key={entry.userResponse.id}
+                                    user={entry.userResponse}
+                                    progress={{ completedSections: entry.completedSections, progressPercentage: entry.progressPercentage }}
+                                    index={i}
+                                />
                             ))}
                         </div>
                     )}
