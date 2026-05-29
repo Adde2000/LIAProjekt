@@ -114,7 +114,8 @@ class CourseServiceTest {
         CourseRequest request =
                 new CourseRequest(
                         "Spring",
-                        "Spring Boot course"
+                        "Spring Boot course",
+                        6
                 );
 
         when(currentUserService.getName())
@@ -128,6 +129,7 @@ class CourseServiceTest {
 
         assertEquals("Spring", response.getTitle());
         assertEquals("Teacher", response.getCreatedBy());
+        assertEquals(6, response.getAiSessionTtlWeeks());
     }
 
     @Test
@@ -136,7 +138,8 @@ class CourseServiceTest {
         CourseRequest request =
                 new CourseRequest(
                         "Updated",
-                        "Updated desc"
+                        "Updated desc",
+                        1
                 );
 
         when(courseRepository.findById(1L))
@@ -150,6 +153,7 @@ class CourseServiceTest {
 
         assertEquals("Updated", response.getTitle());
         assertEquals("Updated desc", response.getDescription());
+        assertEquals(1, response.getAiSessionTtlWeeks());
     }
 
     @Test
