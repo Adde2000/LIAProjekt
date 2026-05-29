@@ -251,6 +251,7 @@ export function SectionQuizView({ section, onBack }: Props) {
     const [answers,      setAnswers]      = useState<TestAnswerRequest[]>(EMPTY_ANSWERS);
     const [saveStatus,   setSaveStatus]   = useState<"idle" | "submitting" | "success" | "error">("idle");
     const [saveError,    setSaveError]    = useState<string | null>(null);
+    const [noCorrect,    setNoCorrect]    = useState(false);
 
     const retry = useCallback(() => {
         setLoading(true);
@@ -302,6 +303,13 @@ export function SectionQuizView({ section, onBack }: Props) {
         const validAnswers = answers.filter((a) => a.answerText.trim());
         if (!trimmedQuestion || validAnswers.length < 2) return;
 
+        const hasCorrect = validAnswers.some((a) => a.correct);
+        if (!hasCorrect) {
+            setNoCorrect(true);
+            return;
+        }
+
+        setNoCorrect(false);
         setSaveStatus("submitting");
         setSaveError(null);
         try {
@@ -312,6 +320,7 @@ export function SectionQuizView({ section, onBack }: Props) {
             setSaveStatus("success");
             setQuestionText("");
             setAnswers([...EMPTY_ANSWERS]);
+            setNoCorrect(false);
             retry();
             setTimeout(() => setSaveStatus("idle"), 2500);
         } catch (err) {
@@ -382,7 +391,12 @@ export function SectionQuizView({ section, onBack }: Props) {
                         Svarsalternativ
                         <span className="vmv-mgmt-quiz-field-hint"> — markera rätt svar med ✓</span>
                     </label>
-                    <div className="vmv-mgmt-quiz-answers">
+                    {noCorrect && (
+                        <div className="vmv-form-feedback vmv-form-feedback--error" style={{ marginBottom: "0.5rem" }}>
+                            ⚠ Du måste markera ett rätt svar innan du kan spara frågan.
+                        </div>
+                    )}
+                    <div className={`vmv-mgmt-quiz-answers${noCorrect ? " vmv-mgmt-quiz-answers--error" : ""}`}>
                         {answers.map((a, i) => (
                             <div key={i} className="vmv-mgmt-quiz-answer-row">
                                 <button
