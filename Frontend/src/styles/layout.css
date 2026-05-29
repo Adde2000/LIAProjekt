@@ -1,16 +1,20 @@
 /* ── Header ───────────────────────────────────────────────────────────────── */
 
 .vmv-header {
-    border-bottom: 2px solid var(--color-text-primary);
-    padding-bottom: 1rem;
-    margin-bottom: 0.5rem;
+    background: var(--color-accent-fallback);
+    background: var(--color-accent-gradient);
+    margin: 0 calc(-50vw + 50%);
+    padding: 1.25rem calc(1.5rem + max(0px, 50vw - 563px)) 1rem;
+    width: 100vw;
+    box-sizing: border-box;
+    border-bottom: none;
 }
 
 .vmv-eyebrow {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 10px;
     letter-spacing: 0.18em;
-    color: var(--color-text-secondary);
+    color: rgba(255,255,255,0.75);
     text-transform: uppercase;
     margin-bottom: 0.5rem;
 }
@@ -19,14 +23,14 @@
     font-family: 'Playfair Display', Georgia, serif;
     font-size: 28px;
     font-weight: 700;
-    color: var(--color-text-primary);
+    color: var(--color-on-accent);
     line-height: 1.15;
     margin-bottom: 6px;
 }
 
 .vmv-subtitle {
     font-size: 14px;
-    color: var(--color-text-secondary);
+    color: rgba(255,255,255,0.8);
     font-style: italic;
 }
 
@@ -51,11 +55,16 @@
     color: var(--color-text-secondary);
     cursor: pointer;
     margin-bottom: -1px;
+    transition: color 0.15s;
 }
 
 .vmv-nav button.active {
-    color: var(--color-text-primary);
-    border-bottom-color: var(--color-text-primary);
+    color: var(--color-accent);
+    border-bottom-color: var(--color-accent);
+}
+
+.vmv-nav button:not(.active):hover {
+    color: var(--color-accent-dark);
 }
 
 /* ── Section heading ──────────────────────────────────────────────────────── */

@@ -40,7 +40,7 @@
 
 .vmv-mgmt-course-item.selected {
     background: var(--color-background-secondary);
-    border-left: 2px solid var(--color-text-primary);
+    border-left: 2px solid var(--color-accent);
 }
 
 .vmv-mgmt-course-num {
@@ -306,7 +306,7 @@
 }
 
 .vmv-mgmt-section-input:focus {
-    border-color: var(--color-text-primary);
+    border-color: var(--color-accent);
 }
 
 .vmv-mgmt-section-input::placeholder {
@@ -548,7 +548,7 @@
 }
 
 .vmv-mgmt-quiz-add-answer:hover {
-    border-color: var(--color-text-primary);
+    border-color: var(--color-accent);
     color: var(--color-text-primary);
 }
 
