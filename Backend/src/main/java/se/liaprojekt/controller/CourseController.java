@@ -1,6 +1,9 @@
 package se.liaprojekt.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import se.liaprojekt.dto.*;
@@ -14,6 +17,7 @@ import java.util.List;
 @RequestMapping("/api/courses")
 @RequiredArgsConstructor
 public class CourseController {
+    Logger logger = LoggerFactory.getLogger(CourseController.class);
 
     private final CourseService courseService;
     private final SectionService sectionService;
@@ -30,20 +34,21 @@ public class CourseController {
     }
 
     @GetMapping("/{courseId}/students")
-    public ResponseEntity<List<UserResponse>> getCourseStudents(@PathVariable Long courseId) {
-        //TODO
-        return ResponseEntity.ok(List.of());
+    public ResponseEntity<List<UserProgressResponse>> getCourseStudents(@PathVariable Long courseId) {
+        logger.info("Get student list for course: {}", courseId);
+        return ResponseEntity.ok(courseService.getStudentsInCourse(courseId));
     }
 
     @PostMapping("/{courseId}/students")
-    public ResponseEntity<List<UserResponse>> addStudentsToCourse(@PathVariable Long courseId, @RequestBody List<UserRequest> students) {
-        //TODO
-        return ResponseEntity.ok(List.of());
+    public ResponseEntity<List<UserProgressResponse>> addStudentsToCourse(@PathVariable Long courseId, @RequestBody List<UserRequest> students) {
+        logger.info("Adding students to course {}", courseId);
+        return ResponseEntity.ok(courseService.addStudentsToCourse(courseId, students));
     }
 
     @PostMapping
     public ResponseEntity<CourseResponse> createCourse(@RequestBody CourseRequest courseRequest) {
-        return ResponseEntity.ok(courseService.createCourse(courseRequest));
+        logger.info("Creating new course {}", courseRequest);
+        return ResponseEntity.status(HttpStatus.CREATED).body(courseService.createCourse(courseRequest));
     }
 
     @PostMapping("/{courseId}/sections")
@@ -96,5 +101,19 @@ public class CourseController {
         return ResponseEntity.ok(
                 courseService.getCourseProgress(courseId, entraId)
         );
+    }
+
+    @PutMapping("/{courseId}/assistant/{assistantId}")
+    public ResponseEntity<Void> assignAssistant(
+            @PathVariable Long courseId,
+            @PathVariable String assistantId
+    ) {
+
+        courseService.assignAssistant(
+                courseId,
+                assistantId
+        );
+
+        return ResponseEntity.ok().build();
     }
 }

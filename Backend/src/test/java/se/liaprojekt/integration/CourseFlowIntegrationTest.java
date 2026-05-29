@@ -11,9 +11,12 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import se.liaprojekt.dto.SubmitAnswerRequest;
 import se.liaprojekt.model.User;
 import se.liaprojekt.repository.UserRepository;
 import se.liaprojekt.service.CurrentUserService;
+
+import java.util.List;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -38,6 +41,9 @@ class CourseFlowIntegrationTest {
         when(currentUserService.getEntraId())
                 .thenReturn(TEST_USER);
 
+        when(currentUserService.getName())
+                .thenReturn("Test User");
+
         userRepository.findByEntraId(TEST_USER)
                 .orElseGet(() -> {
                     User u = new User();
@@ -54,18 +60,19 @@ class CourseFlowIntegrationTest {
         Long section2 = createSection(courseId, "Advanced");
 
         createQuestion(section1);
-
-        Long testId = startTest(section1);
+        createQuestion(section2);
 
         QuestionData q = getFirstQuestion(section1);
 
-        submitAnswer(testId, q.questionId(), q.correctAnswerId());
+        List<SubmitAnswerRequest> answerRequestList = List.of(new SubmitAnswerRequest(q.questionId, q.correctAnswerId));
 
-        submitTest(testId);
+        submitTest(section1, answerRequestList);
 
         verifyCompletedAttempt(section1);
 
-        startTest(section2); // should succeed if unlock logic works
+        q = getFirstQuestion(section2);
+        answerRequestList = List.of(new SubmitAnswerRequest(q.questionId, q.correctAnswerId));
+        submitTest(section2, answerRequestList); // should succeed if unlock logic works
     }
 
     // =========================
@@ -83,7 +90,7 @@ class CourseFlowIntegrationTest {
                           "createdBy": "admin"
                         }
                         """))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -155,9 +162,11 @@ class CourseFlowIntegrationTest {
                 .andExpect(status().isOk());
     }
 
-    private void submitTest(Long testId) throws Exception {
+    private void submitTest(Long sectionId, List<SubmitAnswerRequest> answerRequestList) throws Exception {
 
-        mockMvc.perform(post("/api/courses/sections/tests/" + testId + "/submit"))
+        mockMvc.perform(post("/api/courses/sections/tests/" + sectionId + "/submit")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(answerRequestList)))
                 .andExpect(status().isOk());
     }
 

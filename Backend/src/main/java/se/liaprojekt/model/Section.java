@@ -1,9 +1,7 @@
 package se.liaprojekt.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +10,8 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Table(name = "sections")
 public class Section {
 
@@ -29,9 +29,9 @@ public class Section {
     @JoinColumn(name = "course_id")
     private Course course;
 
-    @OneToMany(mappedBy = "section", cascade = CascadeType.ALL)
-    private List<Material> materials;
+//    @OneToMany(mappedBy = "section", cascade = CascadeType.ALL)
+//    private List<Material> materials;
 
-    @OneToMany(mappedBy = "section", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "section", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TestQuestion> testQuestions = new ArrayList<>();
 }

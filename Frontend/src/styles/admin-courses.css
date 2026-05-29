@@ -1,0 +1,670 @@
+/* ── Course management layout ─────────────────────────────────────────────── */
+
+.vmv-mgmt-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 1px;
+    background: var(--color-border-secondary);
+    border: 1px solid var(--color-border-secondary);
+    min-height: 400px;
+}
+
+.vmv-mgmt-detail-pane {
+    background: var(--color-background-primary);
+}
+
+/* ── Course list (left panel) ─────────────────────────────────────────────── */
+
+.vmv-mgmt-course-list {
+    background: var(--color-background-primary);
+    overflow-y: auto;
+}
+
+.vmv-mgmt-course-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px;
+    border-bottom: 1px solid var(--color-border-tertiary);
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.vmv-mgmt-course-item:last-child {
+    border-bottom: none;
+}
+
+.vmv-mgmt-course-item:hover {
+    background: var(--color-background-secondary);
+}
+
+.vmv-mgmt-course-item.selected {
+    background: var(--color-background-secondary);
+    border-left: 2px solid var(--color-accent);
+}
+
+.vmv-mgmt-course-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-border-secondary);
+    flex-shrink: 0;
+    width: 28px;
+    line-height: 1;
+    margin-top: 2px;
+}
+
+.vmv-mgmt-course-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    line-height: 1.3;
+    margin-bottom: 3px;
+}
+
+.vmv-mgmt-course-meta {
+    font-family: 'Source Serif 4', serif;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    font-style: italic;
+    line-height: 1.4;
+    margin-bottom: 3px;
+}
+
+.vmv-mgmt-course-by {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+}
+
+/* ── Detail panel (right) ─────────────────────────────────────────────────── */
+
+.vmv-mgmt-detail {
+    padding: 1.25rem;
+}
+
+.vmv-mgmt-placeholder {
+    padding: 2rem 1.25rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+}
+
+.vmv-mgmt-detail-header {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.vmv-mgmt-detail-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: 6px;
+}
+
+.vmv-mgmt-detail-desc {
+    font-family: 'Source Serif 4', serif;
+    font-size: 13px;
+    font-style: italic;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    margin-bottom: 6px;
+}
+
+.vmv-mgmt-detail-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+}
+
+/* ── Student table ────────────────────────────────────────────────────────── */
+
+.vmv-mgmt-student-table {
+    border: 1px solid var(--color-border-secondary);
+    margin-bottom: 1rem;
+}
+
+.vmv-mgmt-student-thead,
+.vmv-mgmt-student-row {
+    display: grid;
+    grid-template-columns: 36px 1.4fr 2fr 1fr;
+    align-items: center;
+    gap: 0;
+}
+
+/* Selectable rows: checkbox column prepended on the left */
+.vmv-mgmt-student-thead--add,
+.vmv-mgmt-student-row--selectable {
+    grid-template-columns: 36px 36px 1.4fr 2fr 1fr;
+}
+
+.vmv-mgmt-student-row--selectable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.vmv-mgmt-student-row--selectable:hover {
+    background: var(--color-background-secondary);
+}
+
+.vmv-mgmt-student-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vmv-mgmt-student-thead {
+    background: var(--color-background-secondary);
+    border-bottom: 1px solid var(--color-border-secondary);
+    padding: 6px 12px;
+}
+
+.vmv-mgmt-student-thead span {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+}
+
+.vmv-mgmt-student-row {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--color-border-tertiary);
+}
+
+.vmv-mgmt-student-row:last-child {
+    border-bottom: none;
+}
+
+.vmv-mgmt-role-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+}
+
+/* ── Checkbox ─────────────────────────────────────────────────────────────── */
+
+.vmv-mgmt-checkbox {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    accent-color: var(--color-text-primary);
+}
+
+/* ── Add panel ────────────────────────────────────────────────────────────── */
+
+.vmv-mgmt-add-panel {
+    border: 1px solid var(--color-border-secondary);
+    padding: 1rem;
+    background: var(--color-background-secondary);
+    margin-top: 0.5rem;
+}
+
+.vmv-mgmt-add-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-border-tertiary);
+}
+
+.vmv-mgmt-staged-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+}
+
+.vmv-mgmt-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 1rem;
+}
+
+/* ── Detail header actions ────────────────────────────────────────────────── */
+
+.vmv-mgmt-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.vmv-mgmt-detail-header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+    margin-left: 1rem;
+}
+
+/* ── Section list ─────────────────────────────────────────────────────────── */
+
+.vmv-mgmt-section-list {
+    border: 1px solid var(--color-border-secondary);
+    margin-bottom: 1rem;
+}
+
+.vmv-mgmt-section-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 12px;
+}
+
+.vmv-mgmt-section-row:last-child {
+    border-bottom: none;
+}
+
+.vmv-mgmt-section-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-border-secondary);
+    flex-shrink: 0;
+    width: 28px;
+    line-height: 1;
+}
+
+.vmv-mgmt-section-title {
+    font-family: 'Source Serif 4', serif;
+    font-size: 13px;
+    color: var(--color-text-primary);
+    line-height: 1.4;
+}
+
+/* ── Add section form ─────────────────────────────────────────────────────── */
+
+.vmv-mgmt-section-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.vmv-mgmt-section-input {
+    flex: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 6px 10px;
+    border: 1px solid var(--color-border-secondary);
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+    outline: none;
+}
+
+.vmv-mgmt-section-input:focus {
+    border-color: var(--color-accent);
+}
+
+.vmv-mgmt-section-input::placeholder {
+    color: var(--color-text-secondary);
+    opacity: 0.6;
+}
+
+/* ── Section row — expandable ─────────────────────────────────────────────── */
+
+.vmv-mgmt-section-row-wrap {
+    border-bottom: 1px solid var(--color-border-tertiary);
+}
+
+.vmv-mgmt-section-row-wrap:last-child {
+    border-bottom: none;
+}
+
+.vmv-mgmt-section-row--clickable {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.12s;
+}
+
+.vmv-mgmt-section-row--clickable:hover {
+    background: var(--color-background-secondary);
+}
+
+.vmv-mgmt-section-row--clickable.expanded {
+    background: var(--color-background-secondary);
+}
+
+.vmv-mgmt-section-chevron {
+    margin-left: auto;
+    font-size: 9px;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+}
+
+/* ── Material panel ───────────────────────────────────────────────────────── */
+
+.vmv-mgmt-material-panel {
+    padding: 0.75rem 1rem 0.75rem 2.5rem;
+    background: var(--color-background-secondary);
+    border-top: 1px solid var(--color-border-tertiary);
+}
+
+.vmv-mgmt-material-empty {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.vmv-mgmt-material-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 0.75rem;
+}
+
+.vmv-mgmt-material-row {
+    display: grid;
+    grid-template-columns: 20px 1fr auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--color-border-tertiary);
+    background: var(--color-background-primary);
+}
+
+.vmv-mgmt-material-icon {
+    font-size: 13px;
+    line-height: 1;
+}
+
+.vmv-mgmt-material-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--color-text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vmv-mgmt-material-type {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+}
+
+.vmv-mgmt-material-delete {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--color-text-secondary);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 2px;
+    transition: border-color 0.12s, color 0.12s;
+    flex-shrink: 0;
+}
+
+.vmv-mgmt-material-delete:hover:not(:disabled) {
+    border-color: #c0392b;
+    color: #c0392b;
+}
+
+.vmv-mgmt-material-delete:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.vmv-mgmt-material-footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--color-border-tertiary);
+}
+
+/* ── Quiz builder ─────────────────────────────────────────────────────────── */
+
+.vmv-mgmt-quiz-section {
+    border-top: 1px solid var(--color-border-secondary);
+    padding: 0.75rem 0 0;
+    margin-top: 0.75rem;
+}
+
+.vmv-mgmt-quiz-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.vmv-mgmt-quiz-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+}
+
+.vmv-mgmt-quiz-builder {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--color-background-primary);
+    border: 1px solid var(--color-border-tertiary);
+}
+
+.vmv-mgmt-quiz-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.vmv-mgmt-quiz-field-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+}
+
+.vmv-mgmt-quiz-field-hint {
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    opacity: 0.7;
+}
+
+.vmv-mgmt-quiz-question-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.vmv-mgmt-quiz-answers {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.vmv-mgmt-quiz-answers--error .vmv-mgmt-quiz-correct-btn:not(.vmv-mgmt-quiz-correct-btn--active) {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+}
+
+.vmv-mgmt-quiz-answer-row {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    align-items: center;
+    gap: 6px;
+}
+
+.vmv-mgmt-quiz-correct-btn {
+    width: 28px;
+    height: 28px;
+    background: none;
+    border: 1px solid var(--color-border-secondary);
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.vmv-mgmt-quiz-correct-btn:hover {
+    border-color: #27ae60;
+    color: #27ae60;
+}
+
+.vmv-mgmt-quiz-correct-btn--active {
+    background: #27ae60;
+    border-color: #27ae60;
+    color: #fff;
+}
+
+.vmv-mgmt-quiz-answer-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.vmv-mgmt-quiz-add-answer {
+    background: none;
+    border: 1px dashed var(--color-border-secondary);
+    color: var(--color-text-secondary);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    padding: 5px 10px;
+    cursor: pointer;
+    margin-top: 2px;
+    align-self: flex-start;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.vmv-mgmt-quiz-add-answer:hover {
+    border-color: var(--color-accent);
+    color: var(--color-text-primary);
+}
+
+.vmv-mgmt-quiz-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* ── Quiz question cards (SectionQuizView) ────────────────────────────────── */
+
+.vmv-quiz-question-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 0.5rem;
+}
+
+.vmv-quiz-question-card {
+    border: 1px solid var(--color-border-secondary);
+    background: var(--color-background-secondary);
+    padding: 0.75rem 1rem;
+}
+
+.vmv-quiz-question-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    margin-bottom: 0.5rem;
+}
+
+.vmv-quiz-question-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+}
+
+.vmv-quiz-question-text {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.vmv-quiz-answer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-left: 1.4rem;
+}
+
+.vmv-quiz-answer-item {
+    display: flex;
+    gap: 0.4rem;
+    align-items: baseline;
+}
+
+.vmv-quiz-answer-bullet {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+}
+
+.vmv-quiz-answer-text {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+}
+
+/* ── Progress columns (enrolled student table) ──────────────────────────── */
+
+.vmv-mgmt-student-table--progress .vmv-mgmt-student-thead,
+.vmv-mgmt-student-table--progress .vmv-mgmt-student-row {
+    grid-template-columns: 36px 1.4fr 2fr 1fr 60px 120px;
+}
+
+.vmv-user-progress-sections {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    text-align: center;
+}
+
+.vmv-user-progress-pct {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 18px;
+    background: var(--color-border-tertiary);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.vmv-user-progress-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: var(--color-text-primary);
+    opacity: 0.35;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.vmv-user-progress-label {
+    position: relative;
+    z-index: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    padding: 0 6px;
+}

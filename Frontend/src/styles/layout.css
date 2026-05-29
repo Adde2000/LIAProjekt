@@ -1,0 +1,127 @@
+/* ── Header ───────────────────────────────────────────────────────────────── */
+
+.vmv-header {
+    background: var(--color-accent-fallback);
+    background: var(--color-accent-gradient);
+    margin: 0 calc(-50vw + 50%);
+    padding: 1.25rem calc(1.5rem + max(0px, 50vw - 563px)) 1rem;
+    width: 100vw;
+    box-sizing: border-box;
+    border-bottom: none;
+}
+
+.vmv-eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: rgba(255,255,255,0.75);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.vmv-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-on-accent);
+    line-height: 1.15;
+    margin-bottom: 6px;
+}
+
+.vmv-subtitle {
+    font-size: 14px;
+    color: rgba(255,255,255,0.8);
+    font-style: italic;
+}
+
+/* ── Nav ──────────────────────────────────────────────────────────────────── */
+
+.vmv-nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--color-border-secondary);
+    margin: 0.75rem 0 1.25rem;
+}
+
+.vmv-nav button {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    margin-bottom: -1px;
+    transition: color 0.15s;
+}
+
+.vmv-nav button.active {
+    color: var(--color-accent);
+    border-bottom-color: var(--color-accent);
+}
+
+.vmv-nav button:not(.active):hover {
+    color: var(--color-accent-dark);
+}
+
+/* ── Section heading ──────────────────────────────────────────────────────── */
+
+.vmv-section-head {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    border-bottom: 1px solid var(--color-border-tertiary);
+    padding-bottom: 6px;
+    margin-bottom: 1rem;
+}
+
+/* ── Panel title ──────────────────────────────────────────────────────────── */
+
+.vmv-panel-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    border-bottom: 1px solid var(--color-border-secondary);
+    padding-bottom: 8px;
+    margin-bottom: 0.75rem;
+}
+
+/* ── Bottom two-col ───────────────────────────────────────────────────────── */
+
+.vmv-bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+
+.vmv-footer {
+    border-top: 1px solid var(--color-border-secondary);
+    margin-top: 1.5rem;
+    padding-top: 0.75rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    display: flex;
+    justify-content: space-between;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────────── */
+
+.vmv-empty {
+    font-size: 13px;
+    font-style: italic;
+    color: var(--color-text-secondary);
+    padding: 1rem;
+    grid-column: 1 / -1;
+    background: var(--color-background-primary);
+}

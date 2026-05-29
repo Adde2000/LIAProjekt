@@ -9,6 +9,7 @@ import java.util.List;
 @Entity
 @Getter
 @Setter
+@Builder
 @RequiredArgsConstructor
 @AllArgsConstructor
 @Table(name = "courses")
@@ -17,6 +18,9 @@ public class Course {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "assistant_id")
+    private String assistantId;
 
     @Column(nullable = false)
     private String title;
@@ -27,12 +31,15 @@ public class Course {
     @Column(nullable = false)
     private String createdBy;
 
+    @Column(nullable = false)
+    private Integer aiSessionTtlWeeks = 6;
+
     @OrderBy("orderIndex ASC")
-    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Section> sections = new ArrayList<>();
 
-    @OneToMany(mappedBy = "course")
-    private List<UserProgress> userProgress;
+    @OneToMany(fetch = FetchType.EAGER, mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<UserProgress> userProgress = new ArrayList<>();
 
     @ManyToMany
     @JoinTable(

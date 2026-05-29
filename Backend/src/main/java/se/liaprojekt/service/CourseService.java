@@ -2,30 +2,55 @@ package se.liaprojekt.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import se.liaprojekt.dto.CourseProgressResponse;
-import se.liaprojekt.dto.CourseRequest;
-import se.liaprojekt.dto.CourseResponse;
+import org.springframework.transaction.annotation.Transactional;
+import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
-import se.liaprojekt.model.Course;
-import se.liaprojekt.model.Section;
-import se.liaprojekt.model.TestResult;
+import se.liaprojekt.model.*;
 import se.liaprojekt.repository.CourseRepository;
+import se.liaprojekt.repository.SectionRepository;
 import se.liaprojekt.repository.TestResultRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import se.liaprojekt.repository.UserProgressRepository;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class CourseService {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(CourseService.class);
+
     private final CourseRepository courseRepository;
     private final TestResultRepository testResultRepository;
+    private final SectionRepository sectionRepository;
+    private final UserProgressRepository userProgressRepository;
+    private final UserService userService;
+    private final SectionService sectionService;
+    private final CurrentUserService currentUserService;
 
     public List<CourseResponse> getAllCourses() {
         return courseRepository.findAll()
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    public List<Map<String, Object>> getAllRegisteredCourses(long userId) {
+        List<UserProgress> userProgressList = userProgressRepository.findByUserId(userId);
+        List<Map<String, Object>> responseList = new ArrayList<>();
+        for (UserProgress userProgress : userProgressList) {
+            Course course = userProgress.getCourse();
+            Map<String, Object> response = Map.of(
+                    "courseResponse", mapToResponse(course),
+                    "userProgressResponse", mapToResponse(userProgress)
+            );
+            responseList.add(response);
+        }
+        return responseList;
     }
 
     public CourseResponse getCourseById(Long id) {
@@ -38,15 +63,47 @@ public class CourseService {
     }
 
     public CourseResponse createCourse(CourseRequest request) {
+
         Course course = new Course();
+
         course.setTitle(request.title());
         course.setDescription(request.description());
-        // TODO: ändra CreatedBy till authenticatied user
-        course.setCreatedBy("system");
+        course.setAiSessionTtlWeeks(
+                request.aiSessionTtlWeeks() != null
+                        ? request.aiSessionTtlWeeks()
+                        : 6
+        );
+
+        // namn från JWT token
+        course.setCreatedBy(
+                currentUserService.getName()
+        );
 
         Course saved = courseRepository.save(course);
 
         return mapToResponse(saved);
+    }
+
+    //TODO return UserProgressResponse
+    public List<UserProgressResponse> addStudentsToCourse(Long courseId, List<UserRequest> students) {
+        Course course = courseRepository.findById(courseId).orElseThrow(() ->
+                new ResourceNotFoundException("Course not found with id: " + courseId));
+        List<UserProgress> userProgressList = new ArrayList<>();
+        students.forEach(student -> {
+            userProgressList.add(new UserProgress(userService.getUserById(student.id()), course));
+        });
+        userProgressRepository.saveAll(userProgressList);
+        return getStudentsInCourse(courseId);
+    }
+
+    //TODO return UserProgressResponse
+    public List<UserProgressResponse> getStudentsInCourse(Long courseId) {
+        List<UserProgress> userProgressList = userProgressRepository.findByCourseId(courseId);
+        List<UserProgressResponse> userProgressResponseList = new ArrayList<>();
+        userProgressList.forEach(userProgress -> {
+            userProgressResponseList.add(mapToResponse(userProgress));
+        });
+        return userProgressResponseList;
     }
 
     public CourseResponse updateCourse(Long id, CourseRequest request) {
@@ -57,6 +114,7 @@ public class CourseService {
 
         course.setTitle(request.title());
         course.setDescription(request.description());
+        course.setAiSessionTtlWeeks(request.aiSessionTtlWeeks());
 
         return mapToResponse(courseRepository.save(course));
     }
@@ -67,21 +125,49 @@ public class CourseService {
                         new ResourceNotFoundException("Course not found with id: " + id)
                 );
 
+        List<Section> sections = course.getSections();
+        for (Section section : sections) {
+            sectionService.deleteSection(section.getId());
+        }
         courseRepository.delete(course);
+
     }
 
-    private CourseResponse mapToResponse(Course course) {
-        return new CourseResponse(
-                course.getId(),
-                course.getTitle(),
-                course.getDescription(),
-                course.getCreatedBy()
+    public boolean isCourseCompleted(String entraId, Course course) {
+
+        log.debug("CHECK COURSE COMPLETION | entraId={} courseId={}",
+                entraId,
+                course.getId()
         );
+
+        List<Section> sections = sectionRepository.findByCourseId(course.getId());
+
+        for (Section section : sections) {
+
+            TestResult lastAttempt = testResultRepository
+                    .findTopByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(
+                            entraId,
+                            section.getId()
+                    )
+                    .orElse(null);
+
+            log.debug("SECTION CHECK | sectionId={} status={}",
+                    section.getId(),
+                    lastAttempt != null ? lastAttempt.getStatus() : "NULL"
+            );
+
+            if (lastAttempt == null ||
+                    lastAttempt.getStatus() != TestResult.Status.COMPLETED) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // =========================
-// GET COURSE PROGRESS
-// =========================
+    // GET COURSE PROGRESS
+    // =========================
     public CourseProgressResponse getCourseProgress(Long courseId, String entraId) {
 
         // =========================
@@ -131,6 +217,39 @@ public class CourseService {
                 totalSections,
                 completedSections,
                 progress
+        );
+    }
+
+    @Transactional
+    public void assignAssistant(
+            Long courseId,
+            String assistantId
+    ) {
+
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow();
+
+        course.setAssistantId(assistantId);
+
+        courseRepository.save(course);
+    }
+
+    private CourseResponse mapToResponse(Course course) {
+        return new CourseResponse(
+                course.getId(),
+                course.getTitle(),
+                course.getDescription(),
+                course.getCreatedBy(),
+                course.getAiSessionTtlWeeks()
+        );
+    }
+
+    private UserProgressResponse mapToResponse(UserProgress userProgress) {
+        System.out.println(userProgress.getCompletedSections() + " " + userProgress.getProgressPercentage());
+        return new UserProgressResponse(
+                userService.getUserResponseById(userProgress.getUser().getId()),
+                userProgress.getCompletedSections(),
+                userProgress.getProgressPercentage()
         );
     }
 }

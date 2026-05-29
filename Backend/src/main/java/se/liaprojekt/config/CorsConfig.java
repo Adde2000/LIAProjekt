@@ -16,7 +16,10 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         // frontend (Vite)
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        config.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "https://kind-plant-004cf7803.7.azurestaticapps.net/"
+        ));
 
         config.setAllowedMethods(List.of(
                 "GET",

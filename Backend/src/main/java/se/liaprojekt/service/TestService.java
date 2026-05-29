@@ -3,11 +3,15 @@ package se.liaprojekt.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 import se.liaprojekt.dto.*;
+import se.liaprojekt.event.TestResultEvent;
 import se.liaprojekt.exception.BadRequestException;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.*;
 import se.liaprojekt.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,12 +20,17 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TestService {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(TestService.class);
+
     private final TestResultRepository testResultRepository;
     private final SectionRepository sectionRepository;
     private final TestQuestionRepository questionRepository;
     private final AnsweredQuestionRepository answeredQuestionRepository;
     private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
+    private final ApplicationEventPublisher eventPublisher;
+    private final UserProgressRepository userProgressRepository;
 
 
     @Transactional
@@ -74,9 +83,78 @@ public class TestService {
         return questionRepository.save(question);
     }
 
+    @Transactional
+    public TestQuestionResponse updateQuestion(Long sectionId, Long questionId, TestQuestionRequest request) {
+
+        TestQuestion question = questionRepository.findByIdWithAnswers(questionId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Question not found: " + questionId));
+
+        if (!question.getSection().getId().equals(sectionId)) {
+            throw new BadRequestException("Question does not belong to section");
+        }
+
+        long correctCount = request.answers()
+                .stream()
+                .filter(TestAnswerRequest::isCorrect)
+                .count();
+
+        if (correctCount != 1) {
+            throw new BadRequestException("A question must have exactly one correct answer");
+        }
+
+        question.setQuestionText(request.questionText());
+
+        question.getAnswers().clear();
+
+        List<TestAnswer> newAnswers = request.answers().stream()
+                .map(dto -> {
+                    TestAnswer answer = new TestAnswer();
+                    answer.setAnswerText(dto.answerText());
+                    answer.setIsCorrect(dto.isCorrect());
+                    answer.setQuestion(question);
+                    return answer;
+                })
+                .toList();
+
+        question.getAnswers().addAll(newAnswers);
+
+        TestQuestion saved = questionRepository.save(question);
+
+        return new TestQuestionResponse(
+                saved.getId(),
+                saved.getQuestionText(),
+                saved.getAnswers().stream()
+                        .map(a -> new TestAnswerResponse(
+                                a.getId(),
+                                a.getAnswerText()
+                        ))
+                        .toList()
+        );
+    }
+
+    @Transactional
+    public void deleteQuestion(Long sectionId, Long questionId) {
+
+        TestQuestion question = questionRepository.findById(questionId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Question not found: " + questionId));
+
+        if (!question.getSection().getId().equals(sectionId)) {
+            throw new BadRequestException("Question does not belong to section");
+        }
+
+        questionRepository.delete(question);
+    }
+
+    @Transactional
+    public void deleteSectionQuestions(Long sectionId) {
+        questionRepository.deleteBySectionId(sectionId);
+    }
+
     // =========================
-// START TEST (MULTI ATTEMPT)
-// =========================
+    // START TEST (MULTI ATTEMPT)
+    // =========================
     @Transactional
     public TestResultResponse startTest(String entraId, Long sectionId) {
 
@@ -277,6 +355,34 @@ public class TestService {
         );
 
         TestResult saved = testResultRepository.save(result);
+
+        if (passed) {
+
+            log.info("TEST_RESULT_EVENT | userId={} entraId={} sectionId={} score={}",
+                    saved.getUser().getId(),
+                    saved.getUser().getEntraId(),
+                    saved.getSection().getId(),
+                    score
+            );
+
+            //Update userProgress
+            UserProgress userProgress = userProgressRepository.findByCourseIdAndUserId(saved.getSection().getCourse().getId(), saved.getUser().getId());
+            if (userProgress == null) {
+                userProgress = new UserProgress();
+                userProgress.setCourse(saved.getSection().getCourse());
+                userProgress.setUser(saved.getUser());
+            }
+            userProgress.setCompletedSections(userProgress.getCompletedSections() + 1);
+            int nbrOfSections = saved.getSection().getCourse().getSections().size();
+            if(nbrOfSections == 0) {
+                userProgress.setProgressPercentage(0);
+            } else {
+                userProgress.setProgressPercentage(Math.divideExact(userProgress.getCompletedSections()*100, nbrOfSections));
+            }
+            userProgressRepository.save(userProgress);
+
+            eventPublisher.publishEvent(new TestResultEvent(saved.getId()));
+        }
 
         return mapToResponse(saved);
     }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { IPublicClientApplication } from "@azure/msal-browser";
-import { getHealth } from "../services/api";
+import { getHealth } from "../api/api";
 
 export default function HealthCheck({ instance }: { instance: IPublicClientApplication }) {
 

@@ -53,12 +53,23 @@
             <artifactId>spring-cloud-azure-starter-keyvault</artifactId>
         </dependency>
 
+        <!-- AZURE BLOB STORAGE -->
+        <dependency>
+            <groupId>com.azure.spring</groupId>
+            <artifactId>spring-cloud-azure-starter-storage-blob</artifactId>
+        </dependency>
+
         <!-- Source: https://mvnrepository.com/artifact/com.microsoft.graph/microsoft-graph -->
         <dependency>
             <groupId>com.microsoft.graph</groupId>
             <artifactId>microsoft-graph</artifactId>
             <version>6.63.0</version>
             <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-messaging-servicebus</artifactId>
         </dependency>
 
         <!-- SECURITY + OAUTH2 -->
@@ -87,6 +98,13 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- SQL server -->
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
             <scope>runtime</scope>
         </dependency>
 

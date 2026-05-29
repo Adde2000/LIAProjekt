@@ -1,0 +1,83 @@
+/* ── Admin submenu ────────────────────────────────────────────────────────── */
+
+.vmv-admin-submenu {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--color-border-secondary);
+    margin-bottom: 1.5rem;
+    width: fit-content;
+}
+
+.vmv-admin-subtab {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 7px 18px;
+    border: none;
+    border-right: 1px solid var(--color-border-secondary);
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+
+.vmv-admin-subtab:last-child {
+    border-right: none;
+}
+
+.vmv-admin-subtab.active {
+    background: var(--color-accent-gradient);
+    color: var(--color-on-accent);
+}
+
+.vmv-admin-subtab:not(.active):hover {
+    background: var(--color-background-secondary);
+    color: var(--color-text-primary);
+}
+
+/* ── Admin toolbar ────────────────────────────────────────────────────────── */
+
+.vmv-admin-toolbar {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+}
+
+/* ── Fetch states (loading / error) ──────────────────────────────────────── */
+
+.vmv-fetch-state {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 2rem 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    border-top: 1px solid var(--color-border-tertiary);
+}
+
+.vmv-fetch-state--error {
+    color: #c0392b;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+@keyframes vmv-spin {
+    to { transform: rotate(360deg); }
+}
+
+.vmv-fetch-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--color-border-secondary);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: vmv-spin 0.8s linear infinite;
+    flex-shrink: 0;
+}

@@ -13,36 +13,37 @@ public class CurrentUserService {
     // =========================
     public String getEntraId() {
 
-        // =========================
-        // FETCH AUTH FROM SPRING SECURITY CONTEXT
-        // =========================
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        if (auth == null) {
-            throw new IllegalStateException("No authentication found");
+        if (auth == null || !(auth instanceof JwtAuthenticationToken jwt)) {
+            throw new IllegalStateException("No JWT authentication found");
         }
 
-        // =========================
-        // AZURE AD JWT TOKEN
-        // =========================
-        if (auth instanceof JwtAuthenticationToken jwt) {
+        String oid = jwt.getToken().getClaimAsString("oid");
 
-            // =========================
-            // OID = UNIQUE USER ID IN AZURE AD
-            // =========================
-            String oid = jwt.getToken().getClaimAsString("oid");
-
-            if (oid == null) {
-                throw new IllegalStateException("OID claim missing in token");
-            }
-
-            return oid;
+        if (oid == null) {
+            throw new IllegalStateException("OID claim missing in token");
         }
 
-        // =========================
-        // FALLBACK (should rarely happen in prod)
-        // =========================
-        return auth.getName();
+        return oid;
+    }
+
+    public String getName() {
+
+        Authentication auth =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        if (!(auth instanceof JwtAuthenticationToken jwt)) {
+            throw new IllegalStateException("No JWT authentication found");
+        }
+
+        String name = jwt.getToken().getClaimAsString("name");
+
+        if (name == null) {
+            throw new IllegalStateException("Name claim missing in token");
+        }
+
+        return name;
     }
 
 //    public String getEntraId() {
