@@ -15,6 +15,7 @@ import se.liaprojekt.dto.azure.*;
 import se.liaprojekt.exception.AzureAssistantException;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -47,12 +48,14 @@ public class AzureAssistantClient {
     public void validateConfig() {
 
         if (endpoint == null || endpoint.isBlank()) {
+
             throw new IllegalStateException(
                     "azure.openai.endpoint is missing"
             );
         }
 
         if (apiVersion == null || apiVersion.isBlank()) {
+
             throw new IllegalStateException(
                     "azure.openai.api-version is missing"
             );
@@ -70,8 +73,10 @@ public class AzureAssistantClient {
         try {
 
             return credential.getToken(
+
                     new TokenRequestContext()
                             .addScopes(AZURE_SCOPE)
+
             ).block().getToken();
 
         } catch (Exception ex) {
@@ -92,7 +97,10 @@ public class AzureAssistantClient {
         HttpHeaders headers = new HttpHeaders();
 
         headers.setBearerAuth(getToken());
-        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        headers.setContentType(
+                MediaType.APPLICATION_JSON
+        );
 
         return headers;
     }
@@ -102,7 +110,11 @@ public class AzureAssistantClient {
     // =========================
 
     private String url(String path) {
-        return endpoint + path + "?api-version=" + apiVersion;
+
+        return endpoint +
+                path +
+                "?api-version=" +
+                apiVersion;
     }
 
     // =========================
@@ -119,7 +131,9 @@ public class AzureAssistantClient {
                 AzureThreadResponse.class
         );
 
-        if (response == null || response.id() == null) {
+        if (response == null ||
+                response.id() == null) {
+
             throw new AzureAssistantException(
                     "Azure returned invalid thread response"
             );
@@ -130,7 +144,10 @@ public class AzureAssistantClient {
 
     public void deleteThread(String threadId) {
 
-        log.info("Deleting Azure thread {}", threadId);
+        log.info(
+                "Deleting Azure thread {}",
+                threadId
+        );
 
         delete(
                 url("/openai/threads/" + threadId)
@@ -138,15 +155,60 @@ public class AzureAssistantClient {
     }
 
     // =========================
+    // ATTACH VECTOR STORE
+    // =========================
+
+    public void attachVectorStoreToThread(
+            String threadId,
+            String vectorStoreId
+    ) {
+
+        log.info(
+                "Attaching vector store {} to thread {}",
+                vectorStoreId,
+                threadId
+        );
+
+        String url =
+                url("/openai/threads/" + threadId);
+
+        Map<String, Object> body = Map.of(
+
+                "tool_resources", Map.of(
+
+                        "file_search", Map.of(
+
+                                "vector_store_ids",
+                                List.of(vectorStoreId)
+                        )
+                )
+        );
+
+        patch(
+                url,
+                body
+        );
+    }
+
+    // =========================
     // MESSAGE
     // =========================
 
-    public void addMessage(String threadId, String message) {
+    public void addMessage(
+            String threadId,
+            String message
+    ) {
 
-        log.info("Adding message to thread {}", threadId);
+        log.info(
+                "Adding message to thread {}",
+                threadId
+        );
 
         AddMessageRequest request =
-                new AddMessageRequest("user", message);
+                new AddMessageRequest(
+                        "user",
+                        message
+                );
 
         post(
                 url("/openai/threads/" + threadId + "/messages"),
@@ -159,12 +221,17 @@ public class AzureAssistantClient {
     // RUN
     // =========================
 
-    public String createRun(String threadId, String assistantId) {
+    public String createRun(
+            String threadId,
+            String assistantId
+    ) {
 
         log.info("Creating assistant run");
 
         CreateRunRequest request =
-                new CreateRunRequest(assistantId);
+                new CreateRunRequest(
+                        assistantId
+                );
 
         AzureRunResponse response = post(
                 url("/openai/threads/" + threadId + "/runs"),
@@ -172,7 +239,9 @@ public class AzureAssistantClient {
                 AzureRunResponse.class
         );
 
-        if (response == null || response.id() == null) {
+        if (response == null ||
+                response.id() == null) {
+
             throw new AzureAssistantException(
                     "Azure returned invalid run response"
             );
@@ -185,21 +254,29 @@ public class AzureAssistantClient {
     // WAIT FOR COMPLETION
     // =========================
 
-    public String waitForCompletion(String threadId, String runId) {
+    public String waitForCompletion(
+            String threadId,
+            String runId
+    ) {
 
         int attempts = 0;
 
         while (attempts < maxPollAttempts) {
 
-            String status = getRunStatus(threadId, runId);
+            String status =
+                    getRunStatus(threadId, runId);
 
-            log.info("Run status: {}", status);
+            log.info(
+                    "Run status: {}",
+                    status
+            );
 
             // =========================
             // COMPLETED
             // =========================
 
             if ("completed".equals(status)) {
+
                 return getLatestMessage(threadId);
             }
 
@@ -214,12 +291,13 @@ public class AzureAssistantClient {
             ).contains(status)) {
 
                 throw new AzureAssistantException(
-                        "Azure run failed with status: " + status
+                        "Azure run failed with status: " +
+                                status
                 );
             }
 
             // =========================
-            // LOG UNKNOWN STATES
+            // UNKNOWN STATES
             // =========================
 
             if (!List.of(
@@ -228,10 +306,14 @@ public class AzureAssistantClient {
                     "completed"
             ).contains(status)) {
 
-                log.warn("Unhandled Azure run status: {}", status);
+                log.warn(
+                        "Unhandled Azure run status: {}",
+                        status
+                );
             }
 
             sleep(pollIntervalMs);
+
             attempts++;
         }
 
@@ -244,14 +326,24 @@ public class AzureAssistantClient {
     // STATUS
     // =========================
 
-    public String getRunStatus(String threadId, String runId) {
+    public String getRunStatus(
+            String threadId,
+            String runId
+    ) {
 
         AzureRunStatusResponse response = get(
-                url("/openai/threads/" + threadId + "/runs/" + runId),
+                url(
+                        "/openai/threads/" +
+                                threadId +
+                                "/runs/" +
+                                runId
+                ),
                 AzureRunStatusResponse.class
         );
 
-        if (response == null || response.status() == null) {
+        if (response == null ||
+                response.status() == null) {
+
             throw new AzureAssistantException(
                     "Azure returned invalid run status response"
             );
@@ -264,16 +356,14 @@ public class AzureAssistantClient {
     // GET RESPONSE
     // =========================
 
-    public String getLatestMessage(String threadId) {
+    public String getLatestMessage(
+            String threadId
+    ) {
 
         AzureMessageListResponse response = get(
                 url("/openai/threads/" + threadId + "/messages"),
                 AzureMessageListResponse.class
         );
-
-        // =========================
-        // VALIDATE RESPONSE
-        // =========================
 
         if (response == null ||
                 response.data() == null ||
@@ -322,7 +412,8 @@ public class AzureAssistantClient {
                 AzureAssistantListResponse.class
         );
 
-        if (response == null || response.data() == null) {
+        if (response == null ||
+                response.data() == null) {
 
             throw new AzureAssistantException(
                     "Failed to fetch assistants"
@@ -345,7 +436,8 @@ public class AzureAssistantClient {
                 AzureMessageListResponse.class
         );
 
-        if (response == null || response.data() == null) {
+        if (response == null ||
+                response.data() == null) {
 
             throw new AzureAssistantException(
                     "Failed to fetch thread messages"
@@ -355,8 +447,10 @@ public class AzureAssistantClient {
         return response.data()
                 .stream()
                 .filter(message ->
-                        message.content() != null
-                                && !message.content().isEmpty()
+
+                        message.content() != null &&
+                                !message.content().isEmpty()
+
                 )
                 .map(message -> {
 
@@ -366,7 +460,9 @@ public class AzureAssistantClient {
                     String text = "";
 
                     if (content.text() != null) {
-                        text = content.text().value();
+
+                        text =
+                                content.text().value();
                     }
 
                     return new ChatHistoryMessage(
@@ -382,12 +478,16 @@ public class AzureAssistantClient {
     // GENERIC GET
     // =========================
 
-    private <T> T get(String url, Class<T> responseType) {
+    private <T> T get(
+            String url,
+            Class<T> responseType
+    ) {
 
         try {
 
             ResponseEntity<T> response =
                     restTemplate.exchange(
+
                             url,
                             HttpMethod.GET,
                             new HttpEntity<>(headers()),
@@ -405,13 +505,17 @@ public class AzureAssistantClient {
             );
 
             throw new AzureAssistantException(
-                    "Azure GET request failed: " + ex.getStatusCode(),
+                    "Azure GET request failed: " +
+                            ex.getStatusCode(),
                     ex
             );
 
         } catch (Exception ex) {
 
-            log.error("Unexpected Azure GET error", ex);
+            log.error(
+                    "Unexpected Azure GET error",
+                    ex
+            );
 
             throw new AzureAssistantException(
                     "Unexpected Azure GET error",
@@ -433,10 +537,14 @@ public class AzureAssistantClient {
         try {
 
             HttpEntity<?> entity =
-                    new HttpEntity<>(body, headers());
+                    new HttpEntity<>(
+                            body,
+                            headers()
+                    );
 
             ResponseEntity<T> response =
                     restTemplate.exchange(
+
                             url,
                             HttpMethod.POST,
                             entity,
@@ -454,13 +562,17 @@ public class AzureAssistantClient {
             );
 
             throw new AzureAssistantException(
-                    "Azure POST request failed: " + ex.getStatusCode(),
+                    "Azure POST request failed: " +
+                            ex.getStatusCode(),
                     ex
             );
 
         } catch (Exception ex) {
 
-            log.error("Unexpected Azure POST error", ex);
+            log.error(
+                    "Unexpected Azure POST error",
+                    ex
+            );
 
             throw new AzureAssistantException(
                     "Unexpected Azure POST error",
@@ -470,8 +582,59 @@ public class AzureAssistantClient {
     }
 
     // =========================
-// GENERIC DELETE
-// =========================
+    // GENERIC PATCH
+    // =========================
+
+    private void patch(
+            String url,
+            Object body
+    ) {
+
+        try {
+
+            HttpEntity<?> entity =
+                    new HttpEntity<>(
+                            body,
+                            headers()
+                    );
+
+            restTemplate.exchange(
+                    url,
+                    HttpMethod.PATCH,
+                    entity,
+                    Void.class
+            );
+
+        } catch (HttpClientErrorException ex) {
+
+            log.error(
+                    "Azure PATCH failed: {} | {}",
+                    ex.getStatusCode(),
+                    ex.getResponseBodyAsString()
+            );
+
+            throw new AzureAssistantException(
+                    "Azure PATCH request failed",
+                    ex
+            );
+
+        } catch (Exception ex) {
+
+            log.error(
+                    "Unexpected Azure PATCH error",
+                    ex
+            );
+
+            throw new AzureAssistantException(
+                    "Unexpected Azure PATCH error",
+                    ex
+            );
+        }
+    }
+
+    // =========================
+    // GENERIC DELETE
+    // =========================
 
     private void delete(String url) {
 
@@ -493,13 +656,17 @@ public class AzureAssistantClient {
             );
 
             throw new AzureAssistantException(
-                    "Azure DELETE request failed: " + ex.getStatusCode(),
+                    "Azure DELETE request failed: " +
+                            ex.getStatusCode(),
                     ex
             );
 
         } catch (Exception ex) {
 
-            log.error("Unexpected Azure DELETE error", ex);
+            log.error(
+                    "Unexpected Azure DELETE error",
+                    ex
+            );
 
             throw new AzureAssistantException(
                     "Unexpected Azure DELETE error",
@@ -518,13 +685,13 @@ public class AzureAssistantClient {
 
             Thread.sleep(ms);
 
-        } catch (InterruptedException e) {
+        } catch (InterruptedException ex) {
 
             Thread.currentThread().interrupt();
 
             throw new AzureAssistantException(
                     "Polling interrupted",
-                    e
+                    ex
             );
         }
     }

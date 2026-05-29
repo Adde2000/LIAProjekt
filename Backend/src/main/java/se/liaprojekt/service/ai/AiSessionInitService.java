@@ -18,6 +18,7 @@ import java.util.List;
 public class AiSessionInitService {
 
     private final AzureAssistantClient client;
+    private final VectorStoreService vectorStoreService;
 
     private final AiSessionRepository sessionRepo;
     private final UserRepository userRepo;
@@ -49,6 +50,7 @@ public class AiSessionInitService {
                                 "Course not found: " + courseId
                         )
                 );
+        vectorStoreService.initializeCourseVectorStore(course);
 
         // =========================
         // VALIDATE ASSISTANT

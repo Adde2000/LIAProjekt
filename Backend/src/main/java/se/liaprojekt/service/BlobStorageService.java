@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import se.liaprojekt.exception.BlobOperationException;
 import se.liaprojekt.exception.BlobStorageExceptionHandler;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
@@ -565,6 +566,25 @@ public class BlobStorageService {
             log.warn("Could not fetch tags for '{}', falling back to generated name. Error: {}",
                     blobName, ex.getMessage());
             return blobName;
+        }
+    }
+
+    public byte[] downloadFileBytes(String blobName) {
+
+        try {
+
+            ByteArrayOutputStream outputStream =
+                    new ByteArrayOutputStream();
+
+            resolveContainer(blobName)
+                    .getBlobClient(blobName)
+                    .downloadStream(outputStream);
+
+            return outputStream.toByteArray();
+
+        } catch (BlobStorageException ex) {
+
+            throw translateException(ex);
         }
     }
 }
