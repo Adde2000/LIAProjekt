@@ -71,7 +71,7 @@ export function CreateCourseView() {
 
                 <div className="vmv-form-field">
                     <label className="vmv-form-label" htmlFor="course-ttl">
-                        AI-session veckor
+                        Kursens längd i veckor
                     </label>
 
                     <input
@@ -110,7 +110,7 @@ export function CreateCourseView() {
                         {form.description || <span style={{ opacity: 0.4 }}>Ingen beskrivning ännu</span>}
                     </div>
                     <div className="vmv-form-preview-desc">
-                        AI-sessioner sparas i {form.aiSessionTtlWeeks} veckor
+                        Kursen är  {form.aiSessionTtlWeeks} veckor
                     </div>
                 </div>
 
