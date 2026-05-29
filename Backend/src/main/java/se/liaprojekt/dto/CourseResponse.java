@@ -10,4 +10,5 @@ public class CourseResponse {
     private String title;
     private String description;
     private String createdBy;
+    Integer aiSessionTtlWeeks;
 }
