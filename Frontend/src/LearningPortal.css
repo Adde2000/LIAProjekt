@@ -5,21 +5,36 @@
 .vmv {
   font-family: 'Source Serif 4', Georgia, serif;
   color: var(--color-text-primary);
+  padding: 0;
+  margin: 0;
+  overflow-x: clip;
+}
+
+.vmv-nav,
+.vmv main {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
 }
 
 /* ── Header ───────────────────────────────────────────────────────────────── */
 
 .vmv-header {
-  border-bottom: 2px solid var(--color-text-primary);
-  padding-bottom: 1rem;
-  margin-bottom: 0.5rem;
+  background: var(--color-accent-fallback);
+  background: var(--color-accent-gradient);
+  padding: 1.25rem 1.5rem 1rem;
+  margin: 0 calc(-50vw + 50%);
+  padding-left: calc(1.5rem + max(0px, 50vw - 563px));
+  padding-right: calc(1.5rem + max(0px, 50vw - 563px));
+  width: 100vw;
+  box-sizing: border-box;
+  border-bottom: none;
 }
 
 .vmv-eyebrow {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
   letter-spacing: 0.18em;
-  color: var(--color-text-secondary);
+  color: rgba(255,255,255,0.75);
   text-transform: uppercase;
   margin-bottom: 0.5rem;
 }
@@ -28,15 +43,18 @@
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 28px;
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: var(--color-on-accent);
   line-height: 1.15;
-  margin-bottom: 6px;
+  margin: 0 0 6px;
+  padding: 0;
 }
 
 .vmv-subtitle {
   font-size: 14px;
-  color: var(--color-text-secondary);
+  color: rgba(255,255,255,0.8);
   font-style: italic;
+  margin: 0;
+  padding: 0;
 }
 
 /* ── Nav ──────────────────────────────────────────────────────────────────── */
@@ -60,11 +78,16 @@
   color: var(--color-text-secondary);
   cursor: pointer;
   margin-bottom: -1px;
+  transition: color 0.15s;
 }
 
 .vmv-nav button.active {
-  color: var(--color-text-primary);
-  border-bottom-color: var(--color-text-primary);
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+.vmv-nav button:not(.active):hover {
+  color: var(--color-accent-dark);
 }
 
 /* ── Stats bar ────────────────────────────────────────────────────────────── */
@@ -89,7 +112,7 @@
   font-family: 'Playfair Display', serif;
   font-size: 32px;
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: var(--color-accent);
   line-height: 1;
 }
 
@@ -111,6 +134,11 @@
   border: 1px solid var(--color-border-secondary);
   padding: 6px 12px;
   margin-bottom: 1.25rem;
+  transition: border-color 0.15s;
+}
+
+.vmv-search:focus-within {
+  border-color: var(--color-accent);
 }
 
 .vmv-search input {
@@ -124,7 +152,7 @@
 }
 
 .vmv-search-icon {
-  color: var(--color-text-secondary);
+  color: var(--color-accent);
   font-size: 16px;
 }
 
@@ -147,12 +175,18 @@
   background: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
+  transition: all 0.15s;
 }
 
 .vmv-filter.active {
-  background: var(--color-text-primary);
-  color: var(--color-background-primary);
-  border-color: var(--color-text-primary);
+  background: var(--color-accent-gradient);
+  color: var(--color-on-accent);
+  border-color: var(--color-accent);
+}
+
+.vmv-filter:not(.active):hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 /* ── Section heading ──────────────────────────────────────────────────────── */
@@ -232,7 +266,7 @@
 
 .vmv-progress-fill {
   height: 3px;
-  background: var(--color-text-primary);
+  background: var(--color-accent-gradient);
 }
 
 .vmv-course-footer {
@@ -257,8 +291,8 @@
   text-transform: uppercase;
 }
 
-.vmv-status--done    { color: #3B6D11; }
-.vmv-status--wip     { color: #854F0B; }
+.vmv-status--done    { color: var(--color-success); }
+.vmv-status--wip     { color: var(--color-accent-dark); }
 .vmv-status--todo    { color: var(--color-text-secondary); }
 
 /* ── Empty state ──────────────────────────────────────────────────────────── */
@@ -332,7 +366,7 @@
   font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;
   font-weight: 500;
-  color: #3B6D11;
+  color: var(--color-success);
 }
 
 .vmv-quiz-start {
@@ -345,10 +379,13 @@
   color: var(--color-text-secondary);
   cursor: pointer;
   text-transform: uppercase;
+  transition: all 0.15s;
 }
 
 .vmv-quiz-start:hover {
-  background: var(--color-background-secondary);
+  background: var(--color-accent-gradient);
+  color: var(--color-on-accent);
+  border-color: var(--color-accent);
 }
 
 /* ── Activity feed ────────────────────────────────────────────────────────── */
@@ -367,6 +404,7 @@
 .vmv-activity-bar {
   width: 2px;
   flex-shrink: 0;
+  background: var(--color-accent);
 }
 
 .vmv-activity-text {

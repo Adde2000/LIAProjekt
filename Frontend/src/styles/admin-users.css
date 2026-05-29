@@ -44,7 +44,7 @@
 
 .vmv-user-row.selected {
     background: var(--color-background-secondary);
-    border-left: 2px solid var(--color-text-primary);
+    border-left: 2px solid var(--color-accent);
 }
 
 .vmv-user-id {

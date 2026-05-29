@@ -32,8 +32,8 @@ export default function LearningPortal() {
     return (
         <div className="vmv">
             <header className="vmv-header">
-                <h1 className="vmv-title">Lärportal</h1>
-                <p className="vmv-subtitle">Här står det mer text om man vill ha en undertitel</p>
+                <h1 className="vmv-title">Vinkelboda Mekaniska Verkstad</h1>
+                <p className="vmv-subtitle">GRUNDAT 1932 • KVALITET SEDAN STARTEN</p>
             </header>
 
             <nav className="vmv-nav">

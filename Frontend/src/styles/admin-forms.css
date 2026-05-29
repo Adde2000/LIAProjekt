@@ -34,7 +34,7 @@
 }
 
 .vmv-form-input:focus {
-    border-color: var(--color-text-primary);
+    border-color: var(--color-accent);
 }
 
 .vmv-form-input:disabled {
@@ -101,9 +101,9 @@
 }
 
 .vmv-form-feedback--success {
-    color: #3B6D11;
-    border-color: #3B6D11;
-    background: rgba(59, 109, 17, 0.06);
+    color: var(--color-success);
+    border-color: var(--color-success);
+    background: rgba(21, 128, 61, 0.06);
 }
 
 .vmv-form-feedback--error {
