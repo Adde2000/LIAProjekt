@@ -7,6 +7,11 @@
     border: 1px solid var(--color-border-secondary);
     padding: 6px 12px;
     margin-bottom: 1.25rem;
+    transition: border-color 0.15s;
+}
+
+.vmv-search:focus-within {
+    border-color: var(--color-accent);
 }
 
 .vmv-search input {
@@ -20,7 +25,7 @@
 }
 
 .vmv-search-icon {
-    color: var(--color-text-secondary);
+    color: var(--color-accent);
     font-size: 16px;
 }
 
@@ -43,12 +48,18 @@
     background: transparent;
     color: var(--color-text-secondary);
     cursor: pointer;
+    transition: all 0.15s;
 }
 
 .vmv-filter.active {
-    background: var(--color-text-primary);
-    color: var(--color-background-primary);
-    border-color: var(--color-text-primary);
+    background: var(--color-accent-gradient);
+    color: var(--color-on-accent);
+    border-color: var(--color-accent);
+}
+
+.vmv-filter:not(.active):hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
 }
 
 /* ── Stats bar ────────────────────────────────────────────────────────────── */
@@ -73,7 +84,7 @@
     font-family: 'Playfair Display', serif;
     font-size: 32px;
     font-weight: 700;
-    color: var(--color-text-primary);
+    color: var(--color-accent);
     line-height: 1;
 }
 
@@ -95,7 +106,7 @@
 
 .vmv-progress-fill {
     height: 3px;
-    background: var(--color-text-primary);
+    background: var(--color-accent-gradient);
 }
 
 /* ── Status badges ────────────────────────────────────────────────────────── */
@@ -107,6 +118,6 @@
     text-transform: uppercase;
 }
 
-.vmv-status--done { color: #3B6D11; }
-.vmv-status--wip  { color: #854F0B; }
+.vmv-status--done { color: var(--color-success); }
+.vmv-status--wip  { color: var(--color-accent-dark); }
 .vmv-status--todo { color: var(--color-text-secondary); }

@@ -3,12 +3,22 @@
 /* ── Design tokens ────────────────────────────────────────────────────────── */
 
 :root {
-    --color-text-primary:        #e8edf2;
-    --color-text-secondary:      #8fa3b8;
-    --color-background-primary:  #0d1b2a;
-    --color-background-secondary:#162333;
-    --color-border-secondary:    #2a3f55;
-    --color-border-tertiary:     #1e3045;
+    --color-accent:              #F97316;
+    --color-accent-dark:         #ea580c;
+    --color-accent-gradient:     linear-gradient(135deg, #F97316 0%, #ea580c 100%);
+    --color-accent-fallback:     #F97316;
+    --color-accent-light:        rgba(249, 115, 22, 0.1);
+    --color-accent-border:       rgba(249, 115, 22, 0.35);
+    --color-on-accent:           #ffffff;
+    --color-success:             #15803d;
+    --color-danger:              #dc2626;
+
+    --color-text-primary:        #000000;
+    --color-text-secondary:      #000000;
+    --color-background-primary:  #ffffff;
+    --color-background-secondary:#fff7ed;
+    --color-border-secondary:    #fed7aa;
+    --color-border-tertiary:     #ffedd5;
 }
 
 /* ── Base ─────────────────────────────────────────────────────────────────── */
