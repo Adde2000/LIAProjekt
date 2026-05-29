@@ -5,7 +5,7 @@ import { createCourse } from "../../api/api";
 
 type FormStatus = "idle" | "submitting" | "success" | "error";
 
-const EMPTY_FORM: CourseRequest = { id: null, title: "", description: "" };
+const EMPTY_FORM: CourseRequest = { id: null, title: "", description: "", aiSessionTtlWeeks: 6 };
 
 export function CreateCourseView() {
     const { instance }            = useMsal();
@@ -69,6 +69,38 @@ export function CreateCourseView() {
                     />
                 </div>
 
+                <div className="vmv-form-field">
+                    <label className="vmv-form-label" htmlFor="course-ttl">
+                        Kursens längd i veckor
+                    </label>
+
+                    <input
+                        id="course-ttl"
+                        className="vmv-form-input"
+                        type="number"
+                        min={1}
+                        max={52}
+                        value={form.aiSessionTtlWeeks}
+                        onChange={(e) =>
+                            setForm((prev) => ({
+                                ...prev,
+                                aiSessionTtlWeeks: Number(e.target.value)
+                            }))
+                        }
+                        disabled={status === "submitting"}
+                    />
+
+                    <div
+                        style={{
+                            fontSize: "0.9rem",
+                            opacity: 0.7,
+                            marginTop: "0.4rem"
+                        }}
+                    >
+                        Hur länge AI-sessioner sparas innan cleanup körs.
+                    </div>
+                </div>
+
                 <div className="vmv-form-preview">
                     <div className="vmv-form-preview-label">Förhandsgranskning</div>
                     <div className="vmv-form-preview-title">
@@ -76,6 +108,9 @@ export function CreateCourseView() {
                     </div>
                     <div className="vmv-form-preview-desc">
                         {form.description || <span style={{ opacity: 0.4 }}>Ingen beskrivning ännu</span>}
+                    </div>
+                    <div className="vmv-form-preview-desc">
+                        Kursen är  {form.aiSessionTtlWeeks} veckor
                     </div>
                 </div>
 

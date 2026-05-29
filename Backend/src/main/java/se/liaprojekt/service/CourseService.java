@@ -68,6 +68,11 @@ public class CourseService {
 
         course.setTitle(request.title());
         course.setDescription(request.description());
+        course.setAiSessionTtlWeeks(
+                request.aiSessionTtlWeeks() != null
+                        ? request.aiSessionTtlWeeks()
+                        : 6
+        );
 
         // namn från JWT token
         course.setCreatedBy(
@@ -109,6 +114,7 @@ public class CourseService {
 
         course.setTitle(request.title());
         course.setDescription(request.description());
+        course.setAiSessionTtlWeeks(request.aiSessionTtlWeeks());
 
         return mapToResponse(courseRepository.save(course));
     }
@@ -233,7 +239,8 @@ public class CourseService {
                 course.getId(),
                 course.getTitle(),
                 course.getDescription(),
-                course.getCreatedBy()
+                course.getCreatedBy(),
+                course.getAiSessionTtlWeeks()
         );
     }
 
