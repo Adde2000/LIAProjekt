@@ -1,4 +1,48 @@
 #!/bin/bash
+
+# =============================================================================
+# SAMMANFATTNING
+# =============================================================================
+#
+# Detta skript sätter upp en komplett prod-miljö (rg-app-prod) i westeurope
+# baserat på konfigurationen i dev-miljön (rg-app-dev).
+#
+# Skriptet är helt idempotent – varje resurs kontrolleras först och skapas
+# bara om den inte redan finns. Det innebär att skriptet kan köras flera
+# gånger utan att något skapas dubbelt eller misslyckas.
+#
+# Följande resurser hanteras:
+#   - Resursgrupp
+#   - Managed Identity
+#   - Static Web App (frontend)
+#   - App Service Plan + App Service (backend, Java 21, S1)
+#   - Autoskalningsregler (konfiguration hämtas från dev)
+#   - Function App (Flex Consumption, Java 21, Service Bus worker)
+#   - VNet med tre subnät (default, snet-app, snet-private) + NSG:er
+#   - Key Vault (private endpoint + DNS-zon)
+#   - Storage Account (private endpoint + DNS-zon)
+#   - SQL Server + databas (private endpoint + DNS-zon)
+#   - Service Bus
+#   - Azure OpenAI (private endpoint + DNS-zon)
+#   - Azure Front Door (profil + endpoint)
+#   - Action Groups + Metric Alerts (CPU, HTTP 5xx, svarstid)
+#   - Application Insights
+#   - Availability Test
+#
+# All konfiguration (SKU, tier, trösklar m.m.) hämtas dynamiskt från
+# motsvarande resurser i dev-miljön för att säkerställa paritet mellan
+# miljöerna. Vid eventuella fel mot dev används rimliga defaultvärden.
+#
+# Slutligen kopieras inställningar från dev till prod:
+#   - App Service app settings + connection strings
+#   - Function App app settings
+#   - Service Bus köer, topics och subscriptions
+#   - Storage containers
+#   - Azure OpenAI model deployments
+#   - Front Door origin groups, origins och routes
+#   - SQL brandväggsregler
+# =============================================================================
+
 # =============================================================================
 # setup-prod.sh
 # Sätter upp prod-miljö (rg-app-prod) baserat på rg-app-dev
@@ -87,15 +131,16 @@ ALERT_EMAIL=""                 # Fyll i
 
 # Backend App Service URL (behövs för availability test)
 BACKEND_APP_URL="app-prod-api-f6cag3ctetdpc3gf.westeurope-01.azurewebsites.net/health"             # t.ex. https://app-prod-api.azurewebsites.net/health
-FRONTEND_APP_URL=""
 
 
 # Dev-resursnamn (används vid kopiering av inställningar)
+DEV_SWA="swa-app-dev"
 DEV_BACKEND_APP="app-dev-api"
 DEV_SERVICE_BUS="sb-app-dev01"
 DEV_SQL_SERVER="sqlsrv-app-dev"
 DEV_SQL_DB="sqldb-app-dev"
 DEV_STORAGE="storageappdev01"
+DEV_KEY_VAULT="kv-app-dev01"
 DEV_OPENAI="oai-app-dev01"
 DEV_AFD_PROFILE="fd-video-app-dev"
 DEV_FUNCTION_APP="fasb-app-dev"
@@ -118,11 +163,16 @@ fi
 # ---------------------------------------------------------------------------
 # 1. MANAGED IDENTITY
 # ---------------------------------------------------------------------------
-log "1. Skapar Managed Identity..."
-az identity create \
-  --name "$MSI_NAME" \
-  --resource-group "$RG" \
-  --location "$LOCATION"
+log "1. Kontrollerar Managed Identity..."
+if az identity show --name "$MSI_NAME" --resource-group "$RG" &>/dev/null; then
+  echo "  Managed Identity '$MSI_NAME' finns redan – hoppar över."
+else
+  echo "  Skapar Managed Identity '$MSI_NAME'..."
+  az identity create \
+    --name "$MSI_NAME" \
+    --resource-group "$RG" \
+    --location "$LOCATION"
+fi
 
 MSI_ID=$(az identity show --name "$MSI_NAME" --resource-group "$RG" --query id -o tsv)
 MSI_PRINCIPAL=$(az identity show --name "$MSI_NAME" --resource-group "$RG" --query principalId -o tsv)
@@ -135,12 +185,16 @@ log "2. Kontrollerar Static Web App..."
 if az staticwebapp show --name "$SWA_NAME" --resource-group "$RG" &>/dev/null; then
   echo "  Static Web App '$SWA_NAME' finns redan – hoppar över."
 else
-  echo "  Skapar Static Web App '$SWA_NAME'..."
+  echo "  Hämtar Static Web App-konfiguration från dev..."
+  SWA_DEV_SKU=$(az staticwebapp show --name "$DEV_SWA" --resource-group "$DEV_RG" \
+    --query "sku.name" -o tsv 2>/dev/null || echo "Standard")
+
+  echo "  Skapar Static Web App '$SWA_NAME' (SKU: $SWA_DEV_SKU)..."
   az staticwebapp create \
     --name "$SWA_NAME" \
     --resource-group "$RG" \
     --location "$SWA_LOCATION" \
-    --sku Standard
+    --sku "$SWA_DEV_SKU"
 fi
 
 # ---------------------------------------------------------------------------
@@ -154,12 +208,19 @@ APP_SERVICE_CREATED=false
 if az appservice plan show --name "$ASP_NAME" --resource-group "$RG" &>/dev/null; then
   echo "  App Service Plan '$ASP_NAME' finns redan – hoppar över."
 else
-  echo "  Skapar App Service Plan '$ASP_NAME'..."
+  echo "  Hämtar App Service Plan-konfiguration från dev..."
+  DEV_ASP_NAME=$(az webapp show --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" \
+    --query "appServicePlanId" -o tsv 2>/dev/null | xargs az appservice plan show --ids \
+    --query "name" -o tsv 2>/dev/null || echo "")
+  ASP_DEV_SKU=$(az appservice plan show --name "$DEV_ASP_NAME" --resource-group "$DEV_RG" \
+    --query "sku.name" -o tsv 2>/dev/null || echo "$ASP_SKU")
+
+  echo "  Skapar App Service Plan '$ASP_NAME' (SKU: $ASP_DEV_SKU)..."
   az appservice plan create \
     --name "$ASP_NAME" \
     --resource-group "$RG" \
     --location "$LOCATION" \
-    --sku "$ASP_SKU" \
+    --sku "$ASP_DEV_SKU" \
     --is-linux
 fi
 
@@ -167,6 +228,15 @@ if az webapp show --name "$BACKEND_APP_NAME" --resource-group "$RG" &>/dev/null;
   echo "  App Service '$BACKEND_APP_NAME' finns redan – hoppar över."
 else
   echo "  Skapar App Service '$BACKEND_APP_NAME'..."
+  echo "  Hämtar App Service-konfiguration från dev..."
+  APP_DEV_CONFIG=$(az webapp config show \
+    --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "{}")
+  APP_DEV_HTTP=$(echo "$APP_DEV_CONFIG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('http20Enabled', False))" )
+  APP_DEV_TLS=$(echo "$APP_DEV_CONFIG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('minTlsVersion', '1.2'))")
+  APP_DEV_ALWAYS_ON=$(echo "$APP_DEV_CONFIG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('alwaysOn', True))")
+  APP_DEV_HTTPS=$(az webapp show --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" \
+    --query "httpsOnly" -o tsv 2>/dev/null || echo "true")
+
   az webapp create \
     --name "$BACKEND_APP_NAME" \
     --resource-group "$RG" \
@@ -176,49 +246,75 @@ else
 
   APP_SERVICE_CREATED=true
 
-  # Sätt alltid HTTPS-only och minimalt TLS
   az webapp update \
     --name "$BACKEND_APP_NAME" \
     --resource-group "$RG" \
-    --https-only true
+    --https-only "$APP_DEV_HTTPS"
 
   az webapp config set \
     --name "$BACKEND_APP_NAME" \
     --resource-group "$RG" \
-    --min-tls-version 1.2
+    --min-tls-version "$APP_DEV_TLS" \
+    --http20-enabled "$APP_DEV_HTTP" \
+    --always-on "$APP_DEV_ALWAYS_ON"
 fi
 
 # Autoskalning – skapas bara om App Service skapades i detta körning
 if [ "$APP_SERVICE_CREATED" = true ]; then
-  echo "  Skapar autoskalningsregler..."
+  echo "  Hämtar autoskalningskonfiguration från dev..."
+  DEV_AUTOSCALE=$(az monitor autoscale list \
+    --resource-group "$DEV_RG" \
+    --query "[0]" -o json 2>/dev/null || echo "{}")
+  AS_MIN=$(echo "$DEV_AUTOSCALE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('profiles',[{}])[0].get('capacity',{}).get('minimum', $AUTOSCALE_MIN))")
+  AS_MAX=$(echo "$DEV_AUTOSCALE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('profiles',[{}])[0].get('capacity',{}).get('maximum', $AUTOSCALE_MAX))")
+  AS_DEFAULT=$(echo "$DEV_AUTOSCALE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('profiles',[{}])[0].get('capacity',{}).get('default', $AUTOSCALE_DEFAULT))")
+
+  # Hämta CPU-trösklar från dev-regler
+  AS_RULES=$(echo "$DEV_AUTOSCALE" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+rules = d.get('profiles', [{}])[0].get('rules', [])
+out = {'cpu_out': $AUTOSCALE_CPU_OUT, 'cooldown_out': 5, 'cpu_in': $AUTOSCALE_CPU_IN, 'cooldown_in': 10}
+for r in rules:
+    trigger = r.get('metricTrigger', {})
+    action = r.get('scaleAction', {})
+    if action.get('direction') == 'Increase':
+        out['cpu_out'] = trigger.get('threshold', out['cpu_out'])
+        out['cooldown_out'] = int(action.get('cooldown','PT5M').replace('PT','').replace('M',''))
+    elif action.get('direction') == 'Decrease':
+        out['cpu_in'] = trigger.get('threshold', out['cpu_in'])
+        out['cooldown_in'] = int(action.get('cooldown','PT10M').replace('PT','').replace('M',''))
+print(json.dumps(out))
+")
+  AS_CPU_OUT=$(echo "$AS_RULES" | python3 -c "import json,sys; print(json.load(sys.stdin)['cpu_out'])")
+  AS_COOLDOWN_OUT=$(echo "$AS_RULES" | python3 -c "import json,sys; print(json.load(sys.stdin)['cooldown_out'])")
+  AS_CPU_IN=$(echo "$AS_RULES" | python3 -c "import json,sys; print(json.load(sys.stdin)['cpu_in'])")
+  AS_COOLDOWN_IN=$(echo "$AS_RULES" | python3 -c "import json,sys; print(json.load(sys.stdin)['cooldown_in'])")
+
+  echo "  Skapar autoskalningsregler (min=$AS_MIN, max=$AS_MAX, cpu_out=$AS_CPU_OUT%, cpu_in=$AS_CPU_IN%)..."
   ASP_ID=$(az appservice plan show --name "$ASP_NAME" --resource-group "$RG" --query id -o tsv)
 
   az monitor autoscale create \
     --name "autoscale-backend-${ENV}" \
     --resource-group "$RG" \
     --resource "$ASP_ID" \
-    --min-count "$AUTOSCALE_MIN" \
-    --max-count "$AUTOSCALE_MAX" \
-    --count "$AUTOSCALE_DEFAULT"
+    --min-count "$AS_MIN" \
+    --max-count "$AS_MAX" \
+    --count "$AS_DEFAULT"
 
-  AUTOSCALE_ID=$(az monitor autoscale show \
-    --name "autoscale-backend-${ENV}" --resource-group "$RG" --query id -o tsv)
-
-  # Skala ut: CPU > AUTOSCALE_CPU_OUT% i 5 min → +1 instans
   az monitor autoscale rule create \
     --autoscale-name "autoscale-backend-${ENV}" \
     --resource-group "$RG" \
     --scale out 1 \
-    --condition "CpuPercentage > ${AUTOSCALE_CPU_OUT} avg 5m" \
-    --cooldown 5
+    --condition "CpuPercentage > ${AS_CPU_OUT} avg 5m" \
+    --cooldown "$AS_COOLDOWN_OUT"
 
-  # Skala in: CPU < AUTOSCALE_CPU_IN% i 5 min → -1 instans
   az monitor autoscale rule create \
     --autoscale-name "autoscale-backend-${ENV}" \
     --resource-group "$RG" \
     --scale in 1 \
-    --condition "CpuPercentage < ${AUTOSCALE_CPU_IN} avg 5m" \
-    --cooldown 10
+    --condition "CpuPercentage < ${AS_CPU_IN} avg 5m" \
+    --cooldown "$AS_COOLDOWN_IN"
 else
   echo "  Autoskalning hoppas över (App Service fanns redan)."
 fi
@@ -233,6 +329,14 @@ log "3b. Kontrollerar Function App..."
 if az functionapp show --name "$FUNCTION_APP_NAME" --resource-group "$RG" &>/dev/null; then
   echo "  Function App '$FUNCTION_APP_NAME' finns redan – hoppar över."
 else
+  echo "  Hämtar Function App-konfiguration från dev..."
+  FA_DEV_CONFIG=$(az functionapp config show \
+    --name "$DEV_FUNCTION_APP" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "{}")
+  FA_DEV_TLS=$(echo "$FA_DEV_CONFIG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('minTlsVersion', '1.2'))")
+  FA_DEV_HTTP=$(echo "$FA_DEV_CONFIG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('http20Enabled', False))")
+  FA_DEV_HTTPS=$(az functionapp show --name "$DEV_FUNCTION_APP" --resource-group "$DEV_RG" \
+    --query "httpsOnly" -o tsv 2>/dev/null || echo "true")
+
   echo "  Skapar Function App '$FUNCTION_APP_NAME' (Flex Consumption)..."
   az functionapp create \
     --name "$FUNCTION_APP_NAME" \
@@ -247,55 +351,86 @@ else
   az functionapp config set \
     --name "$FUNCTION_APP_NAME" \
     --resource-group "$RG" \
-    --min-tls-version 1.2
+    --min-tls-version "$FA_DEV_TLS" \
+    --http20-enabled "$FA_DEV_HTTP"
 
   az functionapp update \
     --name "$FUNCTION_APP_NAME" \
     --resource-group "$RG" \
-    --set httpsOnly=true
+    --set httpsOnly="$FA_DEV_HTTPS"
 fi
 
 # ---------------------------------------------------------------------------
 # 4. VIRTUAL NETWORK + NSG:er
 # ---------------------------------------------------------------------------
-log "4. Skapar VNet och NSG:er..."
+log "4. Kontrollerar VNet och NSG:er..."
 
-az network nsg create \
-  --name "nsg-app" \
-  --resource-group "$RG" \
-  --location "$LOCATION"
+if az network nsg show --name "nsg-app" --resource-group "$RG" &>/dev/null; then
+  echo "  NSG 'nsg-app' finns redan – hoppar över."
+else
+  echo "  Skapar NSG 'nsg-app'..."
+  az network nsg create \
+    --name "nsg-app" \
+    --resource-group "$RG" \
+    --location "$LOCATION"
+fi
 
-az network nsg create \
-  --name "nsg-private" \
-  --resource-group "$RG" \
-  --location "$LOCATION"
+if az network nsg show --name "nsg-private" --resource-group "$RG" &>/dev/null; then
+  echo "  NSG 'nsg-private' finns redan – hoppar över."
+else
+  echo "  Skapar NSG 'nsg-private'..."
+  az network nsg create \
+    --name "nsg-private" \
+    --resource-group "$RG" \
+    --location "$LOCATION"
+fi
 
-az network vnet create \
-  --name "$VNET" \
-  --resource-group "$RG" \
-  --location "$LOCATION" \
-  --address-prefixes "$VNET_ADDRESS"
+if az network vnet show --name "$VNET" --resource-group "$RG" &>/dev/null; then
+  echo "  VNet '$VNET' finns redan – hoppar över."
+else
+  echo "  Skapar VNet '$VNET'..."
+  az network vnet create \
+    --name "$VNET" \
+    --resource-group "$RG" \
+    --location "$LOCATION" \
+    --address-prefixes "$VNET_ADDRESS"
+fi
 
-az network vnet subnet create \
-  --name "$SUBNET_DEFAULT" \
-  --vnet-name "$VNET" \
-  --resource-group "$RG" \
-  --address-prefixes "$SUBNET_DEFAULT_PREFIX"
+if az network vnet subnet show --name "$SUBNET_DEFAULT" --vnet-name "$VNET" --resource-group "$RG" &>/dev/null; then
+  echo "  Subnät '$SUBNET_DEFAULT' finns redan – hoppar över."
+else
+  echo "  Skapar subnät '$SUBNET_DEFAULT'..."
+  az network vnet subnet create \
+    --name "$SUBNET_DEFAULT" \
+    --vnet-name "$VNET" \
+    --resource-group "$RG" \
+    --address-prefixes "$SUBNET_DEFAULT_PREFIX"
+fi
 
-az network vnet subnet create \
-  --name "$SUBNET_APP" \
-  --vnet-name "$VNET" \
-  --resource-group "$RG" \
-  --address-prefixes "$SUBNET_APP_PREFIX" \
-  --network-security-group "nsg-app"
+if az network vnet subnet show --name "$SUBNET_APP" --vnet-name "$VNET" --resource-group "$RG" &>/dev/null; then
+  echo "  Subnät '$SUBNET_APP' finns redan – hoppar över."
+else
+  echo "  Skapar subnät '$SUBNET_APP'..."
+  az network vnet subnet create \
+    --name "$SUBNET_APP" \
+    --vnet-name "$VNET" \
+    --resource-group "$RG" \
+    --address-prefixes "$SUBNET_APP_PREFIX" \
+    --network-security-group "nsg-app"
+fi
 
-az network vnet subnet create \
-  --name "$SUBNET_PRIVATE" \
-  --vnet-name "$VNET" \
-  --resource-group "$RG" \
-  --address-prefixes "$SUBNET_PRIVATE_PREFIX" \
-  --network-security-group "nsg-private" \
-  --disable-private-endpoint-network-policies true
+if az network vnet subnet show --name "$SUBNET_PRIVATE" --vnet-name "$VNET" --resource-group "$RG" &>/dev/null; then
+  echo "  Subnät '$SUBNET_PRIVATE' finns redan – hoppar över."
+else
+  echo "  Skapar subnät '$SUBNET_PRIVATE'..."
+  az network vnet subnet create \
+    --name "$SUBNET_PRIVATE" \
+    --vnet-name "$VNET" \
+    --resource-group "$RG" \
+    --address-prefixes "$SUBNET_PRIVATE_PREFIX" \
+    --network-security-group "nsg-private" \
+    --disable-private-endpoint-network-policies true
+fi
 
 VNET_ID=$(az network vnet show --name "$VNET" --resource-group "$RG" --query id -o tsv)
 SUBNET_PRIVATE_ID=$(az network vnet subnet show \
@@ -307,13 +442,22 @@ SUBNET_PRIVATE_ID=$(az network vnet subnet show \
 # ---------------------------------------------------------------------------
 log "5. Skapar Key Vault..."
 
-az keyvault create \
-  --name "$KEY_VAULT" \
-  --resource-group "$RG" \
-  --location "$LOCATION" \
-  --sku standard \
-  --enable-rbac-authorization true \
-  --public-network-access Disabled
+echo "  Hämtar Key Vault-konfiguration från dev..."
+KV_DEV_SKU=$(az keyvault show --name "$DEV_KEY_VAULT" --resource-group "$DEV_RG" \
+  --query "properties.sku.name" -o tsv 2>/dev/null || echo "standard")
+
+if az keyvault show --name "$KEY_VAULT" --resource-group "$RG" &>/dev/null; then
+  echo "  Key Vault '$KEY_VAULT' finns redan – hoppar över."
+else
+  echo "  Skapar Key Vault '$KEY_VAULT'..."
+  az keyvault create \
+    --name "$KEY_VAULT" \
+    --resource-group "$RG" \
+    --location "$LOCATION" \
+    --sku "$KV_DEV_SKU" \
+    --enable-rbac-authorization true \
+    --public-network-access Disabled
+fi
 
 KV_ID=$(az keyvault show --name "$KEY_VAULT" --resource-group "$RG" --query id -o tsv)
 
@@ -323,26 +467,41 @@ az role assignment create \
   --assignee "$MSI_PRINCIPAL" \
   --scope "$KV_ID"
 
-log "3b. Private DNS Zone – Key Vault..."
-az network private-dns zone create \
-  --resource-group "$RG" \
-  --name "privatelink.vaultcore.azure.net"
+log "3b. Kontrollerar Private DNS Zone – Key Vault..."
+if az network private-dns zone show --resource-group "$RG" --name "privatelink.vaultcore.azure.net" &>/dev/null; then
+  echo "  DNS-zon 'privatelink.vaultcore.azure.net' finns redan – hoppar över."
+else
+  echo "  Skapar DNS-zon 'privatelink.vaultcore.azure.net'..."
+  az network private-dns zone create \
+    --resource-group "$RG" \
+    --name "privatelink.vaultcore.azure.net"
+fi
 
-az network private-dns link vnet create \
-  --resource-group "$RG" \
-  --zone-name "privatelink.vaultcore.azure.net" \
-  --name "${ENV}-link" \
-  --virtual-network "$VNET_ID" \
-  --registration-enabled false
+if az network private-dns link vnet show --resource-group "$RG" --zone-name "privatelink.vaultcore.azure.net" --name "${ENV}-link" &>/dev/null; then
+  echo "  VNet-länk för Key Vault DNS finns redan – hoppar över."
+else
+  echo "  Skapar VNet-länk för Key Vault DNS..."
+  az network private-dns link vnet create \
+    --resource-group "$RG" \
+    --zone-name "privatelink.vaultcore.azure.net" \
+    --name "${ENV}-link" \
+    --virtual-network "$VNET_ID" \
+    --registration-enabled false
+fi
 
-az network private-endpoint create \
-  --name "pe-kv-${ENV}" \
-  --resource-group "$RG" \
-  --location "$LOCATION" \
-  --subnet "$SUBNET_PRIVATE_ID" \
-  --private-connection-resource-id "$KV_ID" \
-  --group-id vault \
-  --connection-name "pe-kv-${ENV}-conn"
+if az network private-endpoint show --name "pe-kv-${ENV}" --resource-group "$RG" &>/dev/null; then
+  echo "  Private endpoint 'pe-kv-${ENV}' finns redan – hoppar över."
+else
+  echo "  Skapar private endpoint 'pe-kv-${ENV}'..."
+  az network private-endpoint create \
+    --name "pe-kv-${ENV}" \
+    --resource-group "$RG" \
+    --location "$LOCATION" \
+    --subnet "$SUBNET_PRIVATE_ID" \
+    --private-connection-resource-id "$KV_ID" \
+    --group-id vault \
+    --connection-name "pe-kv-${ENV}-conn"
+fi
 
 KV_PE_NIC=$(az network private-endpoint show \
   --name "pe-kv-${ENV}" --resource-group "$RG" \
@@ -351,49 +510,81 @@ KV_PE_NIC=$(az network private-endpoint show \
 KV_PE_IP=$(az network nic show --ids "$KV_PE_NIC" \
   --query "ipConfigurations[0].privateIPAddress" -o tsv)
 
-az network private-dns record-set a add-record \
-  --resource-group "$RG" \
-  --zone-name "privatelink.vaultcore.azure.net" \
-  --record-set-name "$KEY_VAULT" \
-  --ipv4-address "$KV_PE_IP"
+if az network private-dns record-set a show --resource-group "$RG" --zone-name "privatelink.vaultcore.azure.net" --name "$KEY_VAULT" &>/dev/null; then
+  echo "  DNS A-record för Key Vault finns redan – hoppar över."
+else
+  az network private-dns record-set a add-record \
+    --resource-group "$RG" \
+    --zone-name "privatelink.vaultcore.azure.net" \
+    --record-set-name "$KEY_VAULT" \
+    --ipv4-address "$KV_PE_IP"
+fi
 
 # ---------------------------------------------------------------------------
 # 4. STORAGE ACCOUNT + Private Endpoint
 # ---------------------------------------------------------------------------
 log "6. Skapar Storage Account..."
 
-az storage account create \
-  --name "$STORAGE_ACCOUNT" \
-  --resource-group "$RG" \
-  --location "$LOCATION" \
-  --sku Standard_LRS \
-  --kind StorageV2 \
-  --public-network-access Disabled \
-  --allow-blob-public-access false \
-  --min-tls-version TLS1_2
+echo "  Hämtar Storage-konfiguration från dev..."
+STORAGE_DEV_SKU=$(az storage account show --name "$DEV_STORAGE" --resource-group "$DEV_RG" \
+  --query "sku.name" -o tsv 2>/dev/null || echo "Standard_LRS")
+STORAGE_DEV_KIND=$(az storage account show --name "$DEV_STORAGE" --resource-group "$DEV_RG" \
+  --query "kind" -o tsv 2>/dev/null || echo "StorageV2")
+STORAGE_DEV_TLS=$(az storage account show --name "$DEV_STORAGE" --resource-group "$DEV_RG" \
+  --query "minimumTlsVersion" -o tsv 2>/dev/null || echo "TLS1_2")
+
+if az storage account show --name "$STORAGE_ACCOUNT" --resource-group "$RG" &>/dev/null; then
+  echo "  Storage Account '$STORAGE_ACCOUNT' finns redan – hoppar över."
+else
+  echo "  Skapar Storage Account '$STORAGE_ACCOUNT'..."
+  az storage account create \
+    --name "$STORAGE_ACCOUNT" \
+    --resource-group "$RG" \
+    --location "$LOCATION" \
+    --sku "$STORAGE_DEV_SKU" \
+    --kind "$STORAGE_DEV_KIND" \
+    --public-network-access Disabled \
+    --allow-blob-public-access false \
+    --min-tls-version "$STORAGE_DEV_TLS"
+fi
 
 STORAGE_ID=$(az storage account show --name "$STORAGE_ACCOUNT" --resource-group "$RG" --query id -o tsv)
 
-log "4b. Private DNS Zone – Blob..."
-az network private-dns zone create \
-  --resource-group "$RG" \
-  --name "privatelink.blob.core.windows.net"
+log "4b. Kontrollerar Private DNS Zone – Blob..."
+if az network private-dns zone show --resource-group "$RG" --name "privatelink.blob.core.windows.net" &>/dev/null; then
+  echo "  DNS-zon 'privatelink.blob.core.windows.net' finns redan – hoppar över."
+else
+  echo "  Skapar DNS-zon 'privatelink.blob.core.windows.net'..."
+  az network private-dns zone create \
+    --resource-group "$RG" \
+    --name "privatelink.blob.core.windows.net"
+fi
 
-az network private-dns link vnet create \
-  --resource-group "$RG" \
-  --zone-name "privatelink.blob.core.windows.net" \
-  --name "${ENV}-link" \
-  --virtual-network "$VNET_ID" \
-  --registration-enabled false
+if az network private-dns link vnet show --resource-group "$RG" --zone-name "privatelink.blob.core.windows.net" --name "${ENV}-link" &>/dev/null; then
+  echo "  VNet-länk för Blob DNS finns redan – hoppar över."
+else
+  echo "  Skapar VNet-länk för Blob DNS..."
+  az network private-dns link vnet create \
+    --resource-group "$RG" \
+    --zone-name "privatelink.blob.core.windows.net" \
+    --name "${ENV}-link" \
+    --virtual-network "$VNET_ID" \
+    --registration-enabled false
+fi
 
-az network private-endpoint create \
-  --name "pe-blob-${ENV}" \
-  --resource-group "$RG" \
-  --location "$LOCATION" \
-  --subnet "$SUBNET_PRIVATE_ID" \
-  --private-connection-resource-id "$STORAGE_ID" \
-  --group-id blob \
-  --connection-name "pe-blob-${ENV}-conn"
+if az network private-endpoint show --name "pe-blob-${ENV}" --resource-group "$RG" &>/dev/null; then
+  echo "  Private endpoint 'pe-blob-${ENV}' finns redan – hoppar över."
+else
+  echo "  Skapar private endpoint 'pe-blob-${ENV}'..."
+  az network private-endpoint create \
+    --name "pe-blob-${ENV}" \
+    --resource-group "$RG" \
+    --location "$LOCATION" \
+    --subnet "$SUBNET_PRIVATE_ID" \
+    --private-connection-resource-id "$STORAGE_ID" \
+    --group-id blob \
+    --connection-name "pe-blob-${ENV}-conn"
+fi
 
 BLOB_PE_NIC=$(az network private-endpoint show \
   --name "pe-blob-${ENV}" --resource-group "$RG" \
@@ -402,11 +593,15 @@ BLOB_PE_NIC=$(az network private-endpoint show \
 BLOB_PE_IP=$(az network nic show --ids "$BLOB_PE_NIC" \
   --query "ipConfigurations[0].privateIPAddress" -o tsv)
 
-az network private-dns record-set a add-record \
-  --resource-group "$RG" \
-  --zone-name "privatelink.blob.core.windows.net" \
-  --record-set-name "$STORAGE_ACCOUNT" \
-  --ipv4-address "$BLOB_PE_IP"
+if az network private-dns record-set a show --resource-group "$RG" --zone-name "privatelink.blob.core.windows.net" --name "$STORAGE_ACCOUNT" &>/dev/null; then
+  echo "  DNS A-record för Blob finns redan – hoppar över."
+else
+  az network private-dns record-set a add-record \
+    --resource-group "$RG" \
+    --zone-name "privatelink.blob.core.windows.net" \
+    --record-set-name "$STORAGE_ACCOUNT" \
+    --ipv4-address "$BLOB_PE_IP"
+fi
 
 # ---------------------------------------------------------------------------
 # 5. SQL SERVER + DATABAS + Private Endpoint
@@ -418,49 +613,91 @@ if [ -z "$SQL_ADMIN_PASSWORD" ]; then
   exit 1
 fi
 
-az sql server create \
-  --name "$SQL_SERVER" \
-  --resource-group "$RG" \
-  --location "$LOCATION" \
-  --admin-user "$SQL_ADMIN_USER" \
-  --admin-password "$SQL_ADMIN_PASSWORD"
+if az sql server show --name "$SQL_SERVER" --resource-group "$RG" &>/dev/null; then
+  echo "  SQL Server '$SQL_SERVER' finns redan – hoppar över."
+else
+  echo "  Skapar SQL Server '$SQL_SERVER'..."
+  az sql server create \
+    --name "$SQL_SERVER" \
+    --resource-group "$RG" \
+    --location "$LOCATION" \
+    --admin-user "$SQL_ADMIN_USER" \
+    --admin-password "$SQL_ADMIN_PASSWORD"
+fi
+
+echo "  Hämtar SQL Server-konfiguration från dev..."
+SQL_DEV_SERVER_PROPS=$(az sql server show \
+  --name "$DEV_SQL_SERVER" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "{}")
+SQL_DEV_TLS=$(echo "$SQL_DEV_SERVER_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('minimalTlsVersion', '1.2'))")
+SQL_DEV_AAD=$(az sql server ad-admin list \
+  --server "$DEV_SQL_SERVER" --resource-group "$DEV_RG" \
+  --query "[0].login" -o tsv 2>/dev/null || echo "")
 
 az sql server update \
   --name "$SQL_SERVER" \
   --resource-group "$RG" \
-  --set publicNetworkAccess=Disabled
+  --set publicNetworkAccess=Disabled \
+  --minimal-tls-version "$SQL_DEV_TLS"
 
-az sql db create \
-  --name "$SQL_DB" \
-  --server "$SQL_SERVER" \
-  --resource-group "$RG" \
-  --tier GeneralPurpose \
-  --family Gen5 \
-  --capacity 2 \
-  --zone-redundant false
+echo "  Hämtar SQL-konfiguration från dev..."
+SQL_DEV_PROPS=$(az sql db show \
+  --name "$DEV_SQL_DB" --server "$DEV_SQL_SERVER" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "{}")
+SQL_DEV_TIER=$(echo "$SQL_DEV_PROPS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('edition', 'GeneralPurpose'))")
+SQL_DEV_FAMILY=$(echo "$SQL_DEV_PROPS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('currentServiceObjectiveName','').split('_')[1] if '_' in d.get('currentServiceObjectiveName','') else 'Gen5')")
+SQL_DEV_CAPACITY=$(echo "$SQL_DEV_PROPS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('capacity', 2))")
+SQL_DEV_ZONE=$(echo "$SQL_DEV_PROPS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(str(d.get('zoneRedundant', False)).lower())")
+
+if az sql db show --name "$SQL_DB" --server "$SQL_SERVER" --resource-group "$RG" &>/dev/null; then
+  echo "  SQL databas '$SQL_DB' finns redan – hoppar över."
+else
+  echo "  Skapar SQL databas '$SQL_DB'..."
+  az sql db create \
+    --name "$SQL_DB" \
+    --server "$SQL_SERVER" \
+    --resource-group "$RG" \
+    --tier "$SQL_DEV_TIER" \
+    --family "$SQL_DEV_FAMILY" \
+    --capacity "$SQL_DEV_CAPACITY" \
+    --zone-redundant "$SQL_DEV_ZONE"
+fi
 
 SQL_ID=$(az sql server show --name "$SQL_SERVER" --resource-group "$RG" --query id -o tsv)
 
-log "5b. Private DNS Zone – SQL..."
-az network private-dns zone create \
-  --resource-group "$RG" \
-  --name "privatelink.database.windows.net"
+log "5b. Kontrollerar Private DNS Zone – SQL..."
+if az network private-dns zone show --resource-group "$RG" --name "privatelink.database.windows.net" &>/dev/null; then
+  echo "  DNS-zon 'privatelink.database.windows.net' finns redan – hoppar över."
+else
+  echo "  Skapar DNS-zon 'privatelink.database.windows.net'..."
+  az network private-dns zone create \
+    --resource-group "$RG" \
+    --name "privatelink.database.windows.net"
+fi
 
-az network private-dns link vnet create \
-  --resource-group "$RG" \
-  --zone-name "privatelink.database.windows.net" \
-  --name "${ENV}-link" \
-  --virtual-network "$VNET_ID" \
-  --registration-enabled false
+if az network private-dns link vnet show --resource-group "$RG" --zone-name "privatelink.database.windows.net" --name "${ENV}-link" &>/dev/null; then
+  echo "  VNet-länk för SQL DNS finns redan – hoppar över."
+else
+  echo "  Skapar VNet-länk för SQL DNS..."
+  az network private-dns link vnet create \
+    --resource-group "$RG" \
+    --zone-name "privatelink.database.windows.net" \
+    --name "${ENV}-link" \
+    --virtual-network "$VNET_ID" \
+    --registration-enabled false
+fi
 
-az network private-endpoint create \
-  --name "pe-sql-${ENV}" \
-  --resource-group "$RG" \
-  --location "$LOCATION" \
-  --subnet "$SUBNET_PRIVATE_ID" \
-  --private-connection-resource-id "$SQL_ID" \
-  --group-id sqlServer \
-  --connection-name "pe-sql-${ENV}-conn"
+if az network private-endpoint show --name "pe-sql-${ENV}" --resource-group "$RG" &>/dev/null; then
+  echo "  Private endpoint 'pe-sql-${ENV}' finns redan – hoppar över."
+else
+  echo "  Skapar private endpoint 'pe-sql-${ENV}'..."
+  az network private-endpoint create \
+    --name "pe-sql-${ENV}" \
+    --resource-group "$RG" \
+    --location "$LOCATION" \
+    --subnet "$SUBNET_PRIVATE_ID" \
+    --private-connection-resource-id "$SQL_ID" \
+    --group-id sqlServer \
+    --connection-name "pe-sql-${ENV}-conn"
+fi
 
 SQL_PE_NIC=$(az network private-endpoint show \
   --name "pe-sql-${ENV}" --resource-group "$RG" \
@@ -469,60 +706,99 @@ SQL_PE_NIC=$(az network private-endpoint show \
 SQL_PE_IP=$(az network nic show --ids "$SQL_PE_NIC" \
   --query "ipConfigurations[0].privateIPAddress" -o tsv)
 
-az network private-dns record-set a add-record \
-  --resource-group "$RG" \
-  --zone-name "privatelink.database.windows.net" \
-  --record-set-name "$SQL_SERVER" \
-  --ipv4-address "$SQL_PE_IP"
+if az network private-dns record-set a show --resource-group "$RG" --zone-name "privatelink.database.windows.net" --name "$SQL_SERVER" &>/dev/null; then
+  echo "  DNS A-record för SQL finns redan – hoppar över."
+else
+  az network private-dns record-set a add-record \
+    --resource-group "$RG" \
+    --zone-name "privatelink.database.windows.net" \
+    --record-set-name "$SQL_SERVER" \
+    --ipv4-address "$SQL_PE_IP"
+fi
 
 # ---------------------------------------------------------------------------
 # 6. SERVICE BUS
 # ---------------------------------------------------------------------------
 log "8. Skapar Service Bus..."
 
-az servicebus namespace create \
-  --name "$SERVICE_BUS" \
-  --resource-group "$RG" \
-  --location "$LOCATION" \
-  --sku Standard
+echo "  Hämtar Service Bus-konfiguration från dev..."
+SB_DEV_SKU=$(az servicebus namespace show \
+  --name "$DEV_SERVICE_BUS" --resource-group "$DEV_RG" \
+  --query "sku.name" -o tsv 2>/dev/null || echo "Standard")
+
+if az servicebus namespace show --name "$SERVICE_BUS" --resource-group "$RG" &>/dev/null; then
+  echo "  Service Bus '$SERVICE_BUS' finns redan – hoppar över."
+else
+  echo "  Skapar Service Bus '$SERVICE_BUS'..."
+  az servicebus namespace create \
+    --name "$SERVICE_BUS" \
+    --resource-group "$RG" \
+    --location "$LOCATION" \
+    --sku "$SB_DEV_SKU"
+fi
 
 # ---------------------------------------------------------------------------
 # 7. AZURE OPENAI + Private Endpoint
 # ---------------------------------------------------------------------------
 log "9. Skapar Azure OpenAI..."
 
-az cognitiveservices account create \
-  --name "$OPENAI_ACCOUNT" \
-  --resource-group "$RG" \
-  --location "$LOCATION" \
-  --kind OpenAI \
-  --sku S0 \
-  --custom-domain "$OPENAI_ACCOUNT" \
-  --public-network-access Disabled
+echo "  Hämtar Azure OpenAI-konfiguration från dev..."
+OAI_DEV_SKU=$(az cognitiveservices account show \
+  --name "$DEV_OPENAI" --resource-group "$DEV_RG" \
+  --query "sku.name" -o tsv 2>/dev/null || echo "S0")
+
+if az cognitiveservices account show --name "$OPENAI_ACCOUNT" --resource-group "$RG" &>/dev/null; then
+  echo "  Azure OpenAI '$OPENAI_ACCOUNT' finns redan – hoppar över."
+else
+  echo "  Skapar Azure OpenAI '$OPENAI_ACCOUNT'..."
+  az cognitiveservices account create \
+    --name "$OPENAI_ACCOUNT" \
+    --resource-group "$RG" \
+    --location "$LOCATION" \
+    --kind OpenAI \
+    --sku "$OAI_DEV_SKU" \
+    --custom-domain "$OPENAI_ACCOUNT" \
+    --public-network-access Disabled
+fi
 
 OAI_ID=$(az cognitiveservices account show \
   --name "$OPENAI_ACCOUNT" --resource-group "$RG" --query id -o tsv)
 
-log "7b. Private DNS Zone – OpenAI..."
-az network private-dns zone create \
-  --resource-group "$RG" \
-  --name "privatelink.openai.azure.com"
+log "7b. Kontrollerar Private DNS Zone – OpenAI..."
+if az network private-dns zone show --resource-group "$RG" --name "privatelink.openai.azure.com" &>/dev/null; then
+  echo "  DNS-zon 'privatelink.openai.azure.com' finns redan – hoppar över."
+else
+  echo "  Skapar DNS-zon 'privatelink.openai.azure.com'..."
+  az network private-dns zone create \
+    --resource-group "$RG" \
+    --name "privatelink.openai.azure.com"
+fi
 
-az network private-dns link vnet create \
-  --resource-group "$RG" \
-  --zone-name "privatelink.openai.azure.com" \
-  --name "${ENV}-link" \
-  --virtual-network "$VNET_ID" \
-  --registration-enabled false
+if az network private-dns link vnet show --resource-group "$RG" --zone-name "privatelink.openai.azure.com" --name "${ENV}-link" &>/dev/null; then
+  echo "  VNet-länk för OpenAI DNS finns redan – hoppar över."
+else
+  echo "  Skapar VNet-länk för OpenAI DNS..."
+  az network private-dns link vnet create \
+    --resource-group "$RG" \
+    --zone-name "privatelink.openai.azure.com" \
+    --name "${ENV}-link" \
+    --virtual-network "$VNET_ID" \
+    --registration-enabled false
+fi
 
-az network private-endpoint create \
-  --name "pe-oai-${ENV}" \
-  --resource-group "$RG" \
-  --location "$LOCATION" \
-  --subnet "$SUBNET_PRIVATE_ID" \
-  --private-connection-resource-id "$OAI_ID" \
-  --group-id account \
-  --connection-name "pe-oai-${ENV}-conn"
+if az network private-endpoint show --name "pe-oai-${ENV}" --resource-group "$RG" &>/dev/null; then
+  echo "  Private endpoint 'pe-oai-${ENV}' finns redan – hoppar över."
+else
+  echo "  Skapar private endpoint 'pe-oai-${ENV}'..."
+  az network private-endpoint create \
+    --name "pe-oai-${ENV}" \
+    --resource-group "$RG" \
+    --location "$LOCATION" \
+    --subnet "$SUBNET_PRIVATE_ID" \
+    --private-connection-resource-id "$OAI_ID" \
+    --group-id account \
+    --connection-name "pe-oai-${ENV}-conn"
+fi
 
 OAI_PE_NIC=$(az network private-endpoint show \
   --name "pe-oai-${ENV}" --resource-group "$RG" \
@@ -531,26 +807,45 @@ OAI_PE_NIC=$(az network private-endpoint show \
 OAI_PE_IP=$(az network nic show --ids "$OAI_PE_NIC" \
   --query "ipConfigurations[0].privateIPAddress" -o tsv)
 
-az network private-dns record-set a add-record \
-  --resource-group "$RG" \
-  --zone-name "privatelink.openai.azure.com" \
-  --record-set-name "$OPENAI_ACCOUNT" \
-  --ipv4-address "$OAI_PE_IP"
+if az network private-dns record-set a show --resource-group "$RG" --zone-name "privatelink.openai.azure.com" --name "$OPENAI_ACCOUNT" &>/dev/null; then
+  echo "  DNS A-record för OpenAI finns redan – hoppar över."
+else
+  az network private-dns record-set a add-record \
+    --resource-group "$RG" \
+    --zone-name "privatelink.openai.azure.com" \
+    --record-set-name "$OPENAI_ACCOUNT" \
+    --ipv4-address "$OAI_PE_IP"
+fi
 
 # ---------------------------------------------------------------------------
 # 8. AZURE FRONT DOOR (CDN-profil + endpoint)
 # ---------------------------------------------------------------------------
 log "10. Skapar Azure Front Door..."
 
-az afd profile create \
-  --profile-name "$AFD_PROFILE" \
-  --resource-group "$RG" \
-  --sku Standard_AzureFrontDoor
+echo "  Hämtar Front Door-konfiguration från dev..."
+AFD_DEV_SKU=$(az afd profile show \
+  --profile-name "$DEV_AFD_PROFILE" --resource-group "$DEV_RG" \
+  --query "sku.name" -o tsv 2>/dev/null || echo "Standard_AzureFrontDoor")
 
-az afd endpoint create \
-  --endpoint-name "$AFD_ENDPOINT" \
-  --profile-name "$AFD_PROFILE" \
-  --resource-group "$RG"
+if az afd profile show --profile-name "$AFD_PROFILE" --resource-group "$RG" &>/dev/null; then
+  echo "  Front Door '$AFD_PROFILE' finns redan – hoppar över."
+else
+  echo "  Skapar Front Door '$AFD_PROFILE'..."
+  az afd profile create \
+    --profile-name "$AFD_PROFILE" \
+    --resource-group "$RG" \
+    --sku "$AFD_DEV_SKU"
+fi
+
+if az afd endpoint show --endpoint-name "$AFD_ENDPOINT" --profile-name "$AFD_PROFILE" --resource-group "$RG" &>/dev/null; then
+  echo "  Front Door endpoint '$AFD_ENDPOINT' finns redan – hoppar över."
+else
+  echo "  Skapar Front Door endpoint '$AFD_ENDPOINT'..."
+  az afd endpoint create \
+    --endpoint-name "$AFD_ENDPOINT" \
+    --profile-name "$AFD_PROFILE" \
+    --resource-group "$RG"
+fi
 
 # ---------------------------------------------------------------------------
 # 9. MONITORING – Action Groups
@@ -562,18 +857,27 @@ if [ -z "$ALERT_EMAIL" ]; then
 fi
 
 # E-post notifiering
-az monitor action-group create \
-  --name "Email notification" \
-  --resource-group "$RG" \
-  --short-name "email-notif" \
-  ${ALERT_EMAIL:+--action email emailreceiver "$ALERT_EMAIL"}
+if az monitor action-group show --name "Email notification" --resource-group "$RG" &>/dev/null; then
+  echo "  Action group 'Email notification' finns redan – hoppar över."
+else
+  echo "  Skapar action group 'Email notification'..."
+  az monitor action-group create \
+    --name "Email notification" \
+    --resource-group "$RG" \
+    --short-name "email-notif" \
+    ${ALERT_EMAIL:+--action email emailreceiver "$ALERT_EMAIL"}
+fi
 
-# Alert action group (generell)
-az monitor action-group create \
-  --name "ag-alerts-${ENV}" \
-  --resource-group "$RG" \
-  --short-name "ag-alerts" \
-  ${ALERT_EMAIL:+--action email emailreceiver "$ALERT_EMAIL"}
+if az monitor action-group show --name "ag-alerts-${ENV}" --resource-group "$RG" &>/dev/null; then
+  echo "  Action group 'ag-alerts-${ENV}' finns redan – hoppar över."
+else
+  echo "  Skapar action group 'ag-alerts-${ENV}'..."
+  az monitor action-group create \
+    --name "ag-alerts-${ENV}" \
+    --resource-group "$RG" \
+    --short-name "ag-alerts" \
+    ${ALERT_EMAIL:+--action email emailreceiver "$ALERT_EMAIL"}
+fi
 
 # Teams webhook – fyll i webhook-URL om du vill ha Teams-notiser
 # TEAMS_WEBHOOK_URL=""
@@ -598,38 +902,78 @@ BACKEND_APP_ID=$(az webapp show \
 
 if [ -n "$BACKEND_APP_ID" ]; then
 
+  echo "  Hämtar Metric Alert-konfiguration från dev..."
+  get_alert_prop() {
+    local alert_name="$1" prop="$2" default="$3"
+    az monitor metrics alert show --name "$alert_name" --resource-group "$DEV_RG" \
+      --query "$prop" -o tsv 2>/dev/null || echo "$default"
+  }
+
+  CPU_THRESHOLD=$(az monitor metrics alert show --name "alrt-cpu-dev" --resource-group "$DEV_RG" \
+    --query "criteria.allOf[0].threshold" -o tsv 2>/dev/null || echo "80")
+  CPU_WINDOW=$(get_alert_prop "alrt-cpu-dev" "windowSize" "PT5M")
+  CPU_FREQ=$(get_alert_prop "alrt-cpu-dev" "evaluationFrequency" "PT1M")
+  CPU_SEVERITY=$(get_alert_prop "alrt-cpu-dev" "severity" "2")
+
+  REQ_THRESHOLD=$(az monitor metrics alert show --name "alert-requests-dev" --resource-group "$DEV_RG" \
+    --query "criteria.allOf[0].threshold" -o tsv 2>/dev/null || echo "10")
+  REQ_WINDOW=$(get_alert_prop "alert-requests-dev" "windowSize" "PT5M")
+  REQ_FREQ=$(get_alert_prop "alert-requests-dev" "evaluationFrequency" "PT1M")
+  REQ_SEVERITY=$(get_alert_prop "alert-requests-dev" "severity" "2")
+
+  RESP_THRESHOLD=$(az monitor metrics alert show --name "alert-response-dev" --resource-group "$DEV_RG" \
+    --query "criteria.allOf[0].threshold" -o tsv 2>/dev/null || echo "3")
+  RESP_WINDOW=$(get_alert_prop "alert-response-dev" "windowSize" "PT5M")
+  RESP_FREQ=$(get_alert_prop "alert-response-dev" "evaluationFrequency" "PT1M")
+  RESP_SEVERITY=$(get_alert_prop "alert-response-dev" "severity" "3")
+
+  if az monitor metrics alert show --name "alrt-cpu-${ENV}" --resource-group "$RG" &>/dev/null; then
+    echo "  Metric alert 'alrt-cpu-${ENV}' finns redan – hoppar över."
+  else
+    echo "  Skapar metric alert 'alrt-cpu-${ENV}'..."
   az monitor metrics alert create \
     --name "alrt-cpu-${ENV}" \
     --resource-group "$RG" \
     --scopes "$BACKEND_APP_ID" \
-    --condition "avg CpuPercentage > 80" \
-    --window-size 5m \
-    --evaluation-frequency 1m \
-    --severity 2 \
-    --description "CPU > 80% på backend" \
+    --condition "avg CpuPercentage > $CPU_THRESHOLD" \
+    --window-size "$CPU_WINDOW" \
+    --evaluation-frequency "$CPU_FREQ" \
+    --severity "$CPU_SEVERITY" \
+    --description "CPU > $CPU_THRESHOLD% på backend" \
     --action "$AG_ALERTS_ID"
+  fi
 
+  if az monitor metrics alert show --name "alert-requests-${ENV}" --resource-group "$RG" &>/dev/null; then
+    echo "  Metric alert 'alert-requests-${ENV}' finns redan – hoppar över."
+  else
+    echo "  Skapar metric alert 'alert-requests-${ENV}'..."
   az monitor metrics alert create \
     --name "alert-requests-${ENV}" \
     --resource-group "$RG" \
     --scopes "$BACKEND_APP_ID" \
-    --condition "total Http5xx > 10" \
-    --window-size 5m \
-    --evaluation-frequency 1m \
-    --severity 2 \
-    --description "Fler än 10 HTTP 5xx-fel på 5 min" \
+    --condition "total Http5xx > $REQ_THRESHOLD" \
+    --window-size "$REQ_WINDOW" \
+    --evaluation-frequency "$REQ_FREQ" \
+    --severity "$REQ_SEVERITY" \
+    --description "Fler än $REQ_THRESHOLD HTTP 5xx-fel" \
     --action "$AG_ALERTS_ID"
+  fi
 
+  if az monitor metrics alert show --name "alert-response-${ENV}" --resource-group "$RG" &>/dev/null; then
+    echo "  Metric alert 'alert-response-${ENV}' finns redan – hoppar över."
+  else
+    echo "  Skapar metric alert 'alert-response-${ENV}'..."
   az monitor metrics alert create \
     --name "alert-response-${ENV}" \
     --resource-group "$RG" \
     --scopes "$BACKEND_APP_ID" \
-    --condition "avg HttpResponseTime > 3" \
-    --window-size 5m \
-    --evaluation-frequency 1m \
-    --severity 3 \
-    --description "Svarstid > 3 sek" \
+    --condition "avg HttpResponseTime > $RESP_THRESHOLD" \
+    --window-size "$RESP_WINDOW" \
+    --evaluation-frequency "$RESP_FREQ" \
+    --severity "$RESP_SEVERITY" \
+    --description "Svarstid > $RESP_THRESHOLD sek" \
     --action "$AG_ALERTS_ID"
+  fi
 
 else
   echo "VARNING: Kunde inte hitta App Service '$BACKEND_APP_NAME' – metric alerts för backend skapas inte." >&2
@@ -645,12 +989,20 @@ if az monitor app-insights component show --app "$AI_NAME" --resource-group "$RG
   echo "  Application Insights '$AI_NAME' finns redan – hoppar över."
 else
   echo "  Skapar Application Insights '$AI_NAME'..."
+  echo "  Hämtar Application Insights-konfiguration från dev..."
+  AI_DEV_PROPS=$(az monitor app-insights component show \
+    --app "$DEV_BACKEND_APP" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "{}")
+  AI_DEV_KIND=$(echo "$AI_DEV_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('kind', 'web'))")
+  AI_DEV_TYPE=$(echo "$AI_DEV_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('applicationType', 'web'))")
+  AI_DEV_RETENTION=$(echo "$AI_DEV_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('retentionInDays', 90))")
+
   az monitor app-insights component create \
     --app "$AI_NAME" \
     --resource-group "$RG" \
     --location "$LOCATION" \
-    --kind web \
-    --application-type web
+    --kind "$AI_DEV_KIND" \
+    --application-type "$AI_DEV_TYPE" \
+    --retention-time "$AI_DEV_RETENTION"
 fi
 
 AI_ID=$(az monitor app-insights component show \
@@ -663,6 +1015,22 @@ AI_ID=$(az monitor app-insights component show \
 log "14. Skapar Availability Tests..."
 
 if [ -n "$BACKEND_APP_URL" ]; then
+  echo "  Hämtar Availability Test-konfiguration från dev..."
+  DEV_AVAIL_PROPS=$(az monitor app-insights web-test show \
+    --name "availability test-app-dev-api" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "{}")
+  AVAIL_FREQUENCY=$(echo "$DEV_AVAIL_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('frequency', 300))")
+  AVAIL_TIMEOUT=$(echo "$DEV_AVAIL_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('timeout', 30))")
+  AVAIL_LOCATIONS=$(echo "$DEV_AVAIL_PROPS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+locs = d.get('locations', [{'id': 'emea-se-sto-edge'}])
+print(' '.join(f'Id={l["id"]}' for l in locs))
+" 2>/dev/null || echo "Id=emea-se-sto-edge")
+
+  if az monitor app-insights web-test show --name "availability test-app-${ENV}-api" --resource-group "$RG" &>/dev/null; then
+    echo "  Availability test 'availability test-app-${ENV}-api' finns redan – hoppar över."
+  else
+    echo "  Skapar availability test för API..."
   az monitor app-insights web-test create \
     --name "availability test-app-${ENV}-api" \
     --resource-group "$RG" \
@@ -670,11 +1038,12 @@ if [ -n "$BACKEND_APP_URL" ]; then
     --defined-web-test-kind ping \
     --description "Availability test för API" \
     --enabled true \
-    --frequency 300 \
-    --timeout 30 \
-    --locations Id=emea-se-sto-edge \
+    --frequency "$AVAIL_FREQUENCY" \
+    --timeout "$AVAIL_TIMEOUT" \
+    --locations $AVAIL_LOCATIONS \
     --request-url "$BACKEND_APP_URL" \
     --app-insights-id "$AI_ID"
+  fi
 else
   echo "  VARNING: BACKEND_APP_URL är inte satt – availability test för API skapas inte." >&2
 fi
@@ -943,4 +1312,5 @@ echo ""
 echo "Kom ihåg att:"
 echo "  1. Sätt hemligheter i Key Vault '$KEY_VAULT'"
 echo "  2. Koppla App Service till VNet (VNet Integration) om den inte skapades nu"
+echo "  3. Ange ALERT_EMAIL och aktivera Teams-webhook vid behov"
 echo "  4. Verifiera att kopierade app settings/connection strings pekar rätt i prod"
