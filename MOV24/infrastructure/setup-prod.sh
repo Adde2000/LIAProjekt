@@ -131,7 +131,7 @@ MSI_NAME="oidc-msi-${ENV}"
 ALERT_EMAIL=""                 # Fyll i
 
 # Backend App Service URL (behövs för availability test)
-BACKEND_APP_URL="app-prod-api-f6cag3ctetdpc3gf.westeurope-01.azurewebsites.net/health"             # t.ex. https://app-prod-api.azurewebsites.net/health
+BACKEND_APP_URL=""             # t.ex. https://app-prod-api.azurewebsites.net/health
 
 
 # Dev-resursnamn (används vid kopiering av inställningar)
@@ -665,15 +665,36 @@ echo "  Hämtar SQL Server-konfiguration från dev..."
 SQL_DEV_SERVER_PROPS=$(az sql server show \
   --name "$DEV_SQL_SERVER" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "{}")
 SQL_DEV_TLS=$(echo "$SQL_DEV_SERVER_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('minimalTlsVersion', '1.2'))")
-SQL_DEV_AAD=$(az sql server ad-admin list \
+
+SQL_DEV_AAD_LOGIN=$(az sql server ad-admin list \
   --server "$DEV_SQL_SERVER" --resource-group "$DEV_RG" \
   --query "[0].login" -o tsv 2>/dev/null || echo "")
+SQL_DEV_AAD_SID=$(az sql server ad-admin list \
+  --server "$DEV_SQL_SERVER" --resource-group "$DEV_RG" \
+  --query "[0].sid" -o tsv 2>/dev/null || echo "")
+SQL_DEV_AAD_TENANT=$(az sql server ad-admin list \
+  --server "$DEV_SQL_SERVER" --resource-group "$DEV_RG" \
+  --query "[0].tenantId" -o tsv 2>/dev/null || echo "")
 
 az sql server update \
   --name "$SQL_SERVER" \
   --resource-group "$RG" \
   --set publicNetworkAccess=Disabled \
   --minimal-tls-version "$SQL_DEV_TLS"
+
+# Sätt Entra ID-administratör om det finns i dev
+if [ -n "$SQL_DEV_AAD_LOGIN" ]; then
+  if az sql server ad-admin show --server "$SQL_SERVER" --resource-group "$RG" &>/dev/null; then
+    echo "  Entra ID-administratör finns redan – hoppar över."
+  else
+    echo "  Sätter Entra ID-administratör '$SQL_DEV_AAD_LOGIN'..."
+    az sql server ad-admin create \
+      --server "$SQL_SERVER" \
+      --resource-group "$RG" \
+      --display-name "$SQL_DEV_AAD_LOGIN" \
+      --object-id "$SQL_DEV_AAD_SID"
+  fi
+fi
 
 echo "  Hämtar SQL-konfiguration från dev..."
 SQL_DEV_PROPS=$(az sql db show \
