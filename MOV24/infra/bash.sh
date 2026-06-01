@@ -86,7 +86,7 @@ MSI_NAME="oidc-msi-${ENV}"
 ALERT_EMAIL=""                 # Fyll i
 
 # Backend App Service URL (behövs för availability test)
-BACKEND_APP_URL=""             # t.ex. https://app-prod-api.azurewebsites.net/health
+BACKEND_APP_URL="app-prod-api-f6cag3ctetdpc3gf.westeurope-01.azurewebsites.net/health"             # t.ex. https://app-prod-api.azurewebsites.net/health
 FRONTEND_APP_URL=""
 
 
