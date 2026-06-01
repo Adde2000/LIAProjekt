@@ -11,6 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.test.context.support.WithMockUser;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.Course;
@@ -97,6 +98,7 @@ class CourseControllerTest {
 
 
     @Test
+    @WithMockUser(roles = "Admin")
     void getAllCoursesEmpty() {
         courseRepository.deleteAll();
 
@@ -109,6 +111,7 @@ class CourseControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "Admin")
     void getAllCourses() {
         ResponseEntity<List<CourseResponse>> responseEntity = controller.getAllCourses();
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
@@ -123,6 +126,7 @@ class CourseControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "Admin")
     void getCourseById() {
         ResponseEntity<CourseResponse> responseEntity = controller.getCourseById(preloadedCourses.getFirst().getId());
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
@@ -134,11 +138,13 @@ class CourseControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "Admin")
     void getCourseByIdNotFound() {
         assertThrows(ResourceNotFoundException.class, () -> controller.getCourseById(-1L));
     }
 
     @Test
+    @WithMockUser(roles = "Admin")
     void getCourseStudents() {
         Course course = preloadedCourses.getFirst();
         Long courseId = course.getId();
@@ -172,6 +178,7 @@ class CourseControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "Admin")
     void addStudentsToCourse() {
         Course course = preloadedCourses.getFirst();
         Long courseId = course.getId();
@@ -213,6 +220,7 @@ class CourseControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "Admin")
     void createCourse() {
         Mockito.when(currentUserService.getName()).thenReturn("Test");
 
@@ -241,6 +249,7 @@ class CourseControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "Admin")
     void addSection() {
         long courseId = preloadedCourses.getFirst().getId();
         List<SectionRequest> sectionRequests = new ArrayList<>();
@@ -296,6 +305,7 @@ class CourseControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "Admin")
     void updateCourse() {
         long courseId = preloadedCourses.getFirst().getId();
         CourseRequest courseRequest = new CourseRequest(
@@ -318,6 +328,7 @@ class CourseControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "Admin")
     void deleteCourse() {
         Mockito.doNothing().when(blobStorageService).deleteSectionFiles(Mockito.anyLong());
 

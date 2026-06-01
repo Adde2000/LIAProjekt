@@ -2,10 +2,12 @@ package se.liaprojekt.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import se.liaprojekt.controller.util.Roles;
 import se.liaprojekt.dto.UserResponse;
 import se.liaprojekt.service.CourseService;
 import se.liaprojekt.service.UserService;
@@ -20,17 +22,23 @@ public class UserController {
     private final UserService userService;
     private final CourseService courseService;
 
+
+    //Admin
     @GetMapping("/all")
+    @PreAuthorize(Roles.ADMIN)
     public ResponseEntity<List<UserResponse>> getAllUsers() {
         List<UserResponse> userResponseList = userService.getAllUserResponses();
         return ResponseEntity.ok(userResponseList);
     }
 
+    //Admin
     @GetMapping("/{userId}")
+    @PreAuthorize(Roles.ADMIN)
     public ResponseEntity<UserResponse> getUserById(@PathVariable long userId) {
         UserResponse userResponse = userService.getUserResponseById(userId);
         return ResponseEntity.ok(userResponse);
     }
+
 
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getCurrentUser() {
@@ -38,7 +46,9 @@ public class UserController {
         return ResponseEntity.ok(null);
     }
 
+    //Participant
     @GetMapping("/me/courses")
+    @PreAuthorize(Roles.PARTICIPANT)
     public ResponseEntity<List<Map<String, Object>>> getMyCourses(@AuthenticationPrincipal Jwt jwt) {
         String entraId = jwt.getClaim("oid");
         long userId = userService.getUserByEntraId(entraId).getId();
