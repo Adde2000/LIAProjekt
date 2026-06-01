@@ -114,8 +114,9 @@ BACKEND_APP_RUNTIME="JAVA:21:Java SE:21"  # Java 21
 AUTOSCALE_MIN=1
 AUTOSCALE_MAX=5
 AUTOSCALE_DEFAULT=1
-AUTOSCALE_CPU_OUT=70               # Skala ut när CPU > 70%
-AUTOSCALE_CPU_IN=30                # Skala in när CPU < 30%
+AUTOSCALE_CPU_OUT=70               # Skala ut när CPU > 70% i 5 min
+AUTOSCALE_MEM_OUT=75               # Skala ut när minne > 75% i 5 min
+AUTOSCALE_CPU_IN=40                # Skala in när CPU < 40% i 15 min
 
 # Function App (Service Bus worker)
 FUNCTION_APP_NAME="fasb-app-${ENV}"
@@ -130,7 +131,7 @@ MSI_NAME="oidc-msi-${ENV}"
 ALERT_EMAIL=""                 # Fyll i
 
 # Backend App Service URL (behövs för availability test)
-BACKEND_APP_URL=""             # t.ex. https://app-prod-api.azurewebsites.net/health
+BACKEND_APP_URL="app-prod-api-f6cag3ctetdpc3gf.westeurope-01.azurewebsites.net/health"             # t.ex. https://app-prod-api.azurewebsites.net/health
 
 
 # Dev-resursnamn (används vid kopiering av inställningar)
@@ -294,7 +295,7 @@ for r in rules:
         out['cooldown_out'] = int(action.get('cooldown','PT5M').replace('PT','').replace('M',''))
     elif action.get('direction') == 'Decrease':
         out['cpu_in'] = trigger.get('threshold', out['cpu_in'])
-        out['cooldown_in'] = int(action.get('cooldown','PT10M').replace('PT','').replace('M',''))
+        out['cooldown_in'] = int(action.get('cooldown','PT15M').replace('PT','').replace('M',''))
 print(json.dumps(out))
 ")
   AS_CPU_OUT=$(echo "$AS_RULES" | python3 -c "import json,sys; print(json.load(sys.stdin)['cpu_out'])")
@@ -302,7 +303,21 @@ print(json.dumps(out))
   AS_CPU_IN=$(echo "$AS_RULES" | python3 -c "import json,sys; print(json.load(sys.stdin)['cpu_in'])")
   AS_COOLDOWN_IN=$(echo "$AS_RULES" | python3 -c "import json,sys; print(json.load(sys.stdin)['cooldown_in'])")
 
-  echo "  Skapar autoskalningsregler (min=$AS_MIN, max=$AS_MAX, cpu_out=$AS_CPU_OUT%, cpu_in=$AS_CPU_IN%)..."
+  # Hämta minnesregel från dev om den finns
+  AS_MEM_OUT=$(echo "$DEV_AUTOSCALE" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+rules = d.get('profiles', [{}])[0].get('rules', [])
+for r in rules:
+    trigger = r.get('metricTrigger', {})
+    action = r.get('scaleAction', {})
+    if 'Memory' in trigger.get('metricName', '') and action.get('direction') == 'Increase':
+        print(trigger.get('threshold', $AUTOSCALE_MEM_OUT))
+        exit()
+print($AUTOSCALE_MEM_OUT)
+" 2>/dev/null || echo "$AUTOSCALE_MEM_OUT")
+
+  echo "  Skapar autoskalningsregler (min=$AS_MIN, max=$AS_MAX, cpu_out=$AS_CPU_OUT%, mem_out=$AS_MEM_OUT%, cpu_in=$AS_CPU_IN%)..."
   ASP_ID=$(az appservice plan show --name "$ASP_NAME" --resource-group "$RG" --query id -o tsv)
 
   az monitor autoscale create \
@@ -313,6 +328,7 @@ print(json.dumps(out))
     --max-count "$AS_MAX" \
     --count "$AS_DEFAULT"
 
+  # Skala ut: CPU > AS_CPU_OUT% i 5 min → +1 instans
   az monitor autoscale rule create \
     --autoscale-name "autoscale-backend-${ENV}" \
     --resource-group "$RG" \
@@ -320,12 +336,21 @@ print(json.dumps(out))
     --condition "CpuPercentage > ${AS_CPU_OUT} avg 5m" \
     --cooldown "$AS_COOLDOWN_OUT"
 
+  # Skala ut: Minne > AS_MEM_OUT% i 5 min → +1 instans
+  az monitor autoscale rule create \
+    --autoscale-name "autoscale-backend-${ENV}" \
+    --resource-group "$RG" \
+    --scale out 1 \
+    --condition "MemoryPercentage > ${AS_MEM_OUT} avg 5m" \
+    --cooldown "$AS_COOLDOWN_OUT"
+
+  # Skala in: CPU < AS_CPU_IN% i 15 min → -1 instans
   az monitor autoscale rule create \
     --autoscale-name "autoscale-backend-${ENV}" \
     --resource-group "$RG" \
     --scale in 1 \
-    --condition "CpuPercentage < ${AS_CPU_IN} avg 5m" \
-    --cooldown "$AS_COOLDOWN_IN"
+    --condition "CpuPercentage < ${AS_CPU_IN} avg 15m" \
+    --cooldown 15
 else
   echo "  Autoskalning hoppas över (App Service fanns redan)."
 fi
@@ -1419,4 +1444,4 @@ log "Klart! Alla prod-resurser är skapade i '$RG'."
 echo "Kom ihåg att:"
 echo "  1. Sätt hemligheter i Key Vault '$KEY_VAULT'"
 echo "  2. Verifiera VNet Integration för App Service i Azure Portal"
-echo "  3. Verifiera att kopierade app settings/connection strings pekar rätt i prod"
+echo "  4. Verifiera att kopierade app settings/connection strings pekar rätt i prod"
