@@ -70,6 +70,7 @@ class CourseControllerTest {
                     .title("Course " + i)
                     .description("CourseDescription" + i)
                     .createdBy("CourseCreator " + i)
+                    .aiSessionTtlWeeks(6)
                     .build()
             );
         }
@@ -225,7 +226,8 @@ class CourseControllerTest {
 
         CourseRequest courseRequest = new CourseRequest(
                 "TestTitle",
-                "TestDescription"
+                "TestDescription",
+                6
         );
         ResponseEntity<CourseResponse> responseEntity = controller.createCourse(courseRequest);
         assertEquals(HttpStatus.CREATED, responseEntity.getStatusCode(), "Wrong status code");
@@ -238,6 +240,8 @@ class CourseControllerTest {
 
         assertEquals(courseRequest.title(), courseResponse.getTitle(), "Wrong title");
         assertEquals(courseRequest.description(), courseResponse.getDescription(), "Wrong description");
+        assertEquals(6, course.get().getAiSessionTtlWeeks(), "Wrong TTL weeks"
+        );
 
         List<Course> courses = courseRepository.findAll();
         assertNotNull(courses, "Course list is null");
@@ -306,7 +310,8 @@ class CourseControllerTest {
         long courseId = preloadedCourses.getFirst().getId();
         CourseRequest courseRequest = new CourseRequest(
                 "NewTestTitle",
-                "NewTestDescription"
+                "NewTestDescription",
+                12
         );
         ResponseEntity<CourseResponse> responseEntity = controller.updateCourse(courseId, courseRequest);
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
@@ -318,6 +323,8 @@ class CourseControllerTest {
         Optional<Course> updatedCourse = courseRepository.findById(courseId);
         assertTrue(updatedCourse.isPresent(), "Course not found");
         checkCourseResponse(updatedCourse.get(), courseResponse);
+
+        assertEquals(12, updatedCourse.get().getAiSessionTtlWeeks(), "Wrong TTL weeks");
     }
 
     @Test
@@ -353,6 +360,7 @@ class CourseControllerTest {
         assertEquals(course.getId(), courseResponse.getId(), "Wrong course id");
         assertEquals(course.getTitle(), courseResponse.getTitle(), "Wrong course title");
         assertEquals(course.getDescription(), courseResponse.getDescription(), "Wrong course description");
+        assertEquals(course.getAiSessionTtlWeeks(), courseResponse.getAiSessionTtlWeeks(), "Wrong TTL weeks");
     }
 
     private List<Section> loadSections(Course course) {

@@ -31,11 +31,14 @@ public class Course {
     @Column(nullable = false)
     private String createdBy;
 
+    @Column(nullable = false)
+    private Integer aiSessionTtlWeeks = 6;
+
     @OrderBy("orderIndex ASC")
-    @OneToMany(fetch = FetchType.EAGER, mappedBy = "course", cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Section> sections = new ArrayList<>();
 
-    @OneToMany(fetch = FetchType.EAGER, mappedBy = "course", cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserProgress> userProgress = new ArrayList<>();
 
     @ManyToMany

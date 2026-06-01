@@ -15,27 +15,31 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AiSessionCleanupService {
 
-    private static final int SESSION_MAX_AGE_HOURS = 48;
-
     private final AiSessionRepository repo;
     private final AzureAssistantClient client;
 
     @Scheduled(fixedRate = 3600000)
     public void cleanupOldSessions() {
 
-        LocalDateTime cutoff =
-                LocalDateTime.now()
-                        .minusHours(SESSION_MAX_AGE_HOURS);
+        List<AiSession> allSessions = repo.findAll();
 
-        List<AiSession> oldSessions =
-                repo.findByLastUsedAtBefore(cutoff);
+        int deleted = 0;
 
-        log.info(
-                "Found {} expired AI sessions",
-                oldSessions.size()
-        );
+        for (AiSession session : allSessions) {
 
-        for (AiSession session : oldSessions) {
+            Integer ttlWeeks = session.getCourse()
+                    .getAiSessionTtlWeeks();
+
+            if (ttlWeeks == null) {
+                ttlWeeks = 6;
+            }
+
+            LocalDateTime cutoff = LocalDateTime.now()
+                    .minusWeeks(ttlWeeks);
+
+            if (session.getLastUsedAt().isAfter(cutoff)) {
+                continue;
+            }
 
             try {
 
@@ -52,6 +56,9 @@ public class AiSessionCleanupService {
             }
 
             repo.delete(session);
+            deleted++;
         }
+
+        log.info("Deleted {} expired AI sessions", deleted);
     }
 }

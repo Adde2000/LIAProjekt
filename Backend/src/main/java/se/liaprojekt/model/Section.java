@@ -32,6 +32,6 @@ public class Section {
 //    @OneToMany(mappedBy = "section", cascade = CascadeType.ALL)
 //    private List<Material> materials;
 
-    @OneToMany(mappedBy = "section", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "section", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TestQuestion> testQuestions = new ArrayList<>();
 }

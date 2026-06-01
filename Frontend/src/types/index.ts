@@ -65,6 +65,7 @@ export interface CourseRequest {
     id:          number | null;   // null on create; the server assigns the ID
     title:       string;
     description: string;
+    aiSessionTtlWeeks: number;
 }
 
 // Mirrors the Java SubmitAnswerRequest record
