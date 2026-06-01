@@ -121,13 +121,25 @@ public class AzureAssistantClient {
     // THREAD
     // =========================
 
-    public String createThread() {
+    public String createThread(String vectorStoreId) {
 
-        log.info("Creating Azure OpenAI thread");
+        log.info(
+                "Creating Azure OpenAI thread with vector store {}",
+                vectorStoreId
+        );
+
+        Map<String, Object> body = Map.of(
+                "tool_resources", Map.of(
+                        "file_search", Map.of(
+                                "vector_store_ids",
+                                List.of(vectorStoreId)
+                        )
+                )
+        );
 
         AzureThreadResponse response = post(
                 url("/openai/threads"),
-                null,
+                body,
                 AzureThreadResponse.class
         );
 
@@ -140,54 +152,6 @@ public class AzureAssistantClient {
         }
 
         return response.id();
-    }
-
-    public void deleteThread(String threadId) {
-
-        log.info(
-                "Deleting Azure thread {}",
-                threadId
-        );
-
-        delete(
-                url("/openai/threads/" + threadId)
-        );
-    }
-
-    // =========================
-    // ATTACH VECTOR STORE
-    // =========================
-
-    public void attachVectorStoreToThread(
-            String threadId,
-            String vectorStoreId
-    ) {
-
-        log.info(
-                "Attaching vector store {} to thread {}",
-                vectorStoreId,
-                threadId
-        );
-
-        String url =
-                url("/openai/threads/" + threadId);
-
-        Map<String, Object> body = Map.of(
-
-                "tool_resources", Map.of(
-
-                        "file_search", Map.of(
-
-                                "vector_store_ids",
-                                List.of(vectorStoreId)
-                        )
-                )
-        );
-
-        patch(
-                url,
-                body
-        );
     }
 
     // =========================
@@ -475,6 +439,17 @@ public class AzureAssistantClient {
     }
 
     // =========================
+// DELETE THREAD
+// =========================
+
+    public void deleteThread(String threadId) {
+
+        log.info("Deleting Azure thread {}", threadId);
+
+        delete(url("/openai/threads/" + threadId));
+    }
+
+    // =========================
     // GENERIC GET
     // =========================
 
@@ -589,6 +564,7 @@ public class AzureAssistantClient {
             String url,
             Object body
     ) {
+        log.info("PATCH {}", url);
 
         try {
 

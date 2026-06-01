@@ -31,7 +31,7 @@ class AiSessionServiceTest {
     void shouldCreateSession() {
 
         // Arrange
-        when(client.createThread())
+        when(client.createThread("vs-123"))
                 .thenReturn("thread-123");
 
         AiSession savedSession = new AiSession();
@@ -42,7 +42,7 @@ class AiSessionServiceTest {
                 .thenReturn(savedSession);
 
         // Act
-        AiSession result = service.createSession();
+        AiSession result = service.createSession(savedSession.getId());
 
         // Assert
         assertNotNull(result);
@@ -57,7 +57,7 @@ class AiSessionServiceTest {
                 result.getThreadId()
         );
 
-        verify(client).createThread();
+        verify(client).createThread("vs-123");
 
         verify(repo)
                 .save(any(AiSession.class));

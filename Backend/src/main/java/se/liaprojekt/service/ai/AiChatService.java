@@ -93,11 +93,6 @@ public class AiChatService {
             );
         }
 
-        client.attachVectorStoreToThread(
-                threadId,
-                vectorStoreId
-        );
-
         // =========================
         // CREATE RUN
         // =========================

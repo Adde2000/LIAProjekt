@@ -59,6 +59,11 @@
             <artifactId>spring-cloud-azure-starter-storage-blob</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+        </dependency>
+
         <!-- Source: https://mvnrepository.com/artifact/com.microsoft.graph/microsoft-graph -->
         <dependency>
             <groupId>com.microsoft.graph</groupId>

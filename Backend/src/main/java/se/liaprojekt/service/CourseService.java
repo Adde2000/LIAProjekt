@@ -12,6 +12,7 @@ import se.liaprojekt.repository.TestResultRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.liaprojekt.repository.UserProgressRepository;
+import se.liaprojekt.service.ai.VectorStoreService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +32,7 @@ public class CourseService {
     private final UserService userService;
     private final SectionService sectionService;
     private final CurrentUserService currentUserService;
+    private final VectorStoreService vectorStoreService;
 
     public List<CourseResponse> getAllCourses() {
         return courseRepository.findAll()
@@ -80,6 +82,11 @@ public class CourseService {
         );
 
         Course saved = courseRepository.save(course);
+
+        // Skapa vector store direkt
+        String vectorStoreId = vectorStoreService.createVectorStore(course.getTitle());
+        course.setVectorStoreId(vectorStoreId);
+        courseRepository.save(course);
 
         return mapToResponse(saved);
     }
@@ -232,6 +239,19 @@ public class CourseService {
         course.setAssistantId(assistantId);
 
         courseRepository.save(course);
+    }
+    //TODO: används denna?
+    public Course getCourseEntity(Long courseId) {
+        return courseRepository.findById(courseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found: " + courseId));
+    }
+
+    public Course getCourseBySection(Long sectionId) {
+        return sectionRepository.findById(sectionId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Section not found: " + sectionId
+                ))
+                .getCourse();
     }
 
     private CourseResponse mapToResponse(Course course) {

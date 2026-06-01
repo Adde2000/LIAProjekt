@@ -120,7 +120,15 @@ public class AiSessionInitService {
         // CREATE AZURE THREAD
         // =========================
 
-        String threadId = client.createThread();
+        String vectorStoreId = course.getVectorStoreId();
+
+        if (vectorStoreId == null || vectorStoreId.isBlank()) {
+            throw new IllegalStateException(
+                    "Course has no vector store configured"
+            );
+        }
+
+        String threadId = client.createThread(course.getVectorStoreId());
 
         // =========================
         // CREATE SESSION

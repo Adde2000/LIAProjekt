@@ -25,20 +25,19 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class VectorStoreService {
 
-    private static final String AZURE_SCOPE =
-            "https://cognitiveservices.azure.com/.default";
-
     private final BlobStorageService blobStorageService;
     private final CourseRepository courseRepository;
 
     private final RestTemplate restTemplate;
-    private final TokenCredential credential;
 
     @Value("${azure.openai.endpoint}")
     private String endpoint;
 
     @Value("${azure.openai.api-version}")
     private String apiVersion;
+
+    @Value("${azure.openai.api-key}")
+    private String apikey;
 
     // =========================
     // INIT VECTOR STORE
@@ -117,11 +116,8 @@ public class VectorStoreService {
 
         HttpHeaders headers = new HttpHeaders();
 
-        headers.setBearerAuth(getToken());
-
-        headers.setContentType(
-                MediaType.APPLICATION_JSON
-        );
+        headers.set("api-key", apikey);
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> body = Map.of(
                 "name", courseName
@@ -187,6 +183,24 @@ public class VectorStoreService {
                             blobName
                     );
 
+            Map<String, String> tags =
+                    blobStorageService.getFileTags(blobName);
+
+            String existingOpenAiFileId =
+                    tags.get("openAiFileId");
+
+            if (existingOpenAiFileId != null &&
+                    !existingOpenAiFileId.isBlank()) {
+
+                log.info(
+                        "Blob {} already synced with OpenAI file {}",
+                        blobName,
+                        existingOpenAiFileId
+                );
+
+                return;
+            }
+
             // =========================
             // UPLOAD FILE TO OPENAI
             // =========================
@@ -211,11 +225,7 @@ public class VectorStoreService {
                     openAiFileId
             );
 
-            log.info(
-                    "Added file {} to vector store {}",
-                    openAiFileId,
-                    course.getVectorStoreId()
-            );
+            blobStorageService.addTag(blobName, "openAiFileId", openAiFileId);
 
         } catch (Exception ex) {
 
@@ -244,11 +254,8 @@ public class VectorStoreService {
 
         HttpHeaders headers = new HttpHeaders();
 
-        headers.setBearerAuth(getToken());
-
-        headers.setContentType(
-                MediaType.MULTIPART_FORM_DATA
-        );
+        headers.set("api-key", apikey);
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
         ByteArrayResource resource =
                 new ByteArrayResource(fileBytes) {
@@ -291,6 +298,50 @@ public class VectorStoreService {
         return responseBody.get("id").toString();
     }
 
+    public void removeFileFromVectorStore(
+            String vectorStoreId,
+            String openAiFileId
+    ) {
+
+        String url = endpoint +
+                "/openai/vector_stores/" +
+                vectorStoreId +
+                "/files/" +
+                openAiFileId +
+                "?api-version=" +
+                apiVersion;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("api-key", apikey);
+
+        try {
+
+            restTemplate.exchange(
+                    url,
+                    HttpMethod.DELETE,
+                    new HttpEntity<>(headers),
+                    Void.class
+            );
+
+            log.info(
+                    "Removed file {} from vector store {}",
+                    openAiFileId,
+                    vectorStoreId
+            );
+
+        } catch (Exception ex) {
+
+            log.error(
+                    "Failed removing file {} from vector store {}",
+                    openAiFileId,
+                    vectorStoreId,
+                    ex
+            );
+
+            throw ex;
+        }
+    }
+
     // =========================
     // ADD FILE TO VECTOR STORE
     // =========================
@@ -309,11 +360,8 @@ public class VectorStoreService {
 
         HttpHeaders headers = new HttpHeaders();
 
-        headers.setBearerAuth(getToken());
-
-        headers.setContentType(
-                MediaType.APPLICATION_JSON
-        );
+        headers.set("api-key", apikey);
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> body = Map.of(
                 "file_id", fileId
@@ -322,11 +370,17 @@ public class VectorStoreService {
         HttpEntity<?> entity =
                 new HttpEntity<>(body, headers);
 
-        restTemplate.exchange(
-                url,
-                HttpMethod.POST,
-                entity,
-                Void.class
+        ResponseEntity<Map> response =
+                restTemplate.exchange(
+                        url,
+                        HttpMethod.POST,
+                        entity,
+                        Map.class
+                );
+
+        log.info(
+                "Vector store response: {}",
+                response.getBody()
         );
 
         log.info(
@@ -336,17 +390,13 @@ public class VectorStoreService {
         );
     }
 
-    // =========================
-    // TOKEN
-    // =========================
+    public void uploadFileToVectorStore(Course course, String fileId) {
 
-    private String getToken() {
+        if (course.getVectorStoreId() == null || course.getVectorStoreId().isBlank()) {
+            log.warn("Course {} has no vector store — skipping file upload", course.getId());
+            return;
+        }
 
-        return credential.getToken(
-
-                new TokenRequestContext()
-                        .addScopes(AZURE_SCOPE)
-
-        ).block().getToken();
+        uploadSectionPdfToVectorStore(course, fileId);
     }
 }

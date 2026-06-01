@@ -53,6 +53,7 @@ class AiSessionInitServiceTest {
         course = new Course();
         course.setId(10L);
         course.setAssistantId("assistant-123");
+        course.setVectorStoreId("vs-123");
     }
 
     @Test
@@ -142,7 +143,7 @@ class AiSessionInitServiceTest {
         // Assert
         assertEquals(100L, result.getId());
 
-        verify(client, never()).createThread();
+        verify(client, never()).createThread(anyString());
         verify(sessionRepo, never()).save(any());
     }
 
@@ -175,7 +176,7 @@ class AiSessionInitServiceTest {
         verify(sessionRepo)
                 .deleteAll(List.of(duplicate));
 
-        verify(client, never()).createThread();
+        verify(client, never()).createThread(anyString());
     }
 
     @Test
@@ -191,7 +192,7 @@ class AiSessionInitServiceTest {
         when(sessionRepo.findAllByUser_IdAndCourse_Id(1L, 10L))
                 .thenReturn(List.of());
 
-        when(client.createThread())
+        when(client.createThread(anyString()))
                 .thenReturn("thread-123");
 
         AiSession savedSession = new AiSession();
@@ -210,7 +211,7 @@ class AiSessionInitServiceTest {
                 result.getThreadId()
         );
 
-        verify(client).createThread();
+        verify(client).createThread(anyString());
 
         verify(sessionRepo)
                 .save(any(AiSession.class));

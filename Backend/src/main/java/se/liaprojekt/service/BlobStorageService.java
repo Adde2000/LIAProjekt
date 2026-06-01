@@ -350,6 +350,25 @@ public class BlobStorageService {
     }
 
     /**
+     * Adds or updates a single tag on an existing blob.
+     * All other existing tags are preserved.
+     *
+     * @param blobName Blob filename including extension (internal form)
+     * @param key      Tag key
+     * @param value    Tag value
+     */
+    public void addTag(String blobName, String key, String value) {
+        try {
+            BlobClient client = resolveContainer(blobName).getBlobClient(blobName);
+            Map<String, String> existing = client.getTags();
+            existing.put(key, value);
+            client.setTags(existing);
+        } catch (BlobStorageException ex) {
+            throw translateException(ex);
+        }
+    }
+
+    /**
      * Resolves a {@code fileId} (UUID without extension) to the internal blob filename
      * (UUID with extension) by probing both containers for a matching blob.
      *
