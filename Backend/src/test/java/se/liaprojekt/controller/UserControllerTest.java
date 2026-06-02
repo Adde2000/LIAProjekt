@@ -11,6 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.test.context.support.WithMockUser;
 import se.liaprojekt.dto.GraphResponse;
 import se.liaprojekt.dto.UserResponse;
 import se.liaprojekt.exception.ResourceNotFoundException;
@@ -71,6 +72,7 @@ class UserControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "Admin")
     void getAllUsers() {
         Mockito.when(graphService.getAllUsers()).thenReturn(users);
 
@@ -94,11 +96,13 @@ class UserControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "Admin")
     void getUserByIdNotFound() {
         assertThrows(ResourceNotFoundException.class, () -> controller.getUserById(-1L));
     }
 
     @Test
+    @WithMockUser(roles = "Admin")
     void getUserById() {
         GraphResponse user = users.getLast();
         Mockito.when(graphService.getUserByEntraId(user.id())).thenReturn(user);

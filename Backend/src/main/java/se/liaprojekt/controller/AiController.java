@@ -2,7 +2,9 @@ package se.liaprojekt.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import se.liaprojekt.controller.util.Roles;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.model.AiSession;
 import se.liaprojekt.service.ai.AiCharacterService;
@@ -25,6 +27,7 @@ public class AiController {
     /**
      * Send message to Azure Assistant thread
      */
+    //ALL
     @PostMapping("/chat")
     public ResponseEntity<ChatResponse> chat(
             @RequestBody ChatRequest request
@@ -43,6 +46,7 @@ public class AiController {
     /**
      * Create or reuse session/thread
      */
+    //ALL
     @PostMapping("/session")
     public ResponseEntity<Long> createSession(
             @RequestParam Long userId,
@@ -62,6 +66,7 @@ public class AiController {
     /**
      * Get available AI characters for a course
      */
+    //ALL
     @GetMapping("/characters/{courseId}")
     public ResponseEntity<List<AiCharacterResponse>> getCharacters(
             @PathVariable Long courseId
@@ -76,7 +81,9 @@ public class AiController {
     /**
      * Get all Azure OpenAI assistants
      */
+    //(Admin/CourseAdmin)
     @GetMapping("/assistants")
+    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
     public ResponseEntity<List<AssistantAdminResponse>> getAssistants() {
 
         return ResponseEntity.ok(
@@ -84,6 +91,7 @@ public class AiController {
         );
     }
 
+    //ALL
     @GetMapping("/history/{sessionId}")
     public ResponseEntity<List<ChatHistoryMessage>> getHistory(
             @PathVariable Long sessionId

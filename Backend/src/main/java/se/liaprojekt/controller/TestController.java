@@ -3,7 +3,9 @@ package se.liaprojekt.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import se.liaprojekt.controller.util.Roles;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.model.TestQuestion;
 import se.liaprojekt.service.CurrentUserService;
@@ -20,9 +22,10 @@ public class TestController {
     private final TestService testService;
     private final CurrentUserService currentUserService;
 
-    // CREATE QUESTION (ADMIN)
+    // CREATE QUESTION (Admin/CourseAdmin)
     @Operation(summary = "Create a question")
     @PostMapping("/{sectionId}/questions")
+    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
     public ResponseEntity<TestQuestionResponse> createQuestion(
             @PathVariable Long sectionId,
             @RequestBody TestQuestionRequest request
@@ -43,8 +46,10 @@ public class TestController {
         return ResponseEntity.ok(testQuestionResponse);
     }
 
+//    (Admin/CourseAdmin)
     @Operation(summary = "Update question")
     @PutMapping("/{sectionId}/questions/{questionId}")
+    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
     public ResponseEntity<TestQuestionResponse> updateQuestion(
             @PathVariable Long sectionId,
             @PathVariable Long questionId,
@@ -55,8 +60,10 @@ public class TestController {
         );
     }
 
+//    (Admin/CourseAdmin)
     @Operation(summary = "Delete question")
     @DeleteMapping("/{sectionId}/questions/{questionId}")
+    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
     public ResponseEntity<Void> deleteQuestion(
             @PathVariable Long sectionId,
             @PathVariable Long questionId
@@ -65,9 +72,10 @@ public class TestController {
         return ResponseEntity.noContent().build();
     }
 
-    // SUBMIT TEST
+    // SUBMIT TEST (Participant)
     @Operation(summary = "Submit test")
     @PostMapping("/{sectionId}/submit")
+    @PreAuthorize(Roles.PARTICIPANT)
     public ResponseEntity<TestResultResponse> submitTest(
             @PathVariable Long sectionId,
             @RequestBody List<SubmitAnswerRequest> requestList) {
@@ -99,8 +107,10 @@ public class TestController {
         );
     }
 
+    // (Participant)
     @Operation(summary = "Get your test attempts")
     @GetMapping("/{sectionId}/attempts")
+    @PreAuthorize(Roles.PARTICIPANT)
     public ResponseEntity<List<TestResultResponse>> getAttempts(
             @PathVariable Long sectionId
     ) {

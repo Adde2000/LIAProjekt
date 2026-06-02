@@ -1,7 +1,9 @@
 package se.liaprojekt.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import se.liaprojekt.controller.util.Roles;
 import se.liaprojekt.event.EmailEvent;
 import se.liaprojekt.producer.EmailEventPublisher;
 
@@ -17,7 +19,9 @@ public class EmailController {
 
     private final EmailEventPublisher publisher;
 
+    //Admin
     @PostMapping("/welcome")
+    @PreAuthorize(Roles.ADMIN)
     public String sendWelcome(
             @RequestParam String email,
             @RequestParam String name) {

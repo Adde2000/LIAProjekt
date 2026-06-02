@@ -6,9 +6,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import se.liaprojekt.controller.util.Roles;
 import se.liaprojekt.controller.util.SupportedMediaTypeResolver;
 import se.liaprojekt.exception.BadRequestException;
 import se.liaprojekt.model.Course;
@@ -85,7 +87,9 @@ public class BlobStorageController {
      * @return 200 with {@code fileId} and {@code originalName} on success,
      *         400 if the file type is unsupported
      */
+    //(Admin/CourseAdmin)
     @PostMapping("/upload")
+    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
     public ResponseEntity<Map<String, String>> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam String sectionId) throws IOException {
@@ -136,6 +140,7 @@ public class BlobStorageController {
      * @return For PDFs: 200 with the file bytes and {@code Content-Disposition: inline}.
      *         For other types: 200 with {@code {"url": "<CDN SAS URL>"}}.
      */
+    //ALL
     @GetMapping("/download/{fileId}")
     public ResponseEntity<?> download(@PathVariable String fileId) {
         log.debug("Downloading fileId '{}'", fileId);
@@ -185,6 +190,7 @@ public class BlobStorageController {
      * @param fileId Opaque file identifier returned at upload time
      * @return 200 with {@code {"streamToken": "<token>", "streamUrl": "...", "expiresIn": <seconds>}}
      */
+    //ALL
     @GetMapping("/stream-token/{fileId}")
     public ResponseEntity<Map<String, Object>> streamToken(@PathVariable String fileId) {
         // Resolve early so we return 404 immediately if the file doesn't exist
@@ -222,6 +228,7 @@ public class BlobStorageController {
      * @param rangeHeader Optional HTTP {@code Range} header (e.g. "bytes=0-10485760")
      * @return 206 Partial Content with the requested byte range, or 400/401 on error
      */
+    //ALL
     @GetMapping("/stream/{fileId}")
     public ResponseEntity<StreamingResponseBody> stream(
             @PathVariable String fileId,
@@ -280,7 +287,9 @@ public class BlobStorageController {
      * @param fileId Opaque file identifier returned at upload time
      * @return 200 on success, 404 if no file with that ID exists
      */
+    //(Admin/CourseAdmin)
     @DeleteMapping("/{fileId}")
+    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
     public ResponseEntity<String> delete(@PathVariable String fileId) {
         log.debug("Deleting fileId '{}'", fileId);
         String blobName = blobStorageService.resolveBlobName(fileId);
@@ -331,6 +340,7 @@ public class BlobStorageController {
      * @param type Optional filter: {@code pdf}, {@code video}, or omit for all files
      * @return 200 with list of {@link FileEntry} objects
      */
+    //TODO Should this exist?
     @GetMapping("/list")
     public ResponseEntity<List<FileEntry>> list(
             @RequestParam(required = false, defaultValue = "all") String type) {
@@ -347,6 +357,7 @@ public class BlobStorageController {
      * @param sectionId Section identifier to filter by
      * @return 200 with list of {@link FileEntry} objects belonging to the section
      */
+    //ALL
     @GetMapping("/list/section/{sectionId}")
     public ResponseEntity<List<FileEntry>> listBySection(@PathVariable String sectionId) {
         return ResponseEntity.ok(blobStorageService.listFilesBySectionId(sectionId));
@@ -362,7 +373,9 @@ public class BlobStorageController {
      * @param fileId Opaque file identifier returned at upload time
      * @return 200 with tag map (e.g. {@code {"sectionId": "42", "originalName": "lecture.pdf"}})
      */
+    //Admin TODO behövs denna?
     @GetMapping("/{fileId}/tags")
+    @PreAuthorize(Roles.ADMIN)
     public ResponseEntity<Map<String, String>> getTags(@PathVariable String fileId) {
         log.debug("Fetching tags for fileId '{}'", fileId);
         String blobName = blobStorageService.resolveBlobName(fileId);
@@ -377,7 +390,9 @@ public class BlobStorageController {
      * @param sectionId New section identifier
      * @return 200 with confirmation message
      */
+    //(Admin/CourseAdmin)
     @PatchMapping("/{fileId}/tags/section")
+    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
     public ResponseEntity<String> updateSection(
             @PathVariable String fileId,
             @RequestParam String sectionId) {

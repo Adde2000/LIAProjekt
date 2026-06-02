@@ -9,6 +9,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import se.liaprojekt.model.User;
@@ -17,6 +18,9 @@ import se.liaprojekt.service.CurrentUserService;
 import se.liaprojekt.service.ai.VectorStoreService; // LÄGG TILL
 
 import static org.mockito.ArgumentMatchers.anyString;
+import java.lang.reflect.Array;
+import java.util.List;
+
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -64,6 +68,7 @@ class CourseFlowNegativeIntegrationTest {
 
     // Testar att API returnerar 404 när man försöker hämta en kurs som inte finns
     @Test
+    @WithMockUser(roles = {"Participant", "Admin"})
     void shouldReturn404_whenCourseDoesNotExist() throws Exception {
         mockMvc.perform(get("/api/courses/999999"))
                 .andExpect(status().isNotFound());
@@ -71,6 +76,7 @@ class CourseFlowNegativeIntegrationTest {
 
     // Testar att API returnerar 404 när man försöker starta ett test på en sektion som inte finns
     @Test
+    @WithMockUser(roles = {"Participant", "Admin"})
     void shouldReturn404_whenSectionDoesNotExist() throws Exception {
         mockMvc.perform(post("/api/courses/sections/tests/999999/submit")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -85,6 +91,7 @@ class CourseFlowNegativeIntegrationTest {
 
     // Testar att API returnerar 404 när man försöker skapa fråga i en ogiltig sektion
     @Test
+    @WithMockUser(roles = {"Participant", "Admin"})
     void shouldReturn404_whenCreatingQuestionForInvalidSection() throws Exception {
         mockMvc.perform(post("/api/courses/sections/tests/999999/questions")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -102,6 +109,7 @@ class CourseFlowNegativeIntegrationTest {
 
     // Testar att API returnerar 400 när en fråga saknar korrekt svar
     @Test
+    @WithMockUser(roles = {"Participant", "Admin"})
     void shouldReturn400_whenQuestionHasNoCorrectAnswer() throws Exception {
         mockMvc.perform(post("/api/courses/sections/tests/" + sectionId + "/questions")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -119,6 +127,7 @@ class CourseFlowNegativeIntegrationTest {
 
     // Testar att API returnerar 404 när man försöker starta test på ogiltig sektion
     @Test
+    @WithMockUser(roles = {"Participant", "Admin"})
     void shouldReturn404_whenStartingTestForInvalidSection() throws Exception {
         mockMvc.perform(post("/api/courses/sections/tests/999999/submit")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -133,6 +142,7 @@ class CourseFlowNegativeIntegrationTest {
 
     // Testar att API returnerar 404 när man försöker ta bort en kurs som inte finns
     @Test
+    @WithMockUser(roles = {"Participant", "Admin"})
     void shouldReturn404_whenDeletingNonExistingCourse() throws Exception {
         mockMvc.perform(delete("/api/courses/999999"))
                 .andExpect(status().isNotFound());
@@ -140,6 +150,7 @@ class CourseFlowNegativeIntegrationTest {
 
     // Testar att API returnerar 404 när man skickar svar till ett test som inte finns
     @Test
+    @WithMockUser(roles = {"Participant", "Admin"})
     void shouldReturn404_whenSubmittingAnswerForInvalidTest() throws Exception {
         mockMvc.perform(post("/api/courses/sections/tests/" + sectionId + "/submit")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -166,7 +177,7 @@ class CourseFlowNegativeIntegrationTest {
                           "createdBy": "system"
                         }
                         """))
-                .andExpect(status().isCreated()) // Matchar 201 Created perfekt
+                .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
