@@ -2,7 +2,6 @@ package se.liaprojekt.service.ai;
 
 import com.azure.core.credential.TokenCredential;
 import com.azure.core.credential.TokenRequestContext;
-import com.azure.core.util.BinaryData;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,15 +28,13 @@ public class VectorStoreService {
     private final CourseRepository courseRepository;
 
     private final RestTemplate restTemplate;
+    private final TokenCredential credential;
 
     @Value("${azure.openai.endpoint}")
     private String endpoint;
 
     @Value("${azure.openai.api-version}")
     private String apiVersion;
-
-    @Value("${azure.openai.api-key}")
-    private String apikey;
 
     // =========================
     // INIT VECTOR STORE
@@ -116,7 +113,7 @@ public class VectorStoreService {
 
         HttpHeaders headers = new HttpHeaders();
 
-        headers.set("api-key", apikey);
+        headers.setBearerAuth(getToken());
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> body = Map.of(
@@ -186,18 +183,11 @@ public class VectorStoreService {
             Map<String, String> tags =
                     blobStorageService.getFileTags(blobName);
 
-            String existingOpenAiFileId =
-                    tags.get("openAiFileId");
+            String vectorStoreTagKey = "openAiFileId_" + course.getVectorStoreId();
+            String existingOpenAiFileId = tags.get(vectorStoreTagKey);
 
-            if (existingOpenAiFileId != null &&
-                    !existingOpenAiFileId.isBlank()) {
-
-                log.info(
-                        "Blob {} already synced with OpenAI file {}",
-                        blobName,
-                        existingOpenAiFileId
-                );
-
+            if (existingOpenAiFileId != null && !existingOpenAiFileId.isBlank()) {
+                log.info("Blob {} already synced with vector store {}", blobName, course.getVectorStoreId());
                 return;
             }
 
@@ -225,7 +215,7 @@ public class VectorStoreService {
                     openAiFileId
             );
 
-            blobStorageService.addTag(blobName, "openAiFileId", openAiFileId);
+            blobStorageService.addTag(blobName, "openAiFileId_" + course.getVectorStoreId(), openAiFileId);
 
         } catch (Exception ex) {
 
@@ -254,7 +244,7 @@ public class VectorStoreService {
 
         HttpHeaders headers = new HttpHeaders();
 
-        headers.set("api-key", apikey);
+        headers.setBearerAuth(getToken());
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
         ByteArrayResource resource =
@@ -312,7 +302,7 @@ public class VectorStoreService {
                 apiVersion;
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("api-key", apikey);
+        headers.setBearerAuth(getToken());
 
         try {
 
@@ -360,7 +350,7 @@ public class VectorStoreService {
 
         HttpHeaders headers = new HttpHeaders();
 
-        headers.set("api-key", apikey);
+        headers.setBearerAuth(getToken());
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> body = Map.of(
@@ -398,5 +388,12 @@ public class VectorStoreService {
         }
 
         uploadSectionPdfToVectorStore(course, fileId);
+    }
+
+    private String getToken() {
+        return credential.getToken(
+                new TokenRequestContext()
+                        .addScopes("https://cognitiveservices.azure.com/.default")
+        ).block().getToken();
     }
 }
