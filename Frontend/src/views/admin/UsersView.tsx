@@ -146,10 +146,6 @@ export function UsersView() {
                             <div className="vmv-user-detail-val">{selectedUser.coursesEnrolled}</div>
                         </div>
                     </div>
-                    <div className="vmv-user-detail-actions">
-                        <button className="vmv-quiz-start">Lägg till i kurs ↗</button>
-                        <button className="vmv-quiz-start vmv-action--danger">Ta bort från kurs ↗</button>
-                    </div>
                 </div>
             )}
         </>
