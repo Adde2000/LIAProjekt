@@ -7,6 +7,7 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { pad } from "../../components/Shared";
 import { FetchState } from "../../components/FetchState";
 import { SectionQuizView } from "./SectionQuizView";
+import { useHasRole } from "../../auth/useRoles";
 
 // ── Course list panel ─────────────────────────────────────────────────────────
 
@@ -275,6 +276,7 @@ function SectionRow({ section, index, onOpenQuiz }: { section: SectionResponse; 
 
 function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: (id: number) => void }) {
     const { instance } = useMsal();
+    const isAdmin = useHasRole("admin");
 
     const [enrolled, setEnrolled]   = useState<LoadState<UserProgressResponse[]>>(idle());
     const [allUsers, setAllUsers]   = useState<LoadState<UserResponse[]>>(idle());
@@ -597,12 +599,14 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
                     )}
 
                     <div className="vmv-mgmt-actions">
-                        <button
-                            className="vmv-quiz-start"
-                            onClick={() => { setShowAdd((p) => !p); setSearch(""); }}
-                        >
-                            {showAdd ? "Avbryt" : "Lägg till studenter ↗"}
-                        </button>
+                        {isAdmin && (
+                            <button
+                                className="vmv-quiz-start"
+                                onClick={() => { setShowAdd((p) => !p); setSearch(""); }}
+                            >
+                                {showAdd ? "Avbryt" : "Lägg till studenter ↗"}
+                            </button>
+                        )}
                         {addStatus === "success" && (
                             <span className="vmv-form-feedback vmv-form-feedback--success">
                                 ✓ Studenter tillagda.
