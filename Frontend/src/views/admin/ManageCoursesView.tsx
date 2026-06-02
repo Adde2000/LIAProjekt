@@ -8,6 +8,7 @@ import { pad } from "../../components/Shared";
 import { FetchState } from "../../components/FetchState";
 import { SectionQuizView } from "./SectionQuizView";
 import { useHasRole } from "../../auth/useRoles";
+import { ROLE_LABELS, ROLE_CLS, normaliseRole } from "../../utils/roles";
 
 // ── Course list panel ─────────────────────────────────────────────────────────
 
@@ -76,9 +77,12 @@ function StudentRow({ user, progress, index, action, checked, onToggle }: {
             <span className="vmv-user-name">{user.displayName}</span>
             <span className="vmv-user-email">{user.mail ?? <span style={{ opacity: 0.4, fontStyle: "italic" }}>–</span>}</span>
             <span className="vmv-role-badges">
-                {user.role.map((r) => (
-                    <span key={r} className="vmv-mgmt-role-badge">{r}</span>
-                ))}
+                {user.role.map((r) => {
+                    const normalised = normaliseRole(r);
+                    return (
+                        <span key={r} className={ROLE_CLS[normalised]}>{ROLE_LABELS[normalised]}</span>
+                    );
+                })}
             </span>
             {progress !== undefined && (
                 <>
@@ -354,6 +358,7 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
 
     const available = (allUsers.data ?? []).filter(
         (u) => !enrolledIds.has(u.id) &&
+               u.role.includes("participant") &&
                (u.displayName.toLowerCase().includes(search.toLowerCase()) ||
                (u.mail ?? "").toLowerCase().includes(search.toLowerCase()))
     );
