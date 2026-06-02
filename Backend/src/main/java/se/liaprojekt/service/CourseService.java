@@ -39,6 +39,13 @@ public class CourseService {
                 .toList();
     }
 
+    public List<CourseResponse> getAllCourses(Long courseAdminId) {
+        return courseRepository.findByCourseAdminId(courseAdminId)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
     public List<Map<String, Object>> getAllRegisteredCourses(long userId) {
         List<UserProgress> userProgressList = userProgressRepository.findByUserId(userId);
         List<Map<String, Object>> responseList = new ArrayList<>();
@@ -78,6 +85,8 @@ public class CourseService {
         course.setCreatedBy(
                 currentUserService.getName()
         );
+
+
 
         Course saved = courseRepository.save(course);
 
@@ -257,12 +266,17 @@ public class CourseService {
     }
 
     private CourseResponse mapToResponse(Course course) {
+        UserResponse courseAdminResponse = null;
+        if (course.getCourseAdmin() != null) {
+            courseAdminResponse = userService.getUserResponseById(course.getCourseAdmin().getId());
+        }
         return new CourseResponse(
                 course.getId(),
                 course.getTitle(),
                 course.getDescription(),
                 course.getCreatedBy(),
-                course.getAiSessionTtlWeeks()
+                course.getAiSessionTtlWeeks(),
+                courseAdminResponse
         );
     }
 

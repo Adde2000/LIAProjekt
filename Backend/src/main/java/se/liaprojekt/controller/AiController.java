@@ -83,7 +83,7 @@ public class AiController {
      */
     //(Admin/CourseAdmin)
     @GetMapping("/assistants")
-    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
+    @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<List<AssistantAdminResponse>> getAssistants() {
 
         return ResponseEntity.ok(

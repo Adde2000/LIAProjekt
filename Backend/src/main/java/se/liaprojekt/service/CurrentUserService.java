@@ -5,6 +5,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
 @Service
 public class CurrentUserService {
 
@@ -15,7 +19,7 @@ public class CurrentUserService {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        if (auth == null || !(auth instanceof JwtAuthenticationToken jwt)) {
+        if (!(auth instanceof JwtAuthenticationToken jwt)) {
             throw new IllegalStateException("No JWT authentication found");
         }
 
@@ -28,10 +32,26 @@ public class CurrentUserService {
         return oid;
     }
 
+    public Set<String> getRoles() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (!(auth instanceof JwtAuthenticationToken jwt)) {
+            throw new IllegalStateException("No JWT authentication found");
+        }
+
+        List<String> rolesList = jwt.getToken().getClaim("roles");
+        Set<String> roles = Set.copyOf(rolesList);
+
+        if (roles == null) {
+            throw new IllegalStateException("Roles claim missing in token");
+        }
+
+        return roles;
+    }
+
     public String getName() {
 
-        Authentication auth =
-                SecurityContextHolder.getContext().getAuthentication();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
         if (!(auth instanceof JwtAuthenticationToken jwt)) {
             throw new IllegalStateException("No JWT authentication found");

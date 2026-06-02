@@ -21,7 +21,7 @@ public class EmailController {
 
     //Admin
     @PostMapping("/welcome")
-    @PreAuthorize(Roles.ADMIN)
+    @PreAuthorize(Roles.ROLE_ADMIN)
     public String sendWelcome(
             @RequestParam String email,
             @RequestParam String name) {
