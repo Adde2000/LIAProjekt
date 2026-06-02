@@ -41,6 +41,10 @@ public class Course {
     @OneToMany(fetch = FetchType.EAGER, mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserProgress> userProgress = new ArrayList<>();
 
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User courseAdmin;
+
     @ManyToMany
     @JoinTable(
             name = "course_ai",

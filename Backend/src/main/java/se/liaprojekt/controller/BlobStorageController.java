@@ -79,7 +79,7 @@ public class BlobStorageController {
      */
     //(Admin/CourseAdmin)
     @PostMapping("/upload")
-    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
+    @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<Map<String, String>> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam String sectionId) throws IOException {
@@ -269,7 +269,7 @@ public class BlobStorageController {
      */
     //(Admin/CourseAdmin)
     @DeleteMapping("/{fileId}")
-    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
+    @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<String> delete(@PathVariable String fileId) {
         log.debug("Deleting fileId '{}'", fileId);
         String blobName = blobStorageService.resolveBlobName(fileId);
@@ -323,7 +323,7 @@ public class BlobStorageController {
      */
     //Admin TODO behövs denna?
     @GetMapping("/{fileId}/tags")
-    @PreAuthorize(Roles.ADMIN)
+    @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<Map<String, String>> getTags(@PathVariable String fileId) {
         log.debug("Fetching tags for fileId '{}'", fileId);
         String blobName = blobStorageService.resolveBlobName(fileId);
@@ -340,7 +340,7 @@ public class BlobStorageController {
      */
     //(Admin/CourseAdmin)
     @PatchMapping("/{fileId}/tags/section")
-    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
+    @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<String> updateSection(
             @PathVariable String fileId,
             @RequestParam String sectionId) {

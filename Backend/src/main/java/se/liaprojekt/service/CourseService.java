@@ -39,6 +39,13 @@ public class CourseService {
                 .toList();
     }
 
+    public List<CourseResponse> getAllCourses(Long courseAdminId) {
+        return courseRepository.findByCourseAdminId(courseAdminId)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
     public List<Map<String, Object>> getAllRegisteredCourses(long userId) {
         List<UserProgress> userProgressList = userProgressRepository.findByUserId(userId);
         List<Map<String, Object>> responseList = new ArrayList<>();
