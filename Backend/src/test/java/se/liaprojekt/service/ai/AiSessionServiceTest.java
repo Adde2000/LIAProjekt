@@ -8,7 +8,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import se.liaprojekt.model.AiSession;
+import se.liaprojekt.model.Course;
 import se.liaprojekt.repository.AiSessionRepository;
+import se.liaprojekt.repository.CourseRepository;
 
 import java.util.Optional;
 
@@ -24,13 +26,22 @@ class AiSessionServiceTest {
     @Mock
     private AzureAssistantClient client;
 
+    @Mock
+    private CourseRepository courseRepo;
+
     @InjectMocks
     private AiSessionService service;
 
     @Test
     void shouldCreateSession() {
 
-        // Arrange
+        Course course = new Course();
+        course.setId(1L);
+        course.setVectorStoreId("vs-123");
+
+        when(courseRepo.findById(1L))
+                .thenReturn(Optional.of(course));
+
         when(client.createThread("vs-123"))
                 .thenReturn("thread-123");
 
@@ -41,26 +52,15 @@ class AiSessionServiceTest {
         when(repo.save(any(AiSession.class)))
                 .thenReturn(savedSession);
 
-        // Act
-        AiSession result = service.createSession(savedSession.getId());
+        AiSession result = service.createSession(1L);
 
-        // Assert
         assertNotNull(result);
+        assertEquals(1L, result.getId());
+        assertEquals("thread-123", result.getThreadId());
 
-        assertEquals(
-                1L,
-                result.getId()
-        );
-
-        assertEquals(
-                "thread-123",
-                result.getThreadId()
-        );
-
+        verify(courseRepo).findById(1L);
         verify(client).createThread("vs-123");
-
-        verify(repo)
-                .save(any(AiSession.class));
+        verify(repo).save(any(AiSession.class));
     }
 
     @Test

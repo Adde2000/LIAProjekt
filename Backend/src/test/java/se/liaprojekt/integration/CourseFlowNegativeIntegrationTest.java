@@ -14,7 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 import se.liaprojekt.model.User;
 import se.liaprojekt.repository.UserRepository;
 import se.liaprojekt.service.CurrentUserService;
+import se.liaprojekt.service.ai.VectorStoreService; // LÄGG TILL
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -29,6 +31,7 @@ class CourseFlowNegativeIntegrationTest {
     @Autowired private UserRepository userRepository;
 
     @MockBean private CurrentUserService currentUserService;
+    @MockBean private VectorStoreService vectorStoreService; // LÄGG TILL: Hindrar Azure/OpenAI från att anropas i setupen
 
     private static final String TEST_USER = "negative-user";
 
@@ -40,6 +43,9 @@ class CourseFlowNegativeIntegrationTest {
 
         when(currentUserService.getEntraId()).thenReturn(TEST_USER);
         when(currentUserService.getName()).thenReturn("Negative Test User");
+
+        // Mocka Vector Store så att setupen av kursen flyter på fint
+        when(vectorStoreService.createVectorStore(anyString())).thenReturn("mock-vs-id");
 
         userRepository.findByEntraId(TEST_USER)
                 .orElseGet(() -> {
@@ -59,7 +65,6 @@ class CourseFlowNegativeIntegrationTest {
     // Testar att API returnerar 404 när man försöker hämta en kurs som inte finns
     @Test
     void shouldReturn404_whenCourseDoesNotExist() throws Exception {
-
         mockMvc.perform(get("/api/courses/999999"))
                 .andExpect(status().isNotFound());
     }
@@ -67,7 +72,6 @@ class CourseFlowNegativeIntegrationTest {
     // Testar att API returnerar 404 när man försöker starta ett test på en sektion som inte finns
     @Test
     void shouldReturn404_whenSectionDoesNotExist() throws Exception {
-
         mockMvc.perform(post("/api/courses/sections/tests/999999/submit")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -82,7 +86,6 @@ class CourseFlowNegativeIntegrationTest {
     // Testar att API returnerar 404 när man försöker skapa fråga i en ogiltig sektion
     @Test
     void shouldReturn404_whenCreatingQuestionForInvalidSection() throws Exception {
-
         mockMvc.perform(post("/api/courses/sections/tests/999999/questions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -100,7 +103,6 @@ class CourseFlowNegativeIntegrationTest {
     // Testar att API returnerar 400 när en fråga saknar korrekt svar
     @Test
     void shouldReturn400_whenQuestionHasNoCorrectAnswer() throws Exception {
-
         mockMvc.perform(post("/api/courses/sections/tests/" + sectionId + "/questions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -118,7 +120,6 @@ class CourseFlowNegativeIntegrationTest {
     // Testar att API returnerar 404 när man försöker starta test på ogiltig sektion
     @Test
     void shouldReturn404_whenStartingTestForInvalidSection() throws Exception {
-
         mockMvc.perform(post("/api/courses/sections/tests/999999/submit")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -133,7 +134,6 @@ class CourseFlowNegativeIntegrationTest {
     // Testar att API returnerar 404 när man försöker ta bort en kurs som inte finns
     @Test
     void shouldReturn404_whenDeletingNonExistingCourse() throws Exception {
-
         mockMvc.perform(delete("/api/courses/999999"))
                 .andExpect(status().isNotFound());
     }
@@ -141,7 +141,6 @@ class CourseFlowNegativeIntegrationTest {
     // Testar att API returnerar 404 när man skickar svar till ett test som inte finns
     @Test
     void shouldReturn404_whenSubmittingAnswerForInvalidTest() throws Exception {
-
         mockMvc.perform(post("/api/courses/sections/tests/" + sectionId + "/submit")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -153,20 +152,11 @@ class CourseFlowNegativeIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
-//    // Testar att API returnerar 404 när användaren försöker submit:a ett test i felaktigt flöde
-//    @Test
-//    void shouldReturn404_whenUserTriesInvalidFlow() throws Exception {
-//
-//        mockMvc.perform(post("/api/courses/sections/tests/" + sectionId + "/submit"))
-//                .andExpect(status().isNotFound());
-//    }
-
     // ---------------------------
     // HELPERS (ROBUST VERSION)
     // ---------------------------
 
     private Long createCourse() throws Exception {
-
         String response = mockMvc.perform(post("/api/courses")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -176,7 +166,7 @@ class CourseFlowNegativeIntegrationTest {
                           "createdBy": "system"
                         }
                         """))
-                .andExpect(status().isCreated())
+                .andExpect(status().isCreated()) // Matchar 201 Created perfekt
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -191,7 +181,6 @@ class CourseFlowNegativeIntegrationTest {
     }
 
     private Long createSection(Long courseId) throws Exception {
-
         String response = mockMvc.perform(post("/api/courses/" + courseId + "/sections")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""

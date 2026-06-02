@@ -6,12 +6,9 @@ import org.springframework.transaction.annotation.Transactional;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.*;
-import se.liaprojekt.repository.CourseRepository;
-import se.liaprojekt.repository.SectionRepository;
-import se.liaprojekt.repository.TestResultRepository;
+import se.liaprojekt.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.liaprojekt.repository.UserProgressRepository;
 import se.liaprojekt.service.ai.VectorStoreService;
 
 import java.util.ArrayList;
@@ -33,6 +30,7 @@ public class CourseService {
     private final SectionService sectionService;
     private final CurrentUserService currentUserService;
     private final VectorStoreService vectorStoreService;
+    private final AiSessionRepository aiSessionRepository;
 
     public List<CourseResponse> getAllCourses() {
         return courseRepository.findAll()
@@ -126,11 +124,15 @@ public class CourseService {
         return mapToResponse(courseRepository.save(course));
     }
 
+    @Transactional
     public void deleteCourse(Long id) {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Course not found with id: " + id)
                 );
+
+        // Ta bort AI-sessioner först
+        aiSessionRepository.deleteByCourseId(id);
 
         List<Section> sections = course.getSections();
         for (Section section : sections) {
@@ -240,7 +242,7 @@ public class CourseService {
 
         courseRepository.save(course);
     }
-    //TODO: används denna?
+
     public Course getCourseEntity(Long courseId) {
         return courseRepository.findById(courseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found: " + courseId));
