@@ -232,7 +232,8 @@ class CourseControllerTest {
         CourseRequest courseRequest = new CourseRequest(
                 "TestTitle",
                 "TestDescription",
-                6
+                6,
+                null
         );
         ResponseEntity<CourseResponse> responseEntity = controller.createCourse(courseRequest);
         assertEquals(HttpStatus.CREATED, responseEntity.getStatusCode(), "Wrong status code");
@@ -316,7 +317,8 @@ class CourseControllerTest {
         CourseRequest courseRequest = new CourseRequest(
                 "NewTestTitle",
                 "NewTestDescription",
-                12
+                12,
+                null
         );
         ResponseEntity<CourseResponse> responseEntity = controller.updateCourse(courseId, courseRequest);
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");

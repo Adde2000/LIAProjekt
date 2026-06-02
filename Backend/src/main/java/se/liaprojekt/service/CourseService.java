@@ -86,6 +86,8 @@ public class CourseService {
                 currentUserService.getName()
         );
 
+
+
         Course saved = courseRepository.save(course);
 
         return mapToResponse(saved);
@@ -242,12 +244,17 @@ public class CourseService {
     }
 
     private CourseResponse mapToResponse(Course course) {
+        UserResponse courseAdminResponse = null;
+        if (course.getCourseAdmin() != null) {
+            courseAdminResponse = userService.getUserResponseById(course.getCourseAdmin().getId());
+        }
         return new CourseResponse(
                 course.getId(),
                 course.getTitle(),
                 course.getDescription(),
                 course.getCreatedBy(),
-                course.getAiSessionTtlWeeks()
+                course.getAiSessionTtlWeeks(),
+                courseAdminResponse
         );
     }
 

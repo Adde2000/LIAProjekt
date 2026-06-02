@@ -115,7 +115,8 @@ class CourseServiceTest {
                 new CourseRequest(
                         "Spring",
                         "Spring Boot course",
-                        6
+                        6,
+                        null
                 );
 
         when(currentUserService.getName())
@@ -139,7 +140,8 @@ class CourseServiceTest {
                 new CourseRequest(
                         "Updated",
                         "Updated desc",
-                        1
+                        1,
+                        null
                 );
 
         when(courseRepository.findById(1L))

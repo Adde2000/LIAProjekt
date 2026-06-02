@@ -1,9 +1,9 @@
 package se.liaprojekt.dto;
 
 public record CourseRequest(
-//        Long id,
         String title,
         String description,
-        Integer aiSessionTtlWeeks
+        Integer aiSessionTtlWeeks,
+        Long courseAdminId
 ){
 }
