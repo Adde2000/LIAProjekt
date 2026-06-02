@@ -245,7 +245,6 @@ public class CourseService {
     }
 
     private UserProgressResponse mapToResponse(UserProgress userProgress) {
-        System.out.println(userProgress.getCompletedSections() + " " + userProgress.getProgressPercentage());
         return new UserProgressResponse(
                 userService.getUserResponseById(userProgress.getUser().getId()),
                 userProgress.getCompletedSections(),
