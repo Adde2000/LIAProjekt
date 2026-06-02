@@ -104,7 +104,7 @@ public class BlobStorageController {
                 originalFileName, file.getInputStream(), file.getSize(), sectionId);
 
         // Synka PDF till vector store via sectionId → course
-        if (mediaTypeResolver.isSupported(originalFileName)) {
+        if (originalFileName.toLowerCase().endsWith(".pdf")) {
             try {
                 Course course = courseService.getCourseBySection(Long.parseLong(sectionId));
                 vectorStoreService.uploadFileToVectorStore(course, fileId);
@@ -297,31 +297,23 @@ public class BlobStorageController {
         // Ta bort från vector store om filen är en PDF
         Map<String, String> tags = blobStorageService.getFileTags(blobName);
         log.info("Blob tags: {}", tags);
-        String openAiFileId = tags.get("openAiFileId");
         String sectionId = tags.get("sectionId");
 
-        if (openAiFileId != null && sectionId != null) {
+        if (sectionId != null) {
             try {
                 Course course = courseService.getCourseBySection(Long.parseLong(sectionId));
-                if (course.getVectorStoreId() != null) {
+                String vectorStoreId = course.getVectorStoreId();
 
-                    log.info("Removing OpenAI file {} from vector store {}",
-                            openAiFileId,
-                            course.getVectorStoreId());
+                if (vectorStoreId != null) {
+                    String openAiFileId = tags.get("openAiFileId_" + vectorStoreId);
 
-                    String vectorStoreId = tags.get("vectorStoreId");
-
-                    vectorStoreService.removeFileFromVectorStore(
-                            course.getVectorStoreId(),
-                            openAiFileId
-                    );
+                    if (openAiFileId != null) {
+                        log.info("Removing OpenAI file {} from vector store {}", openAiFileId, vectorStoreId);
+                        vectorStoreService.removeFileFromVectorStore(vectorStoreId, openAiFileId);
+                    }
                 }
             } catch (Exception ex) {
-                log.error(
-                        "Failed removing OpenAI file {} from vector store",
-                        openAiFileId,
-                        ex
-                );
+                log.error("Failed removing OpenAI file from vector store", ex);
             }
         }
 

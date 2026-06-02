@@ -28,13 +28,15 @@ public class VectorStoreService {
     private final CourseRepository courseRepository;
 
     private final RestTemplate restTemplate;
-    private final TokenCredential credential;
 
     @Value("${azure.openai.endpoint}")
     private String endpoint;
 
     @Value("${azure.openai.api-version}")
     private String apiVersion;
+
+    @Value("${azure.openai.api-key}")
+    private String apiKey;
 
     // =========================
     // INIT VECTOR STORE
@@ -113,7 +115,7 @@ public class VectorStoreService {
 
         HttpHeaders headers = new HttpHeaders();
 
-        headers.setBearerAuth(getToken());
+        headers.set("api-key", apiKey);
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> body = Map.of(
@@ -244,7 +246,7 @@ public class VectorStoreService {
 
         HttpHeaders headers = new HttpHeaders();
 
-        headers.setBearerAuth(getToken());
+        headers.set("api-key", apiKey);
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
         ByteArrayResource resource =
@@ -302,7 +304,7 @@ public class VectorStoreService {
                 apiVersion;
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(getToken());
+        headers.set("api-key", apiKey);
 
         try {
 
@@ -350,7 +352,7 @@ public class VectorStoreService {
 
         HttpHeaders headers = new HttpHeaders();
 
-        headers.setBearerAuth(getToken());
+        headers.set("api-key", apiKey);
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> body = Map.of(
@@ -388,12 +390,5 @@ public class VectorStoreService {
         }
 
         uploadSectionPdfToVectorStore(course, fileId);
-    }
-
-    private String getToken() {
-        return credential.getToken(
-                new TokenRequestContext()
-                        .addScopes("https://cognitiveservices.azure.com/.default")
-        ).block().getToken();
     }
 }

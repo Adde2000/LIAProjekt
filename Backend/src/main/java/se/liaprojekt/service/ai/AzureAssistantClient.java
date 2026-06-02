@@ -32,13 +32,15 @@ public class AzureAssistantClient {
     private long pollIntervalMs;
 
     private final RestTemplate restTemplate;
-    private final TokenCredential credential;
 
     @Value("${azure.openai.endpoint}")
     private String endpoint;
 
     @Value("${azure.openai.api-version}")
     private String apiVersion;
+
+    @Value("${azure.openai.api-key}")
+    private String apiKey;
 
     // =========================
     // VALIDATE CONFIG
@@ -65,30 +67,6 @@ public class AzureAssistantClient {
     }
 
     // =========================
-    // TOKEN
-    // =========================
-
-    private String getToken() {
-
-        try {
-
-            return credential.getToken(
-
-                    new TokenRequestContext()
-                            .addScopes(AZURE_SCOPE)
-
-            ).block().getToken();
-
-        } catch (Exception ex) {
-
-            throw new AzureAssistantException(
-                    "Failed to acquire Azure access token",
-                    ex
-            );
-        }
-    }
-
-    // =========================
     // HEADERS
     // =========================
 
@@ -96,7 +74,7 @@ public class AzureAssistantClient {
 
         HttpHeaders headers = new HttpHeaders();
 
-        headers.setBearerAuth(getToken());
+        headers.set("api-key", apiKey);
 
         headers.setContentType(
                 MediaType.APPLICATION_JSON
