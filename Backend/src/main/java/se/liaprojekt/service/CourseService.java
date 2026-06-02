@@ -80,6 +80,7 @@ public class CourseService {
                         ? request.aiSessionTtlWeeks()
                         : 6
         );
+        course.setCourseAdmin(userService.getUserById(request.courseAdminId()));
 
         // namn från JWT token
         course.setCreatedBy(
@@ -98,7 +99,6 @@ public class CourseService {
         return mapToResponse(saved);
     }
 
-    //TODO return UserProgressResponse
     public List<UserProgressResponse> addStudentsToCourse(Long courseId, List<UserRequest> students) {
         Course course = courseRepository.findById(courseId).orElseThrow(() ->
                 new ResourceNotFoundException("Course not found with id: " + courseId));
@@ -110,7 +110,6 @@ public class CourseService {
         return getStudentsInCourse(courseId);
     }
 
-    //TODO return UserProgressResponse
     public List<UserProgressResponse> getStudentsInCourse(Long courseId) {
         List<UserProgress> userProgressList = userProgressRepository.findByCourseId(courseId);
         List<UserProgressResponse> userProgressResponseList = new ArrayList<>();
@@ -129,6 +128,7 @@ public class CourseService {
         course.setTitle(request.title());
         course.setDescription(request.description());
         course.setAiSessionTtlWeeks(request.aiSessionTtlWeeks());
+        course.setCourseAdmin(userService.getUserById(request.courseAdminId()));
 
         return mapToResponse(courseRepository.save(course));
     }

@@ -33,7 +33,6 @@ public class CourseController {
     @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<List<CourseResponse>> getAllCourses() {
         Set<String> roles = currentUserService.getRoles();
-        System.out.println(roles);
         if (roles.contains(Roles.ADMIN)) {
             return ResponseEntity.ok(courseService.getAllCourses());
         } else {
