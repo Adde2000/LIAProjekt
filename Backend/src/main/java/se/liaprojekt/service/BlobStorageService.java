@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import se.liaprojekt.exception.BlobOperationException;
 import se.liaprojekt.exception.BlobStorageExceptionHandler;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
@@ -349,6 +350,25 @@ public class BlobStorageService {
     }
 
     /**
+     * Adds or updates a single tag on an existing blob.
+     * All other existing tags are preserved.
+     *
+     * @param blobName Blob filename including extension (internal form)
+     * @param key      Tag key
+     * @param value    Tag value
+     */
+    public void addTag(String blobName, String key, String value) {
+        try {
+            BlobClient client = resolveContainer(blobName).getBlobClient(blobName);
+            Map<String, String> existing = client.getTags();
+            existing.put(key, value);
+            client.setTags(existing);
+        } catch (BlobStorageException ex) {
+            throw translateException(ex);
+        }
+    }
+
+    /**
      * Resolves a {@code fileId} (UUID without extension) to the internal blob filename
      * (UUID with extension) by probing both containers for a matching blob.
      *
@@ -565,6 +585,25 @@ public class BlobStorageService {
             log.warn("Could not fetch tags for '{}', falling back to generated name. Error: {}",
                     blobName, ex.getMessage());
             return blobName;
+        }
+    }
+
+    public byte[] downloadFileBytes(String blobName) {
+
+        try {
+
+            ByteArrayOutputStream outputStream =
+                    new ByteArrayOutputStream();
+
+            resolveContainer(blobName)
+                    .getBlobClient(blobName)
+                    .downloadStream(outputStream);
+
+            return outputStream.toByteArray();
+
+        } catch (BlobStorageException ex) {
+
+            throw translateException(ex);
         }
     }
 }

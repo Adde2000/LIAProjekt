@@ -90,7 +90,7 @@ class AzureAssistantClientTest {
         )).thenReturn(ResponseEntity.ok(response));
 
         // Act
-        String threadId = client.createThread();
+        String threadId = client.createThread("vs-test-123");
 
         // Assert
         assertEquals("thread-123", threadId);
@@ -108,7 +108,7 @@ class AzureAssistantClientTest {
 
         assertThrows(
                 AzureAssistantException.class,
-                () -> client.createThread()
+                () -> client.createThread("vs-test-123")
         );
     }
 
@@ -313,7 +313,7 @@ class AzureAssistantClientTest {
 
         assertThrows(
                 AzureAssistantException.class,
-                () -> client.createThread()
+                () -> client.createThread("vs-test-123")
         );
     }
 }
