@@ -25,6 +25,7 @@ import se.liaprojekt.repository.UserRepository;
 import se.liaprojekt.service.BlobStorageService;
 import se.liaprojekt.service.CurrentUserService;
 import se.liaprojekt.service.GraphService;
+import se.liaprojekt.service.ai.VectorStoreService;
 
 import java.util.*;
 
@@ -57,6 +58,9 @@ class CourseControllerTest {
 
     @MockBean
     private GraphService graphService;
+
+    @MockBean
+    private VectorStoreService vectorStoreService;
 
     private static final int NUMBER_OF_COURSES = 10;
     private static List<Course> preloadedCourses = new ArrayList<>();
@@ -223,6 +227,8 @@ class CourseControllerTest {
     @WithMockUser(roles = "Admin")
     void createCourse() {
         Mockito.when(currentUserService.getName()).thenReturn("Test");
+        Mockito.when(vectorStoreService.createVectorStore(Mockito.anyString()))
+                .thenReturn("vs_test");
 
         CourseRequest courseRequest = new CourseRequest(
                 "TestTitle",

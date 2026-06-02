@@ -18,6 +18,7 @@ import java.util.List;
 public class AiSessionInitService {
 
     private final AzureAssistantClient client;
+    private final VectorStoreService vectorStoreService;
 
     private final AiSessionRepository sessionRepo;
     private final UserRepository userRepo;
@@ -49,6 +50,7 @@ public class AiSessionInitService {
                                 "Course not found: " + courseId
                         )
                 );
+        vectorStoreService.initializeCourseVectorStore(course);
 
         // =========================
         // VALIDATE ASSISTANT
@@ -118,7 +120,15 @@ public class AiSessionInitService {
         // CREATE AZURE THREAD
         // =========================
 
-        String threadId = client.createThread();
+        String vectorStoreId = course.getVectorStoreId();
+
+        if (vectorStoreId == null || vectorStoreId.isBlank()) {
+            throw new IllegalStateException(
+                    "Course has no vector store configured"
+            );
+        }
+
+        String threadId = client.createThread(course.getVectorStoreId());
 
         // =========================
         // CREATE SESSION
