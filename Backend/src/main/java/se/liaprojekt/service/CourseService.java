@@ -80,7 +80,9 @@ public class CourseService {
                         ? request.aiSessionTtlWeeks()
                         : 6
         );
-        course.setCourseAdmin(userService.getUserById(request.courseAdminId()));
+        if(request.courseAdminId() != null) {
+            course.setCourseAdmin(userService.getUserById(request.courseAdminId()));
+        }
 
         // namn från JWT token
         course.setCreatedBy(
@@ -125,10 +127,18 @@ public class CourseService {
                         new ResourceNotFoundException("Course not found with id: " + id)
                 );
 
-        course.setTitle(request.title());
-        course.setDescription(request.description());
-        course.setAiSessionTtlWeeks(request.aiSessionTtlWeeks());
-        course.setCourseAdmin(userService.getUserById(request.courseAdminId()));
+        if(request.title() != null) {
+            course.setTitle(request.title());
+        }
+        if(request.description() != null) {
+            course.setDescription(request.description());
+        }
+        if (request.aiSessionTtlWeeks() != null) {
+            course.setAiSessionTtlWeeks(request.aiSessionTtlWeeks());
+        }
+        if(request.courseAdminId() != null) {
+            course.setCourseAdmin(userService.getUserById(request.courseAdminId()));
+        }
 
         return mapToResponse(courseRepository.save(course));
     }

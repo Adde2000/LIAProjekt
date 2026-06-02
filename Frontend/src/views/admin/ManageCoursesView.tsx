@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useMsal } from "@azure/msal-react";
 import type { CourseResponse, UserResponse, UserProgressResponse, LoadState, SectionResponse, AssistantAdminResponse } from "../../types";
 import { idle } from "../../types";
-import { getCourses, getCourseStudents, addStudentsToCourse, getUsers, deleteCourse, getAssistants, assignAssistantToCourse, getCourseSections as getSections, addCourseSection as addSection, uploadMaterial, deleteMaterial, getSectionMaterials } from "../../api/api";
+import { getCourses, getCourseStudents, addStudentsToCourse, getUsers, deleteCourse, getAssistants, assignAssistantToCourse, getCourseSections as getSections, addCourseSection as addSection, uploadMaterial, deleteMaterial, getSectionMaterials, updateCourse } from "../../api/api";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { pad } from "../../components/Shared";
 import { FetchState } from "../../components/FetchState";
@@ -303,6 +303,11 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
     const [assistants, setAssistants] = useState<AssistantAdminResponse[]>([]);
     const [selectedAssistant, setSelectedAssistant] = useState(course.assistantId ?? "");
 
+    const [courseAdmins, setCourseAdmins]       = useState<UserResponse[]>([]);
+    const [selectedCourseAdmin, setSelectedCourseAdmin] = useState<number | null>(null);
+    const [courseAdminStatus, setCourseAdminStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+    const [courseAdminError, setCourseAdminError]   = useState<string | null>(null);
+
     useEffect(() => {
         let cancelled = false;
 
@@ -358,7 +363,7 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
 
     const available = (allUsers.data ?? []).filter(
         (u) => !enrolledIds.has(u.id) &&
-               u.role.includes("participant") &&
+               u.role.includes("Participant") &&
                (u.displayName.toLowerCase().includes(search.toLowerCase()) ||
                (u.mail ?? "").toLowerCase().includes(search.toLowerCase()))
     );
@@ -438,6 +443,23 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
 
     }, [instance]);
 
+    useEffect(() => {
+        let cancelled = false;
+
+        getUsers(instance)
+            .then((data) => {
+                if (!cancelled && data) {
+                    const admins = (data as UserResponse[]).filter((u) =>
+                        u.role.some((r) => normaliseRole(r) === "courseAdmin")
+                    );
+                    setCourseAdmins(admins);
+                }
+            })
+            .catch(console.error);
+
+        return () => { cancelled = true; };
+    }, [instance]);
+
     async function handleAddSection() {
         const title = sectionTitle.trim();
         if (!title) return;
@@ -458,6 +480,23 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
         } catch (err) {
             setSectionError(err instanceof Error ? err.message : "Okänt fel");
             setSectionStatus("error");
+        }
+    }
+
+    async function handleSaveCourseAdmin() {
+        setCourseAdminStatus("saving");
+        setCourseAdminError(null);
+        try {
+            await updateCourse(instance, course.id, {
+                title: course.title,
+                description: course.description,
+                aiSessionTtlWeeks: null,
+                courseAdminId: selectedCourseAdmin,
+            });
+            setCourseAdminStatus("saved");
+        } catch (err) {
+            setCourseAdminError(err instanceof Error ? err.message : "Okänt fel");
+            setCourseAdminStatus("error");
         }
     }
 
@@ -541,6 +580,49 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
 
                         </select>
 
+                    </div>
+
+                    <div style={{ marginTop: "1rem" }}>
+                        <div className="vmv-section-head">Kursledare</div>
+
+                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                            <select
+                                className="vmv-mgmt-section-input"
+                                value={selectedCourseAdmin ?? ""}
+                                onChange={(e) =>
+                                    setSelectedCourseAdmin(
+                                        e.target.value ? Number(e.target.value) : null
+                                    )
+                                }
+                                disabled={courseAdminStatus === "saving"}
+                            >
+                                <option value="">Ingen kursledare</option>
+                                {courseAdmins.map((u) => (
+                                    <option key={u.id} value={u.id}>
+                                        {u.displayName}{u.mail ? ` — ${u.mail}` : ""}
+                                    </option>
+                                ))}
+                            </select>
+
+                            <button
+                                className="vmv-quiz-start"
+                                onClick={handleSaveCourseAdmin}
+                                disabled={courseAdminStatus === "saving"}
+                            >
+                                {courseAdminStatus === "saving" ? "Sparar..." : "Spara ↗"}
+                            </button>
+                        </div>
+
+                        {courseAdminStatus === "saved" && (
+                            <div className="vmv-form-feedback vmv-form-feedback--success" style={{ marginTop: "0.5rem" }}>
+                                ✓ Kursledare uppdaterad.
+                            </div>
+                        )}
+                        {courseAdminStatus === "error" && (
+                            <div className="vmv-form-feedback vmv-form-feedback--error" style={{ marginTop: "0.5rem" }}>
+                                Fel: {courseAdminError}
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className="vmv-mgmt-detail-header-actions">
