@@ -343,7 +343,6 @@ export async function addCourseSection(
 
 export async function createAiSession(
     instance: IPublicClientApplication,
-    userId: number,
     courseId: number,
 ) {
 
@@ -352,7 +351,7 @@ export async function createAiSession(
     const token = await getAccessToken(instance);
 
     return safePost(
-        `${BASE_URL}/api/ai/session?userId=${userId}&courseId=${courseId}`,
+        `${BASE_URL}/api/ai/session?&courseId=${courseId}`,
         token,
         {},
         "Failed to create AI session"
@@ -708,16 +707,4 @@ export async function updateCourse(
         console.error("Network/API failure:", err);
         throw err;
     }
-}
-
-export async function getMe(
-    instance: IPublicClientApplication
-): Promise<UserResponse | null> {
-    if (!BASE_URL) return null;
-    const token = await getAccessToken(instance);
-    return safeFetch(
-        `${BASE_URL}/api/users/me`,
-        token,
-        "Failed to fetch current user"
-    );
 }

@@ -7,8 +7,7 @@ import ChatWindow from "../components/ChatWindow";
 import {
     createAiSession,
     sendAiMessage,
-    getAiMessages,
-    getMe
+    getAiMessages
 } from "../api/api";
 
 import type { ChatMessage } from "../types";
@@ -46,23 +45,12 @@ export default function AIChatView({ courseId }: Props) {
                 setLoading(true);
 
                 // =========================
-                // GET CURRENT USER
-                // =========================
-
-                const me = await getMe(instance);
-
-                if (!me) throw new Error(
-                    "Could not get current user"
-                );
-
-                // =========================
                 // CREATE / REUSE SESSION
                 // =========================
 
                 const createdSessionId =
                     await createAiSession(
                         instance,
-                        me.id,
                         courseId
                     );
 

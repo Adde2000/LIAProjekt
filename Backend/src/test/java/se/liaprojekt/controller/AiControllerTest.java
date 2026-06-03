@@ -11,6 +11,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import se.liaprojekt.dto.*;
 import se.liaprojekt.model.AiSession;
+import se.liaprojekt.repository.UserRepository;
+import se.liaprojekt.service.CurrentUserService;
 import se.liaprojekt.service.ai.AiCharacterService;
 import se.liaprojekt.service.ai.AiChatService;
 import se.liaprojekt.service.ai.AiSessionInitService;
@@ -46,6 +48,9 @@ class AiControllerTest {
     @MockBean
     private AssistantAdminService assistantAdminService;
 
+    @MockBean
+    private CurrentUserService currentUserService;
+
     @Test
     void shouldChatSuccessfully() throws Exception {
 
@@ -66,15 +71,16 @@ class AiControllerTest {
 
     @Test
     void shouldCreateSession() throws Exception {
+        when(currentUserService.getEntraId()).thenReturn("1");
 
         AiSession session = new AiSession();
         session.setId(99L);
 
-        when(initService.createSession(1L, 2L))
+        when(initService.createSession("1", 2L))
                 .thenReturn(session);
 
         mockMvc.perform(post("/api/ai/session")
-                        .param("userId", "1")
+//                        .param("userId", "1")
                         .param("courseId", "2"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("99"));
