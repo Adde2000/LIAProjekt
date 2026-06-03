@@ -128,7 +128,7 @@ FUNCTION_STORAGE="${STORAGE_ACCOUNT}" # Delar storage med övriga prod-resurser
 MSI_NAME="oidc-msi-${ENV}"
 
 # Alerts – e-post för notifieringar
-####ALERT_EMAIL=""                 # Fyll i
+ALERT_EMAIL=""                 # Fyll i
 
 # Backend App Service URL (behövs för availability test)
 BACKEND_APP_URL="https://app-prod-api-f6cag3ctetdpc3gf.westeurope-01.azurewebsites.net/health"             # t.ex. https://app-prod-api.azurewebsites.net/health
