@@ -1,0 +1,9 @@
+//{
+//  "globalHeaders": {
+//    "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.azurefd.net https://*.blob.core.windows.net; media-src 'self' https://*.azurefd.net https://*.blob.core.windows.net; frame-src 'self' https://*.azurefd.net https://*.blob.core.windows.net; connect-src 'self' https://*.azurefd.net https://*.blob.core.windows.net; worker-src 'self' blob:; font-src 'self' data:;"
+//  },
+//  "navigationFallback": {
+//    "rewrite": "/index.html",
+//    "exclude": ["/assets/*", "/api/*"]
+//  }
+//}

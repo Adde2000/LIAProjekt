@@ -27,5 +27,4 @@ export const FILTERS: { key: FilterKey; label: string }[] = [
 export const VIEWS: { key: ViewKey; label: string }[] = [
     { key: "courses", label: "Alla Kurser" },
     { key: "admin",   label: "Admin"       },
-    { key: "aiChat", label: "AI Chat" },
 ];
