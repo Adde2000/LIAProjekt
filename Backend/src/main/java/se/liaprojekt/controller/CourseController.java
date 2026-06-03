@@ -12,8 +12,10 @@ import se.liaprojekt.dto.*;
 import se.liaprojekt.service.CourseService;
 import se.liaprojekt.service.SectionService;
 import se.liaprojekt.service.CurrentUserService;
+import se.liaprojekt.service.UserService;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/courses")
@@ -23,25 +25,33 @@ public class CourseController {
 
     private final CourseService courseService;
     private final SectionService sectionService;
+    private final UserService userService;
     private final CurrentUserService currentUserService;
 
-    //Admin
+    //(Admin/CourseAdmin)
     @GetMapping
-    @PreAuthorize(Roles.ADMIN)
+    @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<List<CourseResponse>> getAllCourses() {
-        return ResponseEntity.ok(courseService.getAllCourses());
+        Set<String> roles = currentUserService.getRoles();
+        if (roles.contains(Roles.ADMIN)) {
+            return ResponseEntity.ok(courseService.getAllCourses());
+        } else {
+            String entraId = currentUserService.getEntraId();
+            long userId = userService.getUserByEntraId(entraId).getId();
+            return ResponseEntity.ok(courseService.getAllCourses(userId));
+        }
     }
 
     //(Admin/CourseAdmin)
     @GetMapping("/{courseId}")
-    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
+    @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<CourseResponse> getCourseById(@PathVariable Long courseId) {
         return ResponseEntity.ok(courseService.getCourseById(courseId));
     }
 
     //(Admin/CourseAdmin)
     @GetMapping("/{courseId}/students")
-    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
+    @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<List<UserProgressResponse>> getCourseStudents(@PathVariable Long courseId) {
         logger.info("Get student list for course: {}", courseId);
         return ResponseEntity.ok(courseService.getStudentsInCourse(courseId));
@@ -49,7 +59,7 @@ public class CourseController {
 
     //(Admin)
     @PostMapping("/{courseId}/students")
-    @PreAuthorize(Roles.ADMIN)
+    @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<List<UserProgressResponse>> addStudentsToCourse(@PathVariable Long courseId, @RequestBody List<UserRequest> students) {
         logger.info("Adding students to course {}", courseId);
         return ResponseEntity.ok(courseService.addStudentsToCourse(courseId, students));
@@ -57,7 +67,7 @@ public class CourseController {
 
     //Admin
     @PostMapping
-    @PreAuthorize(Roles.ADMIN)
+    @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<CourseResponse> createCourse(@RequestBody CourseRequest courseRequest) {
         logger.info("Creating new course {}", courseRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(courseService.createCourse(courseRequest));
@@ -65,7 +75,7 @@ public class CourseController {
 
     //(Admin/CourseAdmin)
     @PostMapping("/{courseId}/sections")
-    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
+    @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<SectionResponse> addSection(
             @PathVariable Long courseId,
             @RequestBody SectionRequest request) {
@@ -95,7 +105,7 @@ public class CourseController {
 
     //(Admin/CourseAdmin)
     @PutMapping("/{courseId}")
-    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
+    @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<CourseResponse> updateCourse(
             @PathVariable Long courseId,
             @RequestBody CourseRequest courseRequest) {
@@ -105,7 +115,7 @@ public class CourseController {
 
     //Admin
     @DeleteMapping("/{courseId}")
-    @PreAuthorize(Roles.ADMIN)
+    @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<Void> deleteCourse(@PathVariable Long courseId) {
         courseService.deleteCourse(courseId);
         return ResponseEntity.noContent().build();
@@ -125,7 +135,7 @@ public class CourseController {
 
     //(Admin/CourseAdmin)
     @PutMapping("/{courseId}/assistant/{assistantId}")
-    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
+    @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<Void> assignAssistant(
             @PathVariable Long courseId,
             @PathVariable String assistantId

@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import se.liaprojekt.controller.util.Roles;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.model.AiSession;
+import se.liaprojekt.service.CurrentUserService;
 import se.liaprojekt.service.ai.AiCharacterService;
 import se.liaprojekt.service.ai.AiChatService;
 import se.liaprojekt.service.ai.AiSessionInitService;
@@ -23,6 +24,7 @@ public class AiController {
     private final AiSessionInitService initService;
     private final AiCharacterService aiCharacterService;
     private final AssistantAdminService assistantAdminService;
+    private final CurrentUserService currentUserService;
 
     /**
      * Send message to Azure Assistant thread
@@ -49,12 +51,13 @@ public class AiController {
     //ALL
     @PostMapping("/session")
     public ResponseEntity<Long> createSession(
-            @RequestParam Long userId,
             @RequestParam Long courseId
     ) {
 
+        String entraId = currentUserService.getEntraId();
+
         AiSession session = initService.createSession(
-                userId,
+                entraId,
                 courseId
         );
 
@@ -83,7 +86,7 @@ public class AiController {
      */
     //(Admin/CourseAdmin)
     @GetMapping("/assistants")
-    @PreAuthorize(Roles.ADMIN_OR_COURSE_ADMIN)
+    @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<List<AssistantAdminResponse>> getAssistants() {
 
         return ResponseEntity.ok(

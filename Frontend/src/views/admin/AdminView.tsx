@@ -3,23 +3,30 @@ import { UsersView } from "./UsersView";
 import { CreateCourseView } from "./CreateCourseView";
 import { ManageCoursesView } from "./ManageCoursesView.tsx";
 import { AssistantsView } from "./AssistantView";
+import { useHasRole } from "../../auth/useRoles";
 
 type AdminTab = "users" | "create-course" | "manage-courses" | "assistants";
 
-const ADMIN_TABS: { key: AdminTab; label: string }[] = [
-    { key: "users",          label: "Användare"      },
-    { key: "create-course",  label: "Ny kurs"        },
-    { key: "manage-courses", label: "Hantera kurser" },
-    { key: "assistants",     label: "AI Assistants"  },
+const ADMIN_TABS: { key: AdminTab; label: string; adminOnly?: boolean }[] = [
+    { key: "users",          label: "Användare",      adminOnly: true  },
+    { key: "create-course",  label: "Ny kurs",        adminOnly: true  },
+    { key: "manage-courses", label: "Hantera kurser", adminOnly: false },
+    { key: "assistants",     label: "AI Assistants",  adminOnly: true  },
 ];
 
 export function AdminView() {
-    const [tab, setTab] = useState<AdminTab>("users");
+    const isAdmin = useHasRole("admin");
+
+    const visibleTabs = ADMIN_TABS.filter((t) => isAdmin || !t.adminOnly);
+
+    const [tab, setTab] = useState<AdminTab>(
+        isAdmin ? "users" : "manage-courses"
+    );
 
     return (
         <>
             <div className="vmv-admin-submenu">
-                {ADMIN_TABS.map((t) => (
+                {visibleTabs.map((t) => (
                     <button
                         key={t.key}
                         className={`vmv-admin-subtab ${tab === t.key ? "active" : ""}`}
@@ -33,7 +40,7 @@ export function AdminView() {
             {tab === "users"          && <UsersView />}
             {tab === "create-course"  && <CreateCourseView />}
             {tab === "manage-courses" && <ManageCoursesView />}
-            {tab === "assistants" && <AssistantsView />}
+            {tab === "assistants"     && <AssistantsView />}
         </>
     );
 }

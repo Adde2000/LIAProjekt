@@ -25,7 +25,7 @@ public class AiSessionInitService {
     private final CourseRepository courseRepo;
 
     public AiSession createSession(
-            Long userId,
+            String entraId,
             Long courseId
     ) {
 
@@ -33,10 +33,10 @@ public class AiSessionInitService {
         // GET USER
         // =========================
 
-        User user = userRepo.findById(userId)
+        User user = userRepo.findByEntraId(entraId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "User not found: " + userId
+                                "User not found: " + entraId
                         )
                 );
 
@@ -70,7 +70,7 @@ public class AiSessionInitService {
 
         List<AiSession> existingSessions =
                 sessionRepo.findAllByUser_IdAndCourse_Id(
-                        userId,
+                        user.getId(),
                         courseId
                 );
 
