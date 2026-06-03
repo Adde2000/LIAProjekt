@@ -42,8 +42,9 @@ public class UserController {
 
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getCurrentUser() {
-        //TODO
-        return ResponseEntity.ok(null);
+        String entraId = currentUserService.getEntraId();
+        UserResponse user = userService.getUserResponseByEntraId(entraId);
+        return ResponseEntity.ok(user);
     }
 
     //Participant

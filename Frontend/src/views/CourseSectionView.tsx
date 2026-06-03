@@ -4,6 +4,7 @@ import type { CourseResponse, LoadState, SectionResponse } from "../types";
 import { getCourseSections, getSectionMaterials, getStreamToken, getDownloadUrl } from "../api/api";
 import { FetchState } from "../components/FetchState";
 import { QuizView } from "./QuizView";
+import AIChatView from "./AIChatView";
 
 interface Props {
     course: CourseResponse;
@@ -68,7 +69,6 @@ function SectionItem({ section, onOpen, onOpenQuiz }: { section: SectionResponse
         try {
             const isPdf = extOf(m.originalName) === "pdf";
             if (isPdf) {
-                // PDFs use the download endpoint — no stream token needed
                 onOpen({ material: m, streamUrl: "", fileId: m.fileId, expiresIn: 0 });
             } else {
                 const result = await getStreamToken(instance, m.fileId);
@@ -81,8 +81,6 @@ function SectionItem({ section, onOpen, onOpenQuiz }: { section: SectionResponse
             setOpeningId(null);
         }
     }
-
-
 
     function handleToggle() {
         if (section.isLocked) return;
@@ -161,7 +159,6 @@ function SectionItem({ section, onOpen, onOpenQuiz }: { section: SectionResponse
                         )}
                     </div>
                 )}
-
             </div>
 
             {streamError && (
@@ -185,7 +182,6 @@ function SectionItem({ section, onOpen, onOpenQuiz }: { section: SectionResponse
 function MediaView({ stream, onBack }: { stream: ActiveStream; onBack: () => void }) {
     const { instance } = useMsal();
     const [videoUrl, setVideoUrl] = useState(stream.streamUrl);
-
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [pdfError, setPdfError] = useState<string | null>(null);
     const ext = extOf(stream.material.originalName);
@@ -207,16 +203,12 @@ function MediaView({ stream, onBack }: { stream: ActiveStream; onBack: () => voi
     }
 
     useEffect(() => {
-        if (isVideo) {
-            scheduleRefresh(stream.expiresIn);
-        }
-
+        if (isVideo) scheduleRefresh(stream.expiresIn);
         if (isPdf) {
             getDownloadUrl(instance, stream.fileId)
                 .then((sasUrl) => setPdfUrl(sasUrl))
                 .catch((err) => setPdfError(err instanceof Error ? err.message : "Kunde inte ladda PDF"));
         }
-
         return () => {
             if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
         };
@@ -227,19 +219,11 @@ function MediaView({ stream, onBack }: { stream: ActiveStream; onBack: () => voi
             <button className="vmv-back-btn" onClick={onBack}>
                 ← Tillbaka
             </button>
-
             <div className="vmv-section-head">{stream.material.originalName}</div>
-
             <div className="vmv-media-view">
                 {isVideo && (
-                    <video
-                        className="vmv-media-view-video"
-                        src={videoUrl}
-                        controls
-                        autoPlay
-                    />
+                    <video className="vmv-media-view-video" src={videoUrl} controls autoPlay />
                 )}
-
                 {isPdf && pdfLoading && (
                     <div className="vmv-section-material-status">Laddar PDF…</div>
                 )}
@@ -249,11 +233,7 @@ function MediaView({ stream, onBack }: { stream: ActiveStream; onBack: () => voi
                     </div>
                 )}
                 {isPdf && pdfUrl && (
-                    <iframe
-                        className="vmv-media-view-pdf"
-                        src={pdfUrl}
-                        title={stream.material.originalName}
-                    />
+                    <iframe className="vmv-media-view-pdf" src={pdfUrl} title={stream.material.originalName} />
                 )}
                 {!isVideo && !isPdf && (
                     <div className="vmv-section-material-status">
@@ -271,6 +251,7 @@ export function CourseSectionView({ course, onBack }: Props) {
     const { instance } = useMsal();
     const [activeStream, setActiveStream] = useState<ActiveStream | null>(null);
     const [quizSection, setQuizSection]   = useState<SectionResponse | null>(null);
+    const [showChat, setShowChat]         = useState(false);
     const [fetchKey, setFetchKey] = useState(0);
     const [state, setState] = useState<LoadState<SectionResponse[]>>({
         data: null,
@@ -282,7 +263,6 @@ export function CourseSectionView({ course, onBack }: Props) {
 
     useEffect(() => {
         let cancelled = false;
-
         getCourseSections(instance, course.id)
             .then((data) => {
                 if (!cancelled)
@@ -290,17 +270,11 @@ export function CourseSectionView({ course, onBack }: Props) {
             })
             .catch(() => {
                 if (!cancelled)
-                    setState({
-                        data: null,
-                        loading: false,
-                        error: "Kunde inte hämta kursens avsnitt.",
-                    });
+                    setState({ data: null, loading: false, error: "Kunde inte hämta kursens avsnitt." });
             });
-
         return () => { cancelled = true; };
     }, [instance, course.id, fetchKey]);
 
-    // Sort by orderIndex so display order always matches the server's intent
     const sorted = [...(state.data ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
 
     if (quizSection) {
@@ -316,7 +290,6 @@ export function CourseSectionView({ course, onBack }: Props) {
 
     return (
         <>
-            {/* ── Back button + course header ── */}
             <button className="vmv-back-btn" onClick={onBack}>
                 ← Tillbaka
             </button>
@@ -332,6 +305,16 @@ export function CourseSectionView({ course, onBack }: Props) {
             <div className="vmv-course-section-meta">
                 Skapad av {course.createdBy}
             </div>
+
+            {/* ── AI Chat toggle ── */}
+            <button
+                className="vmv-quiz-start"
+                onClick={() => setShowChat((prev) => !prev)}
+            >
+                {showChat ? "Stäng AI-assistenten" : "Öppna AI-assistenten 🤖"}
+            </button>
+
+            {showChat && <AIChatView courseId={course.id} />}
 
             {/* ── Sections list ── */}
             <div className="vmv-section-head vmv-section-head--sub">Avsnitt</div>

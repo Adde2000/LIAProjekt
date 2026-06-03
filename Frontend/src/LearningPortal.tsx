@@ -6,7 +6,6 @@ import type { ViewKey } from "./types";
 import { VIEWS } from "./data";
 import { CoursesView } from "./views/CoursesView";
 import { AdminView }   from "./views/admin/AdminView";
-import AIChatView from "./views/AIChatView";
 
 // CSS — one import per concern, all pulled in here
 import "./styles/global.css";
@@ -47,13 +46,13 @@ export default function LearningPortal() {
                 <CoursesView />
             </RequireRole>
         ),
-        quizzes: <></>,          // reserved for future QuizzesView
+        quizzes: <></>,
         admin: (
             <RequireRole role={["admin", "courseAdmin"]}>
                 <AdminView />
             </RequireRole>
         ),
-        aiChat: <AIChatView />,
+        aiChat:  <></>,
     };
 
     // Hide nav tabs the user has no access to
