@@ -78,6 +78,22 @@ public class AiChatService {
         );
 
         // =========================
+        // ATTACH COURSE VECTOR STORE
+        // =========================
+
+        String vectorStoreId = session
+                .getCourse()
+                .getVectorStoreId();
+
+        if (vectorStoreId == null ||
+                vectorStoreId.isBlank()) {
+
+            throw new BadRequestException(
+                    "Course has no vector store"
+            );
+        }
+
+        // =========================
         // CREATE RUN
         // =========================
 

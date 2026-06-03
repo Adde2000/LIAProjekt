@@ -4,7 +4,6 @@ import type { ViewKey } from "./types";
 import { VIEWS } from "./data";
 import { CoursesView } from "./views/CoursesView";
 import { AdminView }   from "./views/admin/AdminView";
-import AIChatView from "./views/AIChatView";
 
 // CSS — one import per concern, all pulled in here
 import "./styles/global.css";
@@ -24,9 +23,9 @@ export default function LearningPortal() {
 
     const viewMap: Record<ViewKey, JSX.Element> = {
         courses: <CoursesView />,
-        quizzes: <></>,          // reserved for future QuizzesView
+        quizzes: <></>,
         admin:   <AdminView />,
-        aiChat: <AIChatView />,
+        aiChat:  <></>,
     };
 
     return (

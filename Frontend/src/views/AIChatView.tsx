@@ -7,14 +7,19 @@ import ChatWindow from "../components/ChatWindow";
 import {
     createAiSession,
     sendAiMessage,
-    getAiMessages
+    getAiMessages,
+    getMe
 } from "../api/api";
 
 import type { ChatMessage } from "../types";
 
 import "../styles/ai-chat.css";
 
-export default function AIChatView() {
+interface Props {
+    courseId: number;
+}
+
+export default function AIChatView({ courseId }: Props) {
 
     const { instance } = useMsal();
 
@@ -27,25 +32,11 @@ export default function AIChatView() {
     const [sessionId, setSessionId] =
         useState<number | null>(null);
 
-    /**
-     * Prevent duplicate session creation
-     * caused by React StrictMode
-     */
     const initialized = useRef(false);
 
-    /**
-     * Create or reuse AI session
-     * and load history
-     */
     useEffect(() => {
 
-        /**
-         * Prevent double execution
-         */
-        if (initialized.current) {
-            return;
-        }
-
+        if (initialized.current) return;
         initialized.current = true;
 
         const initializeSession = async () => {
@@ -55,22 +46,27 @@ export default function AIChatView() {
                 setLoading(true);
 
                 // =========================
+                // GET CURRENT USER
+                // =========================
+
+                const me = await getMe(instance);
+
+                if (!me) throw new Error(
+                    "Could not get current user"
+                );
+
+                // =========================
                 // CREATE / REUSE SESSION
                 // =========================
 
                 const createdSessionId =
                     await createAiSession(
                         instance,
-                        1, // userId
-                        1  // courseId
+                        me.id,
+                        courseId
                     );
 
                 setSessionId(createdSessionId);
-
-                console.log(
-                    "AI session ready:",
-                    createdSessionId
-                );
 
                 // =========================
                 // LOAD HISTORY
@@ -82,10 +78,6 @@ export default function AIChatView() {
                         createdSessionId
                     );
 
-                /**
-                 * Backend already returns history
-                 * from Azure thread
-                 */
                 setMessages(history);
 
             } catch (error) {
@@ -103,103 +95,54 @@ export default function AIChatView() {
 
         initializeSession();
 
-    }, [instance]);
+    }, [instance, courseId]);
 
-    /**
-     * Send message to AI
-     */
-    const sendMessage = async (
-        text: string
-    ) => {
+    const sendMessage = async (text: string) => {
 
-        /**
-         * Ensure session exists
-         */
         if (!sessionId) {
-
-            console.error(
-                "No AI session available"
-            );
-
+            console.error("No AI session available");
             return;
         }
-
-        // =========================
-        // USER MESSAGE
-        // =========================
 
         const userMessage: ChatMessage = {
             id: crypto.randomUUID(),
             role: "user",
             content: text,
-            timestamp: new Date()
-                .toLocaleTimeString(),
+            timestamp: new Date().toLocaleTimeString(),
         };
 
-        /**
-         * Show immediately
-         */
-        setMessages((prev) => [
-            ...prev,
-            userMessage
-        ]);
-
+        setMessages((prev) => [...prev, userMessage]);
         setLoading(true);
 
         try {
 
-            // =========================
-            // SEND TO BACKEND
-            // =========================
-
-            const data =
-                await sendAiMessage(
-                    instance,
-                    sessionId,
-                    text
-                );
-
-            // =========================
-            // AI RESPONSE
-            // =========================
+            const data = await sendAiMessage(
+                instance,
+                sessionId,
+                text
+            );
 
             const aiMessage: ChatMessage = {
                 id: crypto.randomUUID(),
                 role: "assistant",
                 content: data.response,
-                timestamp: new Date()
-                    .toLocaleTimeString(),
+                timestamp: new Date().toLocaleTimeString(),
             };
 
-            setMessages((prev) => [
-                ...prev,
-                aiMessage
-            ]);
+            setMessages((prev) => [...prev, aiMessage]);
 
         } catch (error) {
 
-            console.error(
-                "Failed to send message",
-                error
-            );
-
-            // =========================
-            // ERROR MESSAGE
-            // =========================
+            console.error("Failed to send message", error);
 
             const errorMessage: ChatMessage = {
                 id: crypto.randomUUID(),
                 role: "assistant",
-                content:
-                    "Something went wrong while contacting the AI assistant.",
-                timestamp: new Date()
-                    .toLocaleTimeString(),
+                content: "Something went wrong while contacting the AI assistant.",
+                timestamp: new Date().toLocaleTimeString(),
             };
 
-            setMessages((prev) => [
-                ...prev,
-                errorMessage
-            ]);
+            setMessages((prev) => [...prev, errorMessage]);
 
         } finally {
 
@@ -208,23 +151,12 @@ export default function AIChatView() {
     };
 
     return (
-
         <div className="ai-chat-page">
-
             <div className="chat-header">
                 <h1>AI Assistant</h1>
             </div>
-
-            <ChatWindow
-                messages={messages}
-                loading={loading}
-            />
-
-            <ChatInput
-                onSend={sendMessage}
-                loading={loading || !sessionId}
-            />
-
+            <ChatWindow messages={messages} loading={loading} />
+            <ChatInput onSend={sendMessage} loading={loading || !sessionId} />
         </div>
     );
 }

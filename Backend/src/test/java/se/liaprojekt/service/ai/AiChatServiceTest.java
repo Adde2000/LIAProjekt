@@ -35,12 +35,13 @@ class AiChatServiceTest {
     private AiChatService service;
 
     private AiSession session;
+    private Course course;
 
     @BeforeEach
     void setUp() {
-
-        Course course = new Course();
+        course = new Course();
         course.setAssistantId("assistant-123");
+        course.setVectorStoreId("vs-123");
 
         session = new AiSession();
         session.setId(1L);
@@ -51,187 +52,152 @@ class AiChatServiceTest {
 
     @Test
     void shouldChatSuccessfully() {
-
         // Arrange
-        when(repo.findById(1L))
-                .thenReturn(Optional.of(session));
-
-        when(client.createRun(
-                "thread-1",
-                "assistant-123"
-        )).thenReturn("run-1");
-
-        when(client.waitForCompletion(
-                "thread-1",
-                "run-1"
-        )).thenReturn("AI response");
+        when(repo.findById(1L)).thenReturn(Optional.of(session));
+        when(client.createRun("thread-1", "assistant-123")).thenReturn("run-1");
+        when(client.waitForCompletion("thread-1", "run-1")).thenReturn("AI response");
+        when(repo.save(any(AiSession.class))).thenReturn(session);
 
         // Act
-        String result = service.chat(
-                1L,
-                "Hello AI"
-        );
+        String result = service.chat(1L, "Hello AI");
 
         // Assert
         assertEquals("AI response", result);
 
-        verify(client).addMessage(
-                "thread-1",
-                "Hello AI"
-        );
-
-        verify(client).createRun(
-                "thread-1",
-                "assistant-123"
-        );
-
+        verify(client).addMessage("thread-1", "Hello AI");
+        verify(client).createRun("thread-1", "assistant-123");
         verify(repo).save(session);
-
-        verify(client).waitForCompletion(
-                "thread-1",
-                "run-1"
-        );
+        verify(client).waitForCompletion("thread-1", "run-1");
     }
 
     @Test
     void shouldThrowWhenMessageIsNull() {
-
-        BadRequestException exception =
-                assertThrows(
-                        BadRequestException.class,
-                        () -> service.chat(1L, null)
-                );
-
-        assertEquals(
-                "Message cannot be empty",
-                exception.getMessage()
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> service.chat(1L, null)
         );
+
+        assertEquals("Message cannot be empty", exception.getMessage());
+        verifyNoInteractions(repo, client);
     }
 
     @Test
     void shouldThrowWhenMessageIsBlank() {
-
-        BadRequestException exception =
-                assertThrows(
-                        BadRequestException.class,
-                        () -> service.chat(1L, " ")
-                );
-
-        assertEquals(
-                "Message cannot be empty",
-                exception.getMessage()
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> service.chat(1L, " ")
         );
+
+        assertEquals("Message cannot be empty", exception.getMessage());
+        verifyNoInteractions(repo, client);
     }
 
     @Test
     void shouldThrowWhenMessageTooLong() {
-
+        // Arrange
         String longMessage = "a".repeat(5001);
 
-        BadRequestException exception =
-                assertThrows(
-                        BadRequestException.class,
-                        () -> service.chat(1L, longMessage)
-                );
-
-        assertTrue(
-                exception.getMessage()
-                        .contains("Message exceeds max length")
+        // Act + Assert
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> service.chat(1L, longMessage)
         );
+
+        // FIX: Ändrad till den exakta strängen som din klass nu bygger upp dynamically
+        assertEquals("Message exceeds max length of 5000 characters", exception.getMessage());
+        verifyNoInteractions(repo, client);
     }
 
     @Test
     void shouldThrowWhenSessionNotFound() {
+        // Arrange
+        when(repo.findById(1L)).thenReturn(Optional.empty());
 
-        when(repo.findById(1L))
-                .thenReturn(Optional.empty());
-
-        ResourceNotFoundException exception =
-                assertThrows(
-                        ResourceNotFoundException.class,
-                        () -> service.chat(1L, "Hello")
-                );
-
-        assertEquals(
-                "AI session not found",
-                exception.getMessage()
+        // Act + Assert
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> service.chat(1L, "Hello")
         );
+
+        assertEquals("AI session not found", exception.getMessage());
+        verifyNoInteractions(client);
     }
 
     @Test
     void shouldThrowWhenAssistantIdMissing() {
-
         // Arrange
-        Course course = new Course();
-        course.setAssistantId(null);
+        course.setAssistantId(null); // Eller ""
 
-        session.setCourse(course);
-
-        when(repo.findById(1L))
-                .thenReturn(Optional.of(session));
+        when(repo.findById(1L)).thenReturn(Optional.of(session));
 
         // Act + Assert
-        BadRequestException exception =
-                assertThrows(
-                        BadRequestException.class,
-                        () -> service.chat(1L, "Hello")
-                );
-
-        assertEquals(
-                "No assistant assigned to course",
-                exception.getMessage()
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> service.chat(1L, "Hello")
         );
+
+        assertEquals("No assistant assigned to course", exception.getMessage());
+        verifyNoInteractions(client);
+        verify(repo, never()).save(any(AiSession.class));
+    }
+
+    // Validerar fallet där vector store saknas mitt i chat-metoden
+    @Test
+    void shouldThrowWhenVectorStoreMissingDuringChat() {
+        // Arrange
+        course.setVectorStoreId(null); // Sätter till null för att trigga felet
+
+        when(repo.findById(1L)).thenReturn(Optional.of(session));
+
+        // Act + Assert
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> service.chat(1L, "Hello")
+        );
+
+        assertEquals("Course has no vector store", exception.getMessage());
+
+        // Verifierar att addMessage hinner köras
+        verify(client).addMessage("thread-1", "Hello");
+
+        // Men vi ska ALDRIG skapa en run eller spara sessionen efter detta fel
+        verify(client, never()).createRun(anyString(), anyString());
+        verify(repo, never()).save(any(AiSession.class));
     }
 
     @Test
     void shouldGetHistory() {
-
         // Arrange
-        ChatHistoryMessage message =
-                new ChatHistoryMessage(
-                        "user",
-                        "Hej"
-                );
+        ChatHistoryMessage message = new ChatHistoryMessage("user", "Hej");
 
-        when(repo.findById(1L))
-                .thenReturn(Optional.of(session));
-
-        when(client.getThreadMessages("thread-1"))
-                .thenReturn(List.of(message));
+        when(repo.findById(1L)).thenReturn(Optional.of(session));
+        when(client.getThreadMessages("thread-1")).thenReturn(List.of(message));
 
         // Act
-        List<ChatHistoryMessage> result =
-                service.getHistory(1L);
+        List<ChatHistoryMessage> result = service.getHistory(1L);
 
         // Assert
+        assertNotNull(result);
         assertEquals(1, result.size());
+        assertEquals("user", result.get(0).getRole());
+        assertEquals("Hej", result.get(0).getContent());
 
-        assertEquals(
-                "user",
-                result.get(0).getRole()
-        );
-
-        assertEquals(
-                "Hej",
-                result.get(0).getContent()
-        );
+        verify(repo).findById(1L);
+        verify(client).getThreadMessages("thread-1");
     }
 
     @Test
     void shouldThrowWhenHistorySessionNotFound() {
+        // Arrange
+        when(repo.findById(1L)).thenReturn(Optional.empty());
 
-        when(repo.findById(1L))
-                .thenReturn(Optional.empty());
-
-        ResourceNotFoundException exception =
-                assertThrows(
-                        ResourceNotFoundException.class,
-                        () -> service.getHistory(1L)
-                );
-
-        assertEquals(
-                "AI session not found",
-                exception.getMessage()
+        // Act + Assert
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> service.getHistory(1L)
         );
+
+        assertEquals("AI session not found", exception.getMessage());
+        verifyNoInteractions(client);
     }
 }

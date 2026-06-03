@@ -13,12 +13,16 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import se.liaprojekt.controller.util.Roles;
 import se.liaprojekt.controller.util.SupportedMediaTypeResolver;
 import se.liaprojekt.exception.BadRequestException;
+import se.liaprojekt.model.Course;
 import se.liaprojekt.service.BlobStorageService;
 import se.liaprojekt.service.BlobStorageService.FileEntry;
+import se.liaprojekt.service.CourseService;
 import se.liaprojekt.service.StreamTokenService;
 
 import java.io.IOException;
 import org.springframework.web.bind.annotation.RequestParam;
+import se.liaprojekt.service.ai.VectorStoreService;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -51,13 +55,19 @@ public class BlobStorageController {
     private final BlobStorageService blobStorageService;
     private final SupportedMediaTypeResolver mediaTypeResolver;
     private final StreamTokenService streamTokenService;
+    private final VectorStoreService vectorStoreService;   // ADD
+    private final CourseService courseService;
 
     public BlobStorageController(BlobStorageService blobStorageService,
                                  SupportedMediaTypeResolver mediaTypeResolver,
-                                 StreamTokenService streamTokenService) {
+                                 StreamTokenService streamTokenService,
+                                 VectorStoreService vectorStoreService,    // ADD
+                                 CourseService courseService) {
         this.blobStorageService = blobStorageService;
         this.mediaTypeResolver = mediaTypeResolver;
         this.streamTokenService = streamTokenService;
+        this.vectorStoreService = vectorStoreService;      // ADD
+        this.courseService = courseService;
     }
 
     // -------------------------------------------------------------------------
@@ -92,6 +102,16 @@ public class BlobStorageController {
         log.debug("Uploading file '{}' with sectionId '{}'", originalFileName, sectionId);
         String fileId = blobStorageService.uploadFile(
                 originalFileName, file.getInputStream(), file.getSize(), sectionId);
+
+        // Synka PDF till vector store via sectionId → course
+        if (originalFileName.toLowerCase().endsWith(".pdf")) {
+            try {
+                Course course = courseService.getCourseBySection(Long.parseLong(sectionId));
+                vectorStoreService.uploadFileToVectorStore(course, fileId);
+            } catch (Exception ex) {
+                log.warn("Could not sync PDF {} to vector store — blob upload succeeded", fileId);
+            }
+        }
 
         return ResponseEntity.ok(Map.of(
                 "fileId", fileId,
@@ -273,6 +293,30 @@ public class BlobStorageController {
     public ResponseEntity<String> delete(@PathVariable String fileId) {
         log.debug("Deleting fileId '{}'", fileId);
         String blobName = blobStorageService.resolveBlobName(fileId);
+
+        // Ta bort från vector store om filen är en PDF
+        Map<String, String> tags = blobStorageService.getFileTags(blobName);
+        log.info("Blob tags: {}", tags);
+        String sectionId = tags.get("sectionId");
+
+        if (sectionId != null) {
+            try {
+                Course course = courseService.getCourseBySection(Long.parseLong(sectionId));
+                String vectorStoreId = course.getVectorStoreId();
+
+                if (vectorStoreId != null) {
+                    String openAiFileId = tags.get("openAiFileId_" + vectorStoreId);
+
+                    if (openAiFileId != null) {
+                        log.info("Removing OpenAI file {} from vector store {}", openAiFileId, vectorStoreId);
+                        vectorStoreService.removeFileFromVectorStore(vectorStoreId, openAiFileId);
+                    }
+                }
+            } catch (Exception ex) {
+                log.error("Failed removing OpenAI file from vector store", ex);
+            }
+        }
+
         blobStorageService.deleteFile(blobName);
         return ResponseEntity.ok("Deleted: " + fileId);
     }

@@ -121,6 +121,12 @@ public class UserService {
         userRepository.deleteAll(usersInDataBaseMap.values());
     }
 
+    public UserResponse getUserResponseByEntraId(String entraId) {
+        User user = getUserByEntraId(entraId);
+        GraphResponse graphResponse = graphService.getUserByEntraId(entraId);
+        return mapToResponse(user, graphResponse);
+    }
+
     private User graphResponseToUser(GraphResponse graphResponse) {
         return User.builder()
                 .entraId(graphResponse.id())
