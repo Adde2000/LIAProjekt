@@ -1,12 +1,14 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
-import type { CourseResponse, UserResponse, UserProgressResponse, LoadState, SectionResponse, AssistantAdminResponse } from "../../types";
-import { idle } from "../../types";
-import { getCourses, getCourseStudents, addStudentsToCourse, getUsers, deleteCourse, getAssistants, assignAssistantToCourse, getCourseSections as getSections, addCourseSection as addSection, uploadMaterial, deleteMaterial, getSectionMaterials } from "../../api/api";
+import type { CourseResponse, UserResponse, AssistantAdminResponse, LoadState } from "../../types";
+import { getCourses, deleteCourse, getAssistants, assignAssistantToCourse, getUsers, updateCourse } from "../../api/api";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
-import { pad } from "../../components/Shared";
 import { FetchState } from "../../components/FetchState";
-import { SectionQuizView } from "./SectionQuizView";
+import { useHasRole } from "../../auth/useRoles";
+import { normaliseRole } from "../../utils/roles";
+import { pad } from "../../components/Shared";
+import { CourseStudentsPanel } from "../../components/CourseStudentsPanel";
+import { CourseSectionsPanel } from "../../components/CourseSectionsPanel";
 
 // ── Course list panel ─────────────────────────────────────────────────────────
 
@@ -35,238 +37,10 @@ function CourseList({
                                 ? c.description.slice(0, 60) + "…"
                                 : c.description}
                         </div>
-                        <div className="vmv-mgmt-course-by">
-                            Skapad av: {c.createdBy}
-                        </div>
+                        <div className="vmv-mgmt-course-by">Skapad av: {c.createdBy}</div>
                     </div>
                 </div>
             ))}
-        </div>
-    );
-}
-
-// ── Student row ───────────────────────────────────────────────────────────────
-
-function StudentRow({ user, progress, index, action, checked, onToggle }: {
-    user: UserResponse;
-    progress?: { completedSections: number; progressPercentage: number };
-    index: number;
-    action?: React.ReactNode;
-    checked?: boolean;
-    onToggle?: () => void;
-}) {
-    const selectable = onToggle !== undefined;
-    return (
-        <div
-            className={`vmv-mgmt-student-row${selectable ? " vmv-mgmt-student-row--selectable" : ""}`}
-            onClick={selectable ? onToggle : undefined}
-        >
-            {selectable && (
-                <span className="vmv-mgmt-student-check">
-                    <input
-                        type="checkbox"
-                        checked={!!checked}
-                        onChange={onToggle}
-                        onClick={(e) => e.stopPropagation()}
-                    />
-                </span>
-            )}
-            <span className="vmv-user-id">{pad(index + 1)}</span>
-            <span className="vmv-user-name">{user.displayName}</span>
-            <span className="vmv-user-email">{user.mail ?? <span style={{ opacity: 0.4, fontStyle: "italic" }}>–</span>}</span>
-            <span className="vmv-role-badges">
-                {user.role.map((r) => (
-                    <span key={r} className="vmv-mgmt-role-badge">{r}</span>
-                ))}
-            </span>
-            {progress !== undefined && (
-                <>
-                    <span className="vmv-user-progress-sections">{progress.completedSections}</span>
-                    <span className="vmv-user-progress-pct">
-                        <span
-                            className="vmv-user-progress-bar"
-                            style={{ width: `${progress.progressPercentage}%` }}
-                        />
-                        <span className="vmv-user-progress-label">{progress.progressPercentage}%</span>
-                    </span>
-                </>
-            )}
-            {action && <span>{action}</span>}
-        </div>
-    );
-}
-
-// ── Section row with material upload/delete ───────────────────────────────────
-
-const ACCEPTED_TYPES = ".pdf,.mp4,.mov,.avi,.mkv";
-
-interface MaterialItem {
-    fileId: string;
-    originalName: string;
-}
-
-function extOf(filename: string): string {
-    return filename.split(".").pop()?.toLowerCase() ?? "";
-}
-
-function fileIcon(ext: string) {
-    if (ext === "pdf") return "📄";
-    if (["mp4", "mov", "avi", "mkv"].includes(ext)) return "🎬";
-    return "📎";
-}
-
-function SectionRow({ section, index, onOpenQuiz }: { section: SectionResponse; index: number; onOpenQuiz: (s: SectionResponse) => void }) {
-    const { instance } = useMsal();
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const [expanded,    setExpanded]    = useState(false);
-    const [materials,   setMaterials]   = useState<MaterialItem[]>([]);
-    const [loadingFiles, setLoadingFiles] = useState(false);
-    const [loadErr,     setLoadErr]     = useState<string | null>(null);
-    const [uploading,   setUploading]   = useState(false);
-    const [uploadErr,   setUploadErr]   = useState<string | null>(null);
-    const [deleting,    setDeleting]    = useState<string | null>(null);
-    const [deleteErr,   setDeleteErr]   = useState<string | null>(null);
-    const fetchedRef = useRef(false);
-
-    async function loadMaterials() {
-        setLoadingFiles(true);
-        setLoadErr(null);
-        try {
-            const result = await getSectionMaterials(instance, section.id) as MaterialItem[];
-            setMaterials(result ?? []);
-        } catch (err) {
-            setLoadErr(err instanceof Error ? err.message : "Kunde inte hämta filer");
-        } finally {
-            setLoadingFiles(false);
-        }
-    }
-
-    function handleToggle() {
-        setExpanded((prev) => {
-            if (!prev && !fetchedRef.current) {
-                fetchedRef.current = true;
-                loadMaterials();
-            }
-            return !prev;
-        });
-    }
-
-    async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        // Reset input so the same file can be re-uploaded if needed
-        e.target.value = "";
-
-        setUploading(true);
-        setUploadErr(null);
-
-        try {
-            const result = await uploadMaterial(instance, section.id, file) as MaterialItem;
-            setMaterials((prev) => [...prev, result]);
-        } catch (err) {
-            setUploadErr(err instanceof Error ? err.message : "Okänt fel vid uppladdning");
-        } finally {
-            setUploading(false);
-        }
-    }
-
-    async function handleDelete(fileId: string) {
-        setDeleting(fileId);
-        setDeleteErr(null);
-
-        try {
-            await deleteMaterial(instance, fileId);
-            setMaterials((prev) => prev.filter((m) => m.fileId !== fileId));
-        } catch (err) {
-            setDeleteErr(err instanceof Error ? err.message : "Okänt fel vid borttagning");
-        } finally {
-            setDeleting(null);
-        }
-    }
-
-    return (
-        <div className="vmv-mgmt-section-row-wrap">
-            <div
-                className={`vmv-mgmt-section-row vmv-mgmt-section-row--clickable ${expanded ? "expanded" : ""}`}
-                onClick={handleToggle}
-            >
-                <span className="vmv-mgmt-section-num">{pad(index + 1)}</span>
-                <span className="vmv-mgmt-section-title">{section.title}</span>
-                <span className="vmv-mgmt-section-chevron">{expanded ? "▲" : "▼"}</span>
-            </div>
-
-            {expanded && (
-                <div className="vmv-mgmt-material-panel">
-                    {/* Material list */}
-                    {loadingFiles ? (
-                        <div className="vmv-mgmt-material-empty">Hämtar filer…</div>
-                    ) : loadErr ? (
-                        <div className="vmv-form-feedback vmv-form-feedback--error">Fel: {loadErr}</div>
-                    ) : materials.length === 0 ? (
-                        <div className="vmv-mgmt-material-empty">Inget material uppladdat ännu.</div>
-                    ) : (
-                        <div className="vmv-mgmt-material-list">
-                            {materials.map((m) => (
-                                <div key={m.fileId} className="vmv-mgmt-material-row">
-                                    <span className="vmv-mgmt-material-icon">{fileIcon(extOf(m.originalName))}</span>
-                                    <span className="vmv-mgmt-material-name">{m.originalName}</span>
-                                    <span className="vmv-mgmt-material-type">{extOf(m.originalName).toUpperCase()}</span>
-                                    <button
-                                        className="vmv-mgmt-material-delete"
-                                        disabled={deleting === m.fileId}
-                                        onClick={(e) => { e.stopPropagation(); handleDelete(m.fileId); }}
-                                        title="Ta bort"
-                                    >
-                                        {deleting === m.fileId ? "…" : "✕"}
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {deleteErr && (
-                        <div className="vmv-form-feedback vmv-form-feedback--error" style={{ marginTop: "0.5rem" }}>
-                            Fel: {deleteErr}
-                        </div>
-                    )}
-
-                    {/* Upload action */}
-                    <div className="vmv-mgmt-material-footer">
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept={ACCEPTED_TYPES}
-                            style={{ display: "none" }}
-                            onChange={handleFileChange}
-                        />
-                        <button
-                            className="vmv-quiz-start"
-                            disabled={uploading}
-                            onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                        >
-                            {uploading ? "Laddar upp…" : "Ladda upp material ↗"}
-                        </button>
-                        {uploadErr && (
-                            <span className="vmv-form-feedback vmv-form-feedback--error">Fel: {uploadErr}</span>
-                        )}
-                    </div>
-
-                    {/* ── Quiz link ─────────────────────────────────────────── */}
-                    <div className="vmv-mgmt-quiz-section" onClick={(e) => e.stopPropagation()}>
-                        <div className="vmv-mgmt-quiz-header">
-                            <span className="vmv-mgmt-quiz-label">Quiz</span>
-                            <button
-                                className="vmv-quiz-start"
-                                onClick={(e) => { e.stopPropagation(); onOpenQuiz(section); }}
-                            >
-                                Hantera quiz ↗
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
@@ -275,205 +49,67 @@ function SectionRow({ section, index, onOpenQuiz }: { section: SectionResponse; 
 
 function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: (id: number) => void }) {
     const { instance } = useMsal();
+    const isAdmin = useHasRole("admin");
 
-    const [enrolled, setEnrolled]   = useState<LoadState<UserProgressResponse[]>>(idle());
-    const [allUsers, setAllUsers]   = useState<LoadState<UserResponse[]>>(idle());
-    const [staged, setStaged]       = useState<Set<number>>(new Set());
-    const [addStatus, setAddStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
-    const [addError, setAddError]   = useState<string | null>(null);
-    const [showAdd, setShowAdd]     = useState(false);
-    const [search, setSearch]       = useState("");
     const [showConfirm, setShowConfirm] = useState(false);
     const [deleting, setDeleting]       = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
-    const [sections, setSections]           = useState<LoadState<SectionResponse[]>>(idle());
-    const [showAddSection, setShowAddSection] = useState(false);
-    const [sectionTitle, setSectionTitle]   = useState("");
-    const [sectionStatus, setSectionStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
-    const [sectionError, setSectionError]   = useState<string | null>(null);
-    const [quizSection, setQuizSection]     = useState<SectionResponse | null>(null);
-
-    const [assistants, setAssistants] = useState<AssistantAdminResponse[]>([]);
+    const [assistants, setAssistants]           = useState<AssistantAdminResponse[]>([]);
     const [selectedAssistant, setSelectedAssistant] = useState(course.assistantId ?? "");
 
+    const [courseAdmins, setCourseAdmins]               = useState<UserResponse[]>([]);
+    const [selectedCourseAdmin, setSelectedCourseAdmin] = useState<number | null>(null);
+    const [courseAdminStatus, setCourseAdminStatus]     = useState<"idle" | "saving" | "saved" | "error">("idle");
+    const [courseAdminError, setCourseAdminError]       = useState<string | null>(null);
+
     useEffect(() => {
         let cancelled = false;
-
-        async function fetchStudents() {
-            setEnrolled({ data: null, loading: true, error: null });
-            setStaged(new Set());
-            setShowAdd(false);
-            setAddStatus("idle");
-
-            try {
-                const data = await getCourseStudents(instance, course.id);
-                if (!cancelled) {
-                    setEnrolled({ data: data as UserProgressResponse[], loading: false, error: null });
-                }
-            } catch (err) {
-                if (!cancelled) {
-                    setEnrolled({ data: null, loading: false, error: (err as Error).message });
-                }
-            }
-        }
-
-        fetchStudents();
-
+        getAssistants(instance)
+            .then((data) => { if (!cancelled) setAssistants(data as AssistantAdminResponse[]); })
+            .catch(console.error);
         return () => { cancelled = true; };
-    }, [instance, course.id]);
-
-    useEffect(() => {
-        if (!showAdd || allUsers.data) return;
-
-        let cancelled = false;
-
-        async function fetchAllUsers() {
-            setAllUsers({ data: null, loading: true, error: null });
-
-            try {
-                const data = await getUsers(instance);
-                if (!cancelled) {
-                    setAllUsers({ data: data as UserResponse[], loading: false, error: null });
-                }
-            } catch (err) {
-                if (!cancelled) {
-                    setAllUsers({ data: null, loading: false, error: (err as Error).message });
-                }
-            }
-        }
-
-        fetchAllUsers();
-
-        return () => { cancelled = true; };
-    }, [showAdd, instance, allUsers.data]);
-
-    const enrolledIds = new Set((enrolled.data ?? []).map((u) => u.userResponse.id));
-
-    const available = (allUsers.data ?? []).filter(
-        (u) => !enrolledIds.has(u.id) &&
-               (u.displayName.toLowerCase().includes(search.toLowerCase()) ||
-               (u.mail ?? "").toLowerCase().includes(search.toLowerCase()))
-    );
-
-    function toggleStaged(id: number) {
-        setStaged((prev) => {
-            const next = new Set(prev);
-            if (next.has(id)) {
-                next.delete(id);
-            } else {
-                next.add(id);
-            }
-            return next;
-        });
-    }
-
-    async function handleAddStudents() {
-        if (staged.size === 0 || !allUsers.data) return;
-
-        const toAdd = allUsers.data.filter((u) => staged.has(u.id));
-        setAddStatus("submitting");
-        setAddError(null);
-
-        try {
-            const updated = await addStudentsToCourse(instance, course.id, toAdd);
-            setEnrolled({ data: updated as UserProgressResponse[], loading: false, error: null });
-            setStaged(new Set());
-            setShowAdd(false);
-            setAddStatus("success");
-        } catch (err) {
-            setAddError(err instanceof Error ? err.message : "Okänt fel");
-            setAddStatus("error");
-        }
-    }
-
-    useEffect(() => {
-        let cancelled = false;
-
-        getSections(instance, course.id)
-            .then((data) => {
-                if (!cancelled) setSections({ data: data as SectionResponse[], loading: false, error: null });
-            })
-            .catch((err) => {
-                if (!cancelled) setSections({ data: null, loading: false, error: (err as Error).message });
-            });
-
-        return () => { cancelled = true; };
-    }, [instance, course.id]);
-
-    useEffect(() => {
-
-        let cancelled = false;
-
-        async function fetchAssistants() {
-
-            try {
-
-                const data = await getAssistants(instance);
-
-                if (!cancelled) {setAssistants( data as AssistantAdminResponse[]);
-                }
-
-            } catch (err) {
-
-                console.error(
-                    "Failed to fetch assistants",
-                    err
-                );
-            }
-        }
-
-        fetchAssistants();
-
-        return () => {
-            cancelled = true;
-        };
-
     }, [instance]);
 
-    async function handleAddSection() {
-        const title = sectionTitle.trim();
-        if (!title) return;
+    useEffect(() => {
+        let cancelled = false;
+        getUsers(instance)
+            .then((data) => {
+                if (!cancelled && data) {
+                    setCourseAdmins(
+                        (data as UserResponse[]).filter((u) =>
+                            u.role.some((r) => normaliseRole(r) === "courseAdmin")
+                        )
+                    );
+                }
+            })
+            .catch(console.error);
+        return () => { cancelled = true; };
+    }, [instance]);
 
-        setSectionStatus("submitting");
-        setSectionError(null);
-
+    async function handleAssistantChange(assistantId: string) {
         try {
-            const added = await addSection(instance, course.id, title) as SectionResponse;
-            setSections((prev) => ({
-                data: [...(prev.data ?? []), added],
-                loading: false,
-                error: null,
-            }));
-            setSectionTitle("");
-            setSectionStatus("success");
-            setShowAddSection(false);
+            await assignAssistantToCourse(instance, course.id, assistantId);
+            setSelectedAssistant(assistantId);
         } catch (err) {
-            setSectionError(err instanceof Error ? err.message : "Okänt fel");
-            setSectionStatus("error");
+            console.error("Failed to assign assistant", err);
         }
     }
 
-    async function handleAssistantChange(
-        assistantId: string
-    ) {
-
+    async function handleSaveCourseAdmin() {
+        setCourseAdminStatus("saving");
+        setCourseAdminError(null);
         try {
-
-            await assignAssistantToCourse(
-                instance,
-                course.id,
-                assistantId
-            );
-
-            setSelectedAssistant(assistantId);
-
+            await updateCourse(instance, course.id, {
+                title: course.title,
+                description: course.description,
+                aiSessionTtlWeeks: null,
+                courseAdminId: selectedCourseAdmin,
+            });
+            setCourseAdminStatus("saved");
         } catch (err) {
-
-            console.error(
-                "Failed to assign assistant",
-                err
-            );
+            setCourseAdminError(err instanceof Error ? err.message : "Okänt fel");
+            setCourseAdminStatus("error");
         }
     }
 
@@ -490,13 +126,10 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
         }
     }
 
-    if (quizSection) {
-        return <SectionQuizView section={quizSection} onBack={() => setQuizSection(null)} />;
-    }
-
     return (
         <div className="vmv-mgmt-detail">
 
+            {/* ── Header: title, assistant, course admin, delete ── */}
             <div className="vmv-mgmt-detail-header">
                 <div>
                     <div className="vmv-mgmt-detail-title">{course.title}</div>
@@ -504,51 +137,69 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
                     <div className="vmv-mgmt-detail-meta">Skapad av: {course.createdBy}</div>
 
                     <div style={{ marginTop: "1rem" }}>
-
-                        <div className="vmv-section-head">
-                            AI Assistant
-                        </div>
-
+                        <div className="vmv-section-head">AI Assistant</div>
                         <select
                             className="vmv-mgmt-section-input"
                             value={selectedAssistant}
-                            onChange={(e) =>
-                                handleAssistantChange(e.target.value)
-                            }
+                            onChange={(e) => handleAssistantChange(e.target.value)}
                         >
-
-                            <option value="">
-                                Välj AI Assistant
-                            </option>
-
-                            {assistants.map((assistant) => (
-
-                                <option
-                                    key={assistant.id}
-                                    value={assistant.id}
-                                >
-                                    {assistant.name}
-                                </option>
-
+                            <option value="">Välj AI Assistant</option>
+                            {assistants.map((a) => (
+                                <option key={a.id} value={a.id}>{a.name}</option>
                             ))}
-
                         </select>
+                    </div>
 
+                    <div style={{ marginTop: "1rem" }}>
+                        <div className="vmv-section-head">Kursledare</div>
+                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                            <select
+                                className="vmv-mgmt-section-input"
+                                value={selectedCourseAdmin ?? ""}
+                                onChange={(e) => setSelectedCourseAdmin(e.target.value ? Number(e.target.value) : null)}
+                                disabled={courseAdminStatus === "saving"}
+                            >
+                                <option value="">Ingen kursledare</option>
+                                {courseAdmins.map((u) => (
+                                    <option key={u.id} value={u.id}>
+                                        {u.displayName}{u.mail ? ` — ${u.mail}` : ""}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                className="vmv-quiz-start"
+                                onClick={handleSaveCourseAdmin}
+                                disabled={courseAdminStatus === "saving"}
+                            >
+                                {courseAdminStatus === "saving" ? "Sparar..." : "Spara ↗"}
+                            </button>
+                        </div>
+                        {courseAdminStatus === "saved" && (
+                            <div className="vmv-form-feedback vmv-form-feedback--success" style={{ marginTop: "0.5rem" }}>
+                                ✓ Kursledare uppdaterad.
+                            </div>
+                        )}
+                        {courseAdminStatus === "error" && (
+                            <div className="vmv-form-feedback vmv-form-feedback--error" style={{ marginTop: "0.5rem" }}>
+                                Fel: {courseAdminError}
+                            </div>
+                        )}
                     </div>
                 </div>
-                <div className="vmv-mgmt-detail-header-actions">
-                    <button
-                        className="vmv-quiz-start vmv-quiz-start--danger"
-                        onClick={() => setShowConfirm(true)}
-                    >
-                        Ta bort kurs
-                    </button>
-                    {deleteError && (
-                        <span className="vmv-form-feedback vmv-form-feedback--error">
-                            Fel: {deleteError}
-                        </span>
-                    )}
-                </div>
+
+                {isAdmin && (
+                    <div className="vmv-mgmt-detail-header-actions">
+                        <button
+                            className="vmv-quiz-start vmv-quiz-start--danger"
+                            onClick={() => setShowConfirm(true)}
+                        >
+                            Ta bort kurs
+                        </button>
+                        {deleteError && (
+                            <span className="vmv-form-feedback vmv-form-feedback--error">Fel: {deleteError}</span>
+                        )}
+                    </div>
+                )}
             </div>
 
             {showConfirm && (
@@ -563,183 +214,8 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
                 />
             )}
 
-            <div className="vmv-section-head" style={{ marginTop: "1.25rem" }}>
-                Inregistrerade studenter ({enrolled.data?.length ?? "–"})
-            </div>
-
-            <FetchState loading={enrolled.loading} error={enrolled.error} />
-
-            {enrolled.data && (
-                <>
-                    {enrolled.data.length === 0 ? (
-                        <div className="vmv-empty" style={{ gridColumn: "unset", border: "1px solid var(--color-border-tertiary)" }}>
-                            Inga studenter inregistrerade ännu.
-                        </div>
-                    ) : (
-                        <div className="vmv-mgmt-student-table vmv-mgmt-student-table--progress">
-                            <div className="vmv-mgmt-student-thead">
-                                <span>#</span>
-                                <span>Namn</span>
-                                <span>Email</span>
-                                <span>Roll</span>
-                                <span>Avsnitt</span>
-                                <span>Framsteg</span>
-                            </div>
-                            {enrolled.data.map((entry, i) => (
-                                <StudentRow
-                                    key={entry.userResponse.id}
-                                    user={entry.userResponse}
-                                    progress={{ completedSections: entry.completedSections, progressPercentage: entry.progressPercentage }}
-                                    index={i}
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    <div className="vmv-mgmt-actions">
-                        <button
-                            className="vmv-quiz-start"
-                            onClick={() => { setShowAdd((p) => !p); setSearch(""); }}
-                        >
-                            {showAdd ? "Avbryt" : "Lägg till studenter ↗"}
-                        </button>
-                        {addStatus === "success" && (
-                            <span className="vmv-form-feedback vmv-form-feedback--success">
-                                ✓ Studenter tillagda.
-                            </span>
-                        )}
-                        {addStatus === "error" && (
-                            <span className="vmv-form-feedback vmv-form-feedback--error">
-                                Fel: {addError}
-                            </span>
-                        )}
-                    </div>
-                </>
-            )}
-
-            {showAdd && (
-                <div className="vmv-mgmt-add-panel">
-                    <div className="vmv-section-head">Välj studenter att lägga till</div>
-
-                    <FetchState loading={allUsers.loading} error={allUsers.error} />
-
-                    {allUsers.data && (
-                        <>
-                            <div className="vmv-search" style={{ marginBottom: "0.75rem" }}>
-                                <span className="vmv-search-icon">⌕</span>
-                                <input
-                                    type="text"
-                                    placeholder="Sök användare..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                />
-                            </div>
-
-                            <div className="vmv-mgmt-student-table">
-                                <div className="vmv-mgmt-student-thead vmv-mgmt-student-thead--add">
-                                    <span className="vmv-mgmt-student-check" />
-                                    <span>#</span>
-                                    <span>Namn</span>
-                                    <span>Email</span>
-                                    <span>Roll</span>
-                                </div>
-
-                                {available.length === 0 ? (
-                                    <div className="vmv-empty" style={{ gridColumn: "unset" }}>
-                                        Inga tillgängliga användare.
-                                    </div>
-                                ) : (
-                                    available.map((u, i) => (
-                                        <StudentRow
-                                            key={u.id}
-                                            user={u}
-                                            index={i}
-                                            checked={staged.has(u.id)}
-                                            onToggle={() => toggleStaged(u.id)}
-                                        />
-                                    ))
-                                )}
-                            </div>
-
-                            <div className="vmv-mgmt-add-footer">
-                                <span className="vmv-mgmt-staged-count">
-                                    {staged.size} vald{staged.size !== 1 ? "a" : ""}
-                                </span>
-                                <button
-                                    className="vmv-quiz-start"
-                                    onClick={handleAddStudents}
-                                    disabled={staged.size === 0 || addStatus === "submitting"}
-                                >
-                                    {addStatus === "submitting" ? "Sparar..." : "Bekräfta ↗"}
-                                </button>
-                            </div>
-                        </>
-                    )}
-                </div>
-            )}
-
-            {/* ── Sections ─────────────────────────────────────────────────── */}
-
-            <div className="vmv-section-head" style={{ marginTop: "1.5rem" }}>
-                Avsnitt ({sections.data?.length ?? "–"})
-            </div>
-
-            <FetchState loading={sections.loading} error={sections.error} />
-
-            {sections.data && (
-                <>
-                    {sections.data.length === 0 ? (
-                        <div className="vmv-empty" style={{ border: "1px solid var(--color-border-tertiary)" }}>
-                            Inga avsnitt tillagda ännu.
-                        </div>
-                    ) : (
-                        <div className="vmv-mgmt-section-list">
-                            {sections.data.map((s, i) => (
-                                <SectionRow key={s.id} section={s} index={i} onOpenQuiz={setQuizSection} />
-                            ))}
-                        </div>
-                    )}
-
-                    <div className="vmv-mgmt-actions">
-                        <button
-                            className="vmv-quiz-start"
-                            onClick={() => { setShowAddSection((p) => !p); setSectionTitle(""); setSectionStatus("idle"); }}
-                        >
-                            {showAddSection ? "Avbryt" : "Lägg till avsnitt ↗"}
-                        </button>
-                        {sectionStatus === "success" && (
-                            <span className="vmv-form-feedback vmv-form-feedback--success">✓ Avsnitt tillagt.</span>
-                        )}
-                        {sectionStatus === "error" && (
-                            <span className="vmv-form-feedback vmv-form-feedback--error">Fel: {sectionError}</span>
-                        )}
-                    </div>
-
-                    {showAddSection && (
-                        <div className="vmv-mgmt-add-panel">
-                            <div className="vmv-section-head">Nytt avsnitt</div>
-                            <div className="vmv-mgmt-section-form">
-                                <input
-                                    className="vmv-mgmt-section-input"
-                                    type="text"
-                                    placeholder="Avsnittets titel..."
-                                    value={sectionTitle}
-                                    onChange={(e) => setSectionTitle(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === "Enter") handleAddSection(); }}
-                                    autoFocus
-                                />
-                                <button
-                                    className="vmv-quiz-start"
-                                    onClick={handleAddSection}
-                                    disabled={!sectionTitle.trim() || sectionStatus === "submitting"}
-                                >
-                                    {sectionStatus === "submitting" ? "Sparar..." : "Lägg till ↗"}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </>
-            )}
+            <CourseStudentsPanel course={course} />
+            <CourseSectionsPanel course={course} />
         </div>
     );
 }
@@ -748,36 +224,20 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
 
 export function ManageCoursesView() {
     const { instance } = useMsal();
-    const [courses, setCourses]               = useState<LoadState<CourseResponse[]>>(idle());
+    const [courses, setCourses]               = useState<LoadState<CourseResponse[]>>({ data: null, loading: true, error: null });
     const [selectedCourse, setSelectedCourse] = useState<CourseResponse | null>(null);
 
     function handleCourseDeleted(id: number) {
-        setCourses((prev) => ({
-            ...prev,
-            data: (prev.data ?? []).filter((c) => c.id !== id),
-        }));
+        setCourses((prev) => ({ ...prev, data: (prev.data ?? []).filter((c) => c.id !== id) }));
         setSelectedCourse(null);
     }
 
     useEffect(() => {
         let cancelled = false;
 
-        async function fetchCourses() {
-            setCourses({ data: null, loading: true, error: null });
-
-            try {
-                const data = await getCourses(instance);
-                if (!cancelled) {
-                    setCourses({ data: data as CourseResponse[], loading: false, error: null });
-                }
-            } catch (err) {
-                if (!cancelled) {
-                    setCourses({ data: null, loading: false, error: (err as Error).message });
-                }
-            }
-        }
-
-        fetchCourses();
+        getCourses(instance)
+            .then((data) => { if (!cancelled) setCourses({ data: data as CourseResponse[], loading: false, error: null }); })
+            .catch((err) => { if (!cancelled) setCourses({ data: null, loading: false, error: (err as Error).message }); });
 
         return () => { cancelled = true; };
     }, [instance]);
@@ -786,11 +246,7 @@ export function ManageCoursesView() {
         <>
             <div className="vmv-section-head">Hantera kurser</div>
 
-            <FetchState
-                loading={courses.loading}
-                error={courses.error}
-                onRetry={() => window.location.reload()}
-            />
+            <FetchState loading={courses.loading} error={courses.error} onRetry={() => window.location.reload()} />
 
             {courses.data && (
                 <div className="vmv-mgmt-layout">

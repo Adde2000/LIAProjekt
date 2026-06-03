@@ -20,7 +20,7 @@ import java.util.*;
 public class UserService {
     private final GraphService graphService;
     private final ApplicationEventPublisher eventPublisher;
-    UserRepository userRepository;
+    private final UserRepository userRepository;
 
     @PostConstruct
     public void init() {

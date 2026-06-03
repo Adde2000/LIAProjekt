@@ -12,6 +12,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.test.context.support.WithMockUser;
+import se.liaprojekt.controller.util.Roles;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.Course;
@@ -104,6 +105,8 @@ class CourseControllerTest {
     @Test
     @WithMockUser(roles = "Admin")
     void getAllCoursesEmpty() {
+        Mockito.when(currentUserService.getRoles()).thenReturn(Set.of(Roles.ADMIN));
+
         courseRepository.deleteAll();
 
         ResponseEntity<List<CourseResponse>> responseEntity = controller.getAllCourses();
@@ -117,6 +120,8 @@ class CourseControllerTest {
     @Test
     @WithMockUser(roles = "Admin")
     void getAllCourses() {
+        Mockito.when(currentUserService.getRoles()).thenReturn(Set.of(Roles.ADMIN));
+
         ResponseEntity<List<CourseResponse>> responseEntity = controller.getAllCourses();
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
 
@@ -233,7 +238,8 @@ class CourseControllerTest {
         CourseRequest courseRequest = new CourseRequest(
                 "TestTitle",
                 "TestDescription",
-                6
+                6,
+                null
         );
         ResponseEntity<CourseResponse> responseEntity = controller.createCourse(courseRequest);
         assertEquals(HttpStatus.CREATED, responseEntity.getStatusCode(), "Wrong status code");
@@ -317,7 +323,8 @@ class CourseControllerTest {
         CourseRequest courseRequest = new CourseRequest(
                 "NewTestTitle",
                 "NewTestDescription",
-                12
+                12,
+                null
         );
         ResponseEntity<CourseResponse> responseEntity = controller.updateCourse(courseId, courseRequest);
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");

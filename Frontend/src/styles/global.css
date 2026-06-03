@@ -13,8 +13,8 @@
     --color-success:             #15803d;
     --color-danger:              #dc2626;
 
-    --color-text-primary:        #000000;
-    --color-text-secondary:      #000000;
+    --color-text-primary:        #1a1a1a;
+    --color-text-secondary:      #6b7280;
     --color-background-primary:  #ffffff;
     --color-background-secondary:#fff7ed;
     --color-border-secondary:    #fed7aa;
@@ -31,4 +31,22 @@ body {
 .vmv {
     font-family: 'Source Serif 4', Georgia, serif;
     color: var(--color-text-primary);
+}
+
+/* ── Access denied ──────────────────────────────────────────────────────── */
+.vmv-access-denied {
+    display:         flex;
+    flex-direction:  column;
+    align-items:     center;
+    justify-content: center;
+    padding:         4rem 2rem;
+    text-align:      center;
+    color:           var(--color-text-muted, #6b7280);
+}
+
+.vmv-access-denied h2 {
+    font-size:     1.5rem;
+    font-weight:   600;
+    margin-bottom: 0.5rem;
+    color:         var(--color-text, #111827);
 }
