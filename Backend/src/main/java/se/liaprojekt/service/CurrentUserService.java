@@ -45,18 +45,4 @@ public class CurrentUserService {
 
         return name;
     }
-
-//    public String getEntraId() {
-//
-//        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-//
-//        // =========================
-//        // DEV FALLBACK
-//        // =========================
-//        if (auth == null || auth.getName() == null || auth.getName().equals("anonymousUser")) {
-//            return "dev-user-1";
-//        }
-//
-//        return auth.getName();
-//    }
 }
