@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import se.liaprojekt.exception.AzureAssistantException;
 import se.liaprojekt.model.Course;
 import se.liaprojekt.model.Section;
 import se.liaprojekt.repository.CourseRepository;
@@ -139,7 +140,7 @@ public class VectorStoreService {
         if (responseBody == null ||
                 responseBody.get("id") == null) {
 
-            throw new RuntimeException(
+            throw new AzureAssistantException(
                     "Failed to create vector store"
             );
         }
@@ -227,7 +228,7 @@ public class VectorStoreService {
                     ex
             );
 
-            throw new RuntimeException(
+            throw new AzureAssistantException(
                     "Failed to upload PDF to vector store",
                     ex
             );
@@ -282,7 +283,7 @@ public class VectorStoreService {
         if (responseBody == null ||
                 responseBody.get("id") == null) {
 
-            throw new RuntimeException(
+            throw new AzureAssistantException(
                     "Failed to upload file to OpenAI"
             );
         }
@@ -330,7 +331,7 @@ public class VectorStoreService {
                     ex
             );
 
-            throw ex;
+            throw new AzureAssistantException("Failed to remove file from vector store: " + ex.getMessage());
         }
     }
 
