@@ -1,10 +1,9 @@
 package se.liaprojekt.service.ai;
 
-import com.azure.core.credential.TokenCredential;
-import com.azure.core.credential.TokenRequestContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -126,15 +125,15 @@ public class VectorStoreService {
         HttpEntity<?> entity =
                 new HttpEntity<>(body, headers);
 
-        ResponseEntity<Map> response =
+        ResponseEntity<Map<String, Object>> response =
                 restTemplate.exchange(
                         url,
                         HttpMethod.POST,
                         entity,
-                        Map.class
+                        new ParameterizedTypeReference<Map<String, Object>>() {}
                 );
 
-        Map<?, ?> responseBody =
+        Map<String, Object> responseBody =
                 response.getBody();
 
         if (responseBody == null ||
@@ -263,21 +262,20 @@ public class VectorStoreService {
                 new LinkedMultiValueMap<>();
 
         body.add("purpose", "assistants");
-
         body.add("file", resource);
 
         HttpEntity<?> entity =
                 new HttpEntity<>(body, headers);
 
-        ResponseEntity<Map> response =
+        ResponseEntity<Map<String, Object>> response =
                 restTemplate.exchange(
                         url,
                         HttpMethod.POST,
                         entity,
-                        Map.class
+                        new ParameterizedTypeReference<Map<String, Object>>() {}
                 );
 
-        Map<?, ?> responseBody =
+        Map<String, Object> responseBody =
                 response.getBody();
 
         if (responseBody == null ||
@@ -363,12 +361,12 @@ public class VectorStoreService {
         HttpEntity<?> entity =
                 new HttpEntity<>(body, headers);
 
-        ResponseEntity<Map> response =
+        ResponseEntity<Map<String, Object>> response =
                 restTemplate.exchange(
                         url,
                         HttpMethod.POST,
                         entity,
-                        Map.class
+                        new ParameterizedTypeReference<Map<String, Object>>() {}
                 );
 
         log.info(
