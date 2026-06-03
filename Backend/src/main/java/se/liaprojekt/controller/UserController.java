@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import se.liaprojekt.controller.util.Roles;
 import se.liaprojekt.dto.UserResponse;
 import se.liaprojekt.service.CourseService;
+import se.liaprojekt.service.CurrentUserService;
 import se.liaprojekt.service.UserService;
 
 import java.util.List;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class UserController {
     private final UserService userService;
     private final CourseService courseService;
+    private final CurrentUserService currentUserService;
 
 
     //Admin
@@ -42,8 +44,9 @@ public class UserController {
 
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getCurrentUser() {
-        //TODO
-        return ResponseEntity.ok(null);
+        String entraId = currentUserService.getEntraId();
+        UserResponse user = userService.getUserResponseByEntraId(entraId);
+        return ResponseEntity.ok(user);
     }
 
     //Participant
