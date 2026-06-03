@@ -22,6 +22,18 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .headers(headers -> headers
+                    .contentSecurityPolicy(csp -> csp
+                        .policyDirectives(
+                                "default-src 'self'; " +
+                                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+                                        "font-src 'self' https://fonts.gstatic.com; " +
+                                        "frame-src 'self' https://video-endpoint-cfbtbpazgpepd0cm.z03.azurefd.net; " +
+                                        "connect-src 'self' https://video-endpoint-cfbtbpazgpepd0cm.z03.azurefd.net"
+                                )
+                        )
+                )
+
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/health").permitAll()
                         //Stream security is handled via StreamToken
