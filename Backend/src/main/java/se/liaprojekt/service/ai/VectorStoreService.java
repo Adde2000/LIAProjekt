@@ -1,17 +1,16 @@
 package se.liaprojekt.service.ai;
 
-import com.azure.core.credential.TokenCredential;
-import com.azure.core.credential.TokenRequestContext;
-import com.azure.core.util.BinaryData;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import se.liaprojekt.exception.AzureAssistantException;
 import se.liaprojekt.model.Course;
 import se.liaprojekt.model.Section;
 import se.liaprojekt.repository.CourseRepository;
@@ -37,7 +36,7 @@ public class VectorStoreService {
     private String apiVersion;
 
     @Value("${azure.openai.api-key}")
-    private String apikey;
+    private String apiKey;
 
     // =========================
     // INIT VECTOR STORE
@@ -116,7 +115,7 @@ public class VectorStoreService {
 
         HttpHeaders headers = new HttpHeaders();
 
-        headers.set("api-key", apikey);
+        headers.set("api-key", apiKey);
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> body = Map.of(
@@ -126,21 +125,21 @@ public class VectorStoreService {
         HttpEntity<?> entity =
                 new HttpEntity<>(body, headers);
 
-        ResponseEntity<Map> response =
+        ResponseEntity<Map<String, Object>> response =
                 restTemplate.exchange(
                         url,
                         HttpMethod.POST,
                         entity,
-                        Map.class
+                        new ParameterizedTypeReference<Map<String, Object>>() {}
                 );
 
-        Map<?, ?> responseBody =
+        Map<String, Object> responseBody =
                 response.getBody();
 
         if (responseBody == null ||
                 responseBody.get("id") == null) {
 
-            throw new RuntimeException(
+            throw new AzureAssistantException(
                     "Failed to create vector store"
             );
         }
@@ -186,18 +185,11 @@ public class VectorStoreService {
             Map<String, String> tags =
                     blobStorageService.getFileTags(blobName);
 
-            String existingOpenAiFileId =
-                    tags.get("openAiFileId");
+            String vectorStoreTagKey = "openAiFileId_" + course.getVectorStoreId();
+            String existingOpenAiFileId = tags.get(vectorStoreTagKey);
 
-            if (existingOpenAiFileId != null &&
-                    !existingOpenAiFileId.isBlank()) {
-
-                log.info(
-                        "Blob {} already synced with OpenAI file {}",
-                        blobName,
-                        existingOpenAiFileId
-                );
-
+            if (existingOpenAiFileId != null && !existingOpenAiFileId.isBlank()) {
+                log.info("Blob {} already synced with vector store {}", blobName, course.getVectorStoreId());
                 return;
             }
 
@@ -225,7 +217,7 @@ public class VectorStoreService {
                     openAiFileId
             );
 
-            blobStorageService.addTag(blobName, "openAiFileId", openAiFileId);
+            blobStorageService.addTag(blobName, "openAiFileId_" + course.getVectorStoreId(), openAiFileId);
 
         } catch (Exception ex) {
 
@@ -235,7 +227,7 @@ public class VectorStoreService {
                     ex
             );
 
-            throw new RuntimeException(
+            throw new AzureAssistantException(
                     "Failed to upload PDF to vector store",
                     ex
             );
@@ -254,7 +246,7 @@ public class VectorStoreService {
 
         HttpHeaders headers = new HttpHeaders();
 
-        headers.set("api-key", apikey);
+        headers.set("api-key", apiKey);
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
         ByteArrayResource resource =
@@ -270,27 +262,26 @@ public class VectorStoreService {
                 new LinkedMultiValueMap<>();
 
         body.add("purpose", "assistants");
-
         body.add("file", resource);
 
         HttpEntity<?> entity =
                 new HttpEntity<>(body, headers);
 
-        ResponseEntity<Map> response =
+        ResponseEntity<Map<String, Object>> response =
                 restTemplate.exchange(
                         url,
                         HttpMethod.POST,
                         entity,
-                        Map.class
+                        new ParameterizedTypeReference<Map<String, Object>>() {}
                 );
 
-        Map<?, ?> responseBody =
+        Map<String, Object> responseBody =
                 response.getBody();
 
         if (responseBody == null ||
                 responseBody.get("id") == null) {
 
-            throw new RuntimeException(
+            throw new AzureAssistantException(
                     "Failed to upload file to OpenAI"
             );
         }
@@ -312,7 +303,7 @@ public class VectorStoreService {
                 apiVersion;
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("api-key", apikey);
+        headers.set("api-key", apiKey);
 
         try {
 
@@ -338,7 +329,7 @@ public class VectorStoreService {
                     ex
             );
 
-            throw ex;
+            throw new AzureAssistantException("Failed to remove file from vector store: " + ex.getMessage());
         }
     }
 
@@ -360,7 +351,7 @@ public class VectorStoreService {
 
         HttpHeaders headers = new HttpHeaders();
 
-        headers.set("api-key", apikey);
+        headers.set("api-key", apiKey);
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> body = Map.of(
@@ -370,12 +361,12 @@ public class VectorStoreService {
         HttpEntity<?> entity =
                 new HttpEntity<>(body, headers);
 
-        ResponseEntity<Map> response =
+        ResponseEntity<Map<String, Object>> response =
                 restTemplate.exchange(
                         url,
                         HttpMethod.POST,
                         entity,
-                        Map.class
+                        new ParameterizedTypeReference<Map<String, Object>>() {}
                 );
 
         log.info(

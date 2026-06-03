@@ -17,6 +17,7 @@ import se.liaprojekt.dto.UserResponse;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.User;
 import se.liaprojekt.repository.UserRepository;
+import se.liaprojekt.service.CurrentUserService;
 import se.liaprojekt.service.GraphService;
 
 import java.util.ArrayList;
@@ -34,6 +35,9 @@ class UserControllerTest {
 
     @MockBean
     private GraphService graphService;
+
+    @MockBean
+    private CurrentUserService currentUserService;
 
     @Autowired
     private UserRepository userRepository;
@@ -122,15 +126,25 @@ class UserControllerTest {
     }
 
     @Test
+    @WithMockUser
     void getCurrentUser() {
-        //TODO write proper test when needed
-        assertEquals(HttpStatus.OK, controller.getCurrentUser().getStatusCode(), "Status code is incorrect");
+        String fakeEntraId = users.getLast().id();
+        GraphResponse graphUser = users.getLast();
+
+        Mockito.when(currentUserService.getEntraId()).thenReturn(fakeEntraId);
+        Mockito.when(graphService.getUserByEntraId(fakeEntraId)).thenReturn(graphUser);
+
+        ResponseEntity<UserResponse> response = controller.getCurrentUser();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode(), "Status code is incorrect");
+        assertNotNull(response.getBody(), "Response body is null");
+        assertEquals(graphUser.displayName(), response.getBody().displayName());
     }
 
-    @Test
-    void getMyCourses() {
-        //TODO write proper test when needed
-//        assertEquals(HttpStatus.OK, controller.getMyCourses().getStatusCode(), "Status code is incorrect");
-//        assertTrue(false);
-    }
+//    @Test
+//    void getMyCourses() {
+//        //TODO write proper test when needed
+////        assertEquals(HttpStatus.OK, controller.getMyCourses().getStatusCode(), "Status code is incorrect");
+////        assertTrue(false);
+//    }
 }

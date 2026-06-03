@@ -675,3 +675,15 @@ export async function submitQuiz(
         "Failed to submit quiz"
     );
 }
+
+export async function getMe(
+    instance: IPublicClientApplication
+): Promise<UserResponse | null> {
+    if (!BASE_URL) return null;
+    const token = await getAccessToken(instance);
+    return safeFetch(
+        `${BASE_URL}/api/users/me`,
+        token,
+        "Failed to fetch current user"
+    );
+}
