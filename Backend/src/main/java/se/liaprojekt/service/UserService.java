@@ -71,6 +71,23 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + entraId));
     }
 
+    public void inviteUser(String email) {
+        GraphResponse graphResponse = graphService.inviteUser(email);
+        List<GraphResponse> graphResponseList = List.of(graphResponse);
+        updateFromGraphAPI(graphResponseList);
+    }
+
+    public void deleteUser(long userId) {
+        User user;
+        try {
+            user = getUserById(userId);
+        } catch (ResourceNotFoundException ignored) {
+            return;
+        }
+        graphService.deleteUser(user.getEntraId());
+        userRepository.delete(user);
+    }
+
     private void updateFromGraphAPI(List<GraphResponse> graphResponseList) {
 
         //Get all users in database end put their unique entraId in a set

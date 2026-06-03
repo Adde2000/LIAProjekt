@@ -9,10 +9,8 @@ import org.springframework.stereotype.Service;
 import se.liaprojekt.dto.GraphResponse;
 import se.liaprojekt.exception.ResourceNotFoundException;
 
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
 
 @Service
 public class GraphService {
@@ -30,15 +28,18 @@ public class GraphService {
     @Value("${azure.graph.mail-user}")
     private String mailUser;
 
-    private final TokenService tokenService;
+//    private final TokenService tokenService;
+    private final GraphServiceClient graphServiceClient;
 
     public GraphService(TokenService tokenService) {
-        this.tokenService = tokenService;
+//        this.tokenService = tokenService;
+        String[] scopes = {"https://graph.microsoft.com/.default"};
+        graphServiceClient = new GraphServiceClient(tokenService.getCredential(), scopes);
     }
 
     public List<GraphResponse> getAllUsers() {
-        String[] scopes = {"https://graph.microsoft.com/.default"};
-        GraphServiceClient graphServiceClient = new GraphServiceClient(tokenService.getCredential(), scopes);
+//        String[] scopes = {"https://graph.microsoft.com/.default"};
+//        GraphServiceClient graphServiceClient = new GraphServiceClient(tokenService.getCredential(), scopes);
 
         UserCollectionResponse userCollectionResponse = graphServiceClient.users().get();
         List<GraphResponse> graphResponses = new ArrayList<>();
@@ -46,28 +47,38 @@ public class GraphService {
             userCollectionResponse.getValue().forEach((user) -> {
                 //getRoles() makes another call to Graph to ask for the roles, this leads to N+1 problem
                 //No other way to get them in v1.0
-                Set<String> roles = getRoles(user.getId(), graphServiceClient);
+                Set<String> roles = getRoles(user.getId());
 
-                graphResponses.add(new GraphResponse(
-                        user.getId(),
-                        user.getDisplayName(),
-                        user.getGivenName(),
-                        user.getSurname(),
-                        user.getMail(),
-                        translateRoles(roles)
-                ));
+                graphResponses.add(mapToGraphResponse(user, roles));
             });
         }
         return graphResponses;
     }
 
     public GraphResponse getUserByEntraId(String entraId) {
-        String[] scopes = {"https://graph.microsoft.com/.default"};
-        GraphServiceClient graphServiceClient = new GraphServiceClient(tokenService.getCredential(), scopes);
+//        String[] scopes = {"https://graph.microsoft.com/.default"};
+//        GraphServiceClient graphServiceClient = new GraphServiceClient(tokenService.getCredential(), scopes);
 
         User user = graphServiceClient.users().byUserId(entraId).get();
-        Set<String> roles = getRoles(entraId, graphServiceClient);
+        Set<String> roles = getRoles(entraId);
 
+        return mapToGraphResponse(user, roles);
+    }
+
+    public GraphResponse inviteUser(String email) {
+        Invitation invitation = new Invitation();
+        invitation.setInvitedUserEmailAddress(email);
+        //TODO remove hardcoded redirect
+        invitation.setInviteRedirectUrl("localhost:5173");
+        Invitation result = graphServiceClient.invitations().post(invitation);
+        if (result != null) {
+            return mapToGraphResponse(result.getInvitedUser());
+        } else {
+            throw new ResourceNotFoundException("Graph returned null for: " + email);
+        }
+    }
+
+    private GraphResponse mapToGraphResponse(User user, Set<String> roles) {
         GraphResponse graphResponse;
         if (user != null) {
             graphResponse = new GraphResponse(
@@ -84,7 +95,15 @@ public class GraphService {
         return graphResponse;
     }
 
-    private Set<String> getRoles(String entraId, GraphServiceClient graphServiceClient) {
+    private GraphResponse mapToGraphResponse(User user) {
+        return mapToGraphResponse(user, Set.of());
+    }
+
+    public void deleteUser(String entraId) {
+        graphServiceClient.users().byUserId(entraId).delete();
+    }
+
+    private Set<String> getRoles(String entraId) {
         Set<String> roles = new HashSet<>();
         try {
             graphServiceClient.users().byUserId(
@@ -114,8 +133,8 @@ public class GraphService {
     public void sendEmail(String to,
                           String subject,
                           String htmlBody) {
-        String[] scopes = {"https://graph.microsoft.com/.default"};
-        GraphServiceClient graphServiceClient = new GraphServiceClient(tokenService.getCredential(), scopes);
+//        String[] scopes = {"https://graph.microsoft.com/.default"};
+//        GraphServiceClient graphServiceClient = new GraphServiceClient(tokenService.getCredential(), scopes);
 
         // Email body
         ItemBody body = new ItemBody();
