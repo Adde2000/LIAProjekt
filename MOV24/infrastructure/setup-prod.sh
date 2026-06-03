@@ -72,7 +72,7 @@ ENV="prod"
 SQL_SERVER="sqlsrv-app-${ENV}"
 SQL_DB="sqldb-app-${ENV}"
 SQL_ADMIN_USER="LIAProjektSQL"
-SQL_ADMIN_PASSWORD="L&95$Qn#v432GV4qCvJq"          # Fyll i eller hämta från KeyVault/env-variabel
+SQL_ADMIN_PASSWORD='L&95$Qn#v432GV4qCvJq'          # Fyll i eller hämta från KeyVault/env-variabel
 
 # Storage
 STORAGE_ACCOUNT="storageapp${ENV}01"   # Max 24 tecken, endast lowercase
@@ -258,17 +258,6 @@ else
     --min-tls-version "$APP_DEV_TLS" \
     --http20-enabled "$APP_DEV_HTTP" \
     --always-on "$APP_DEV_ALWAYS_ON"
-fi
-
-# VNet Integration – koppla App Service till snet-app oavsett om den skapades nu eller redan fanns
-echo "  Kontrollerar VNet Integration för App Service..."
-EXISTING_VNET_INTEGRATION=$(az webapp vnet-integration list   --name "$BACKEND_APP_NAME" --resource-group "$RG"   --query "[0].id" -o tsv 2>/dev/null || echo "")
-
-if [ -n "$EXISTING_VNET_INTEGRATION" ]; then
-  echo "  VNet Integration finns redan – hoppar över."
-else
-  echo "  Kopplar App Service till VNet '$VNET' (snet-app)..."
-  az webapp vnet-integration add     --name "$BACKEND_APP_NAME"     --resource-group "$RG"     --vnet "$VNET"     --subnet "$SUBNET_APP"
 fi
 
 # Autoskalning – skapas bara om App Service skapades i detta körning
@@ -473,6 +462,37 @@ SUBNET_PRIVATE_ID=$(az network vnet subnet show \
   --name "$SUBNET_PRIVATE" --vnet-name "$VNET" --resource-group "$RG" \
   --query id -o tsv)
 
+# VNet Integration – koppla App Service till snet-app
+# Görs här (efter steg 4) så att VNet och subnät garanterat finns
+echo "  Kontrollerar subnätsdelegering för App Service VNet Integration..."
+if az network vnet subnet show --name "$SUBNET_APP" --vnet-name "$VNET" --resource-group "$RG" \
+    --query "delegations[?serviceName=='Microsoft.Web/serverFarms'] | [0].id" -o tsv 2>/dev/null | grep -q .; then
+  echo "  Subnätsdelegering för App Service finns redan – hoppar över."
+else
+  echo "  Lägger till delegering Microsoft.Web/serverFarms på '$SUBNET_APP'..."
+  az network vnet subnet update \
+    --name "$SUBNET_APP" \
+    --vnet-name "$VNET" \
+    --resource-group "$RG" \
+    --delegations Microsoft.Web/serverFarms
+fi
+
+echo "  Kontrollerar VNet Integration för App Service..."
+EXISTING_VNET_INTEGRATION=$(az webapp vnet-integration list \
+  --name "$BACKEND_APP_NAME" --resource-group "$RG" \
+  --query "[0].id" -o tsv 2>/dev/null || echo "")
+
+if [ -n "$EXISTING_VNET_INTEGRATION" ]; then
+  echo "  VNet Integration finns redan – hoppar över."
+else
+  echo "  Kopplar App Service till VNet '$VNET' (snet-app)..."
+  az webapp vnet-integration add \
+    --name "$BACKEND_APP_NAME" \
+    --resource-group "$RG" \
+    --vnet "$VNET" \
+    --subnet "$SUBNET_APP"
+fi
+
 # ---------------------------------------------------------------------------
 # 3. KEY VAULT + Private Endpoint
 # ---------------------------------------------------------------------------
@@ -498,10 +518,15 @@ fi
 KV_ID=$(az keyvault show --name "$KEY_VAULT" --resource-group "$RG" --query id -o tsv)
 
 # Ge MSI åtkomst till KV
-az role assignment create \
-  --role "Key Vault Secrets User" \
-  --assignee "$MSI_PRINCIPAL" \
-  --scope "$KV_ID"
+if az role assignment list --assignee "$MSI_PRINCIPAL" --role "Key Vault Secrets User" --scope "$KV_ID" --query "[0].id" -o tsv 2>/dev/null | grep -q .; then
+  echo "  Roll 'Key Vault Secrets User' finns redan för MSI – hoppar över."
+else
+  echo "  Tilldelar 'Key Vault Secrets User' till MSI..."
+  az role assignment create \
+    --role "Key Vault Secrets User" \
+    --assignee "$MSI_PRINCIPAL" \
+    --scope "$KV_ID"
+fi
 
 log "3b. Kontrollerar Private DNS Zone – Key Vault..."
 if az network private-dns zone show --resource-group "$RG" --name "privatelink.vaultcore.azure.net" &>/dev/null; then
@@ -1081,7 +1106,7 @@ if [ -n "$BACKEND_APP_URL" ]; then
 import json, sys
 d = json.load(sys.stdin)
 locs = d.get('locations', [{'id': 'emea-se-sto-edge'}])
-print(' '.join(f'Id={l["id"]}' for l in locs))
+print(' '.join(f'Id={l[\"id\"]}' for l in locs))
 " 2>/dev/null || echo "Id=emea-se-sto-edge")
 
   if az monitor app-insights web-test show --name "availability test-app-${ENV}-api" --resource-group "$RG" &>/dev/null; then
@@ -1150,16 +1175,18 @@ echo "  App Service: kopierar app settings..."
 DEV_APPSETTINGS=$(az webapp config appsettings list   --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "[]")
 
 if [ "$DEV_APPSETTINGS" != "[]" ] && [ -n "$DEV_APPSETTINGS" ]; then
-  # Filtrera bort inställningar med dev-specifika värden och ersätt env-referenser
-  PROD_APPSETTINGS=$(echo "$DEV_APPSETTINGS" |     python3 -c "
+  echo "$DEV_APPSETTINGS" | python3 -c "
 import json, sys
 settings = json.load(sys.stdin)
-# Ersätt 'dev' med 'prod' i värden där det förekommer
 for s in settings:
     s['value'] = s['value'].replace('-dev', '-prod').replace('dev01', 'prod01')
 print(json.dumps(settings))
-")
-  az webapp config appsettings set     --name "$BACKEND_APP_NAME"     --resource-group "$RG"     --settings "$PROD_APPSETTINGS" > /dev/null
+" > /tmp/prod_appsettings.json
+  az webapp config appsettings set \
+    --name "$BACKEND_APP_NAME" \
+    --resource-group "$RG" \
+    --settings @/tmp/prod_appsettings.json > /dev/null
+  rm -f /tmp/prod_appsettings.json
   echo "  App settings kopierade."
 else
   echo "  Inga app settings hittades i dev."
@@ -1195,21 +1222,20 @@ DEV_FA_SETTINGS=$(az functionapp config appsettings list \
   --name "$DEV_FUNCTION_APP" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "[]")
 
 if [ "$DEV_FA_SETTINGS" != "[]" ] && [ -n "$DEV_FA_SETTINGS" ]; then
-  PROD_FA_SETTINGS=$(echo "$DEV_FA_SETTINGS" | \
-    python3 -c "
+  echo "$DEV_FA_SETTINGS" | python3 -c "
 import json, sys
 settings = json.load(sys.stdin)
-# Hoppa över inbyggda Function App-inställningar som sätts automatiskt
 skip = {'FUNCTIONS_WORKER_RUNTIME', 'FUNCTIONS_EXTENSION_VERSION', 'AzureWebJobsStorage', 'WEBSITE_RUN_FROM_PACKAGE'}
 settings = [s for s in settings if s['name'] not in skip]
 for s in settings:
     s['value'] = s['value'].replace('-dev', '-prod').replace('dev01', 'prod01')
 print(json.dumps(settings))
-")
+" > /tmp/prod_fa_settings.json
   az functionapp config appsettings set \
     --name "$FUNCTION_APP_NAME" \
     --resource-group "$RG" \
-    --settings "$PROD_FA_SETTINGS" > /dev/null
+    --settings @/tmp/prod_fa_settings.json > /dev/null
+  rm -f /tmp/prod_fa_settings.json
   echo "  Function App settings kopierade."
 else
   echo "  Inga app settings hittades för Function App i dev."
@@ -1222,15 +1248,25 @@ DEV_QUEUES=$(az servicebus queue list   --namespace-name "$DEV_SERVICE_BUS"   --
 
 if [ -n "$DEV_QUEUES" ]; then
   while IFS= read -r queue_name; do
-    # Hämta kö-egenskaper från dev
-    QUEUE_PROPS=$(az servicebus queue show       --namespace-name "$DEV_SERVICE_BUS"       --resource-group "$DEV_RG"       --name "$queue_name" -o json)
-
-    LOCK_DURATION=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['lockDuration'])")
-    MAX_SIZE=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['maxSizeInMegabytes'])")
-    MAX_DELIVERY=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['maxDeliveryCount'])")
-
-    az servicebus queue create       --namespace-name "$SERVICE_BUS"       --resource-group "$RG"       --name "$queue_name"       --lock-duration "$LOCK_DURATION"       --max-size "$MAX_SIZE"       --max-delivery-count "$MAX_DELIVERY" > /dev/null
-    echo "    Skapade kö: $queue_name"
+    if az servicebus queue show --namespace-name "$SERVICE_BUS" --resource-group "$RG" --name "$queue_name" &>/dev/null; then
+      echo "    Kö '$queue_name' finns redan – hoppar över."
+    else
+      QUEUE_PROPS=$(az servicebus queue show \
+        --namespace-name "$DEV_SERVICE_BUS" \
+        --resource-group "$DEV_RG" \
+        --name "$queue_name" -o json)
+      LOCK_DURATION=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['lockDuration'])")
+      MAX_SIZE=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['maxSizeInMegabytes'])")
+      MAX_DELIVERY=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['maxDeliveryCount'])")
+      az servicebus queue create \
+        --namespace-name "$SERVICE_BUS" \
+        --resource-group "$RG" \
+        --name "$queue_name" \
+        --lock-duration "$LOCK_DURATION" \
+        --max-size "$MAX_SIZE" \
+        --max-delivery-count "$MAX_DELIVERY" > /dev/null
+      echo "    Skapade kö: $queue_name"
+    fi
   done <<< "$DEV_QUEUES"
 fi
 
@@ -1239,20 +1275,41 @@ DEV_TOPICS=$(az servicebus topic list   --namespace-name "$DEV_SERVICE_BUS"   --
 
 if [ -n "$DEV_TOPICS" ]; then
   while IFS= read -r topic_name; do
-    TOPIC_PROPS=$(az servicebus topic show       --namespace-name "$DEV_SERVICE_BUS"       --resource-group "$DEV_RG"       --name "$topic_name" -o json)
-
-    MAX_SIZE=$(echo "$TOPIC_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['maxSizeInMegabytes'])")
-
-    az servicebus topic create       --namespace-name "$SERVICE_BUS"       --resource-group "$RG"       --name "$topic_name"       --max-size "$MAX_SIZE" > /dev/null
-    echo "    Skapade topic: $topic_name"
+    if az servicebus topic show --namespace-name "$SERVICE_BUS" --resource-group "$RG" --name "$topic_name" &>/dev/null; then
+      echo "    Topic '$topic_name' finns redan – hoppar över."
+    else
+      TOPIC_PROPS=$(az servicebus topic show \
+        --namespace-name "$DEV_SERVICE_BUS" \
+        --resource-group "$DEV_RG" \
+        --name "$topic_name" -o json)
+      MAX_SIZE=$(echo "$TOPIC_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['maxSizeInMegabytes'])")
+      az servicebus topic create \
+        --namespace-name "$SERVICE_BUS" \
+        --resource-group "$RG" \
+        --name "$topic_name" \
+        --max-size "$MAX_SIZE" > /dev/null
+      echo "    Skapade topic: $topic_name"
+    fi
 
     # Kopiera subscriptions per topic
-    DEV_SUBS=$(az servicebus topic subscription list       --namespace-name "$DEV_SERVICE_BUS"       --resource-group "$DEV_RG"       --topic-name "$topic_name"       --query "[].name" -o tsv 2>/dev/null || echo "")
+    DEV_SUBS=$(az servicebus topic subscription list \
+      --namespace-name "$DEV_SERVICE_BUS" \
+      --resource-group "$DEV_RG" \
+      --topic-name "$topic_name" \
+      --query "[].name" -o tsv 2>/dev/null || echo "")
 
     if [ -n "$DEV_SUBS" ]; then
       while IFS= read -r sub_name; do
-        az servicebus topic subscription create           --namespace-name "$SERVICE_BUS"           --resource-group "$RG"           --topic-name "$topic_name"           --name "$sub_name" > /dev/null
-        echo "      Skapade subscription: $sub_name"
+        if az servicebus topic subscription show --namespace-name "$SERVICE_BUS" --resource-group "$RG" --topic-name "$topic_name" --name "$sub_name" &>/dev/null; then
+          echo "      Subscription '$sub_name' finns redan – hoppar över."
+        else
+          az servicebus topic subscription create \
+            --namespace-name "$SERVICE_BUS" \
+            --resource-group "$RG" \
+            --topic-name "$topic_name" \
+            --name "$sub_name" > /dev/null
+          echo "      Skapade subscription: $sub_name"
+        fi
       done <<< "$DEV_SUBS"
     fi
   done <<< "$DEV_TOPICS"
@@ -1269,7 +1326,6 @@ if [ -n "$DEV_STORAGE_KEY" ]; then
 
   if [ -n "$DEV_CONTAINERS" ]; then
     while IFS= read -r container_name; do
-      # Hämta access level från dev
       ACCESS=$(az storage container show         --name "$container_name"         --account-name "$DEV_STORAGE"         --account-key "$DEV_STORAGE_KEY"         --query "properties.publicAccess" -o tsv 2>/dev/null || echo "off")
       [ "$ACCESS" = "None" ] && ACCESS="off"
 
@@ -1296,6 +1352,15 @@ for d in deployments:
     model_format = d['properties']['model']['format']
     capacity = d['sku']['capacity']
     sku_name = d['sku']['name']
+    result = subprocess.run([
+        'az', 'cognitiveservices', 'account', 'deployment', 'show',
+        '--name', '$OPENAI_ACCOUNT',
+        '--resource-group', '$RG',
+        '--deployment-name', name
+    ], capture_output=True)
+    if result.returncode == 0:
+        print(f'    Deployment {name} finns redan – hoppar över.')
+        continue
     print(f'    Deploying {name} ({model_name} {model_version})...')
     subprocess.run([
         'az', 'cognitiveservices', 'account', 'deployment', 'create',
@@ -1320,16 +1385,29 @@ DEV_ORIGIN_GROUPS=$(az afd origin-group list   --profile-name "$DEV_AFD_PROFILE"
 
 if [ -n "$DEV_ORIGIN_GROUPS" ]; then
   while IFS= read -r og_name; do
-    OG_PROPS=$(az afd origin-group show       --profile-name "$DEV_AFD_PROFILE"       --resource-group "$DEV_RG"       --origin-group-name "$og_name" -o json)
-
-    PROBE_PATH=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('healthProbeSettings',{}).get('probePath','/'))")
-    PROBE_INTERVAL=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('healthProbeSettings',{}).get('probeIntervalInSeconds',100))")
-
-    az afd origin-group create       --origin-group-name "$og_name"       --profile-name "$AFD_PROFILE"       --resource-group "$RG"       --probe-path "$PROBE_PATH"       --probe-interval-in-seconds "$PROBE_INTERVAL" > /dev/null
-    echo "    Skapade origin group: $og_name"
+    if az afd origin-group show --origin-group-name "$og_name" --profile-name "$AFD_PROFILE" --resource-group "$RG" &>/dev/null; then
+      echo "    Origin group '$og_name' finns redan – hoppar över."
+    else
+      OG_PROPS=$(az afd origin-group show \
+        --profile-name "$DEV_AFD_PROFILE" \
+        --resource-group "$DEV_RG" \
+        --origin-group-name "$og_name" -o json)
+      PROBE_PATH=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('healthProbeSettings',{}).get('probePath','/'))")
+      PROBE_INTERVAL=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('healthProbeSettings',{}).get('probeIntervalInSeconds',100))")
+      az afd origin-group create \
+        --origin-group-name "$og_name" \
+        --profile-name "$AFD_PROFILE" \
+        --resource-group "$RG" \
+        --probe-path "$PROBE_PATH" \
+        --probe-interval-in-seconds "$PROBE_INTERVAL" > /dev/null
+      echo "    Skapade origin group: $og_name"
+    fi
 
     # Kopiera origins inom gruppen
-    DEV_ORIGINS=$(az afd origin list       --profile-name "$DEV_AFD_PROFILE"       --resource-group "$DEV_RG"       --origin-group-name "$og_name" -o json 2>/dev/null || echo "[]")
+    DEV_ORIGINS=$(az afd origin list \
+      --profile-name "$DEV_AFD_PROFILE" \
+      --resource-group "$DEV_RG" \
+      --origin-group-name "$og_name" -o json 2>/dev/null || echo "[]")
 
     echo "$DEV_ORIGINS" | python3 -c "
 import json, sys, subprocess
@@ -1341,6 +1419,16 @@ for o in origins:
     https_port = o.get('httpsPort', 443)
     priority = o.get('priority', 1)
     weight = o.get('weight', 1000)
+    result = subprocess.run([
+        'az', 'afd', 'origin', 'show',
+        '--origin-name', name,
+        '--origin-group-name', '$og_name',
+        '--profile-name', '$AFD_PROFILE',
+        '--resource-group', '$RG'
+    ], capture_output=True)
+    if result.returncode == 0:
+        print(f'      Origin {name} finns redan – hoppar över.')
+        continue
     print(f'      Skapar origin: {name} -> {host}')
     subprocess.run([
         'az', 'afd', 'origin', 'create',
@@ -1359,18 +1447,36 @@ for o in origins:
 fi
 
 # Kopiera routes
-DEV_ROUTES=$(az afd route list   --profile-name "$DEV_AFD_PROFILE"   --resource-group "$DEV_RG"   --endpoint-name "video-endpoint"   --query "[].name" -o tsv 2>/dev/null || echo "")
+DEV_ROUTES=$(az afd route list \
+  --profile-name "$DEV_AFD_PROFILE" \
+  --resource-group "$DEV_RG" \
+  --endpoint-name "video-endpoint" \
+  --query "[].name" -o tsv 2>/dev/null || echo "")
 
 if [ -n "$DEV_ROUTES" ]; then
   while IFS= read -r route_name; do
-    ROUTE_PROPS=$(az afd route show       --profile-name "$DEV_AFD_PROFILE"       --resource-group "$DEV_RG"       --endpoint-name "video-endpoint"       --route-name "$route_name" -o json)
-
-    PATTERNS=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin).get('patternsToMatch', ['/*'])))")
-    OG=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['originGroup']['id'].split('/')[-1])")
-    HTTPS=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('httpsRedirect','Enabled'))")
-
-    az afd route create       --route-name "$route_name"       --profile-name "$AFD_PROFILE"       --resource-group "$RG"       --endpoint-name "$AFD_ENDPOINT"       --origin-group "$OG"       --patterns-to-match $PATTERNS       --https-redirect "$HTTPS"       --forwarding-protocol MatchRequest > /dev/null
-    echo "    Skapade route: $route_name"
+    if az afd route show --route-name "$route_name" --profile-name "$AFD_PROFILE" --resource-group "$RG" --endpoint-name "$AFD_ENDPOINT" &>/dev/null; then
+      echo "    Route '$route_name' finns redan – hoppar över."
+    else
+      ROUTE_PROPS=$(az afd route show \
+        --profile-name "$DEV_AFD_PROFILE" \
+        --resource-group "$DEV_RG" \
+        --endpoint-name "video-endpoint" \
+        --route-name "$route_name" -o json)
+      PATTERNS=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin).get('patternsToMatch', ['/*'])))")
+      OG=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['originGroup']['id'].split('/')[-1])")
+      HTTPS=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('httpsRedirect','Enabled'))")
+      az afd route create \
+        --route-name "$route_name" \
+        --profile-name "$AFD_PROFILE" \
+        --resource-group "$RG" \
+        --endpoint-name "$AFD_ENDPOINT" \
+        --origin-group "$OG" \
+        --patterns-to-match $PATTERNS \
+        --https-redirect "$HTTPS" \
+        --forwarding-protocol MatchRequest > /dev/null
+      echo "    Skapade route: $route_name"
+    fi
   done <<< "$DEV_ROUTES"
 fi
 
@@ -1383,6 +1489,15 @@ if [ "$DEV_FW_RULES" != "[]" ] && [ -n "$DEV_FW_RULES" ]; then
 import json, sys, subprocess
 rules = json.load(sys.stdin)
 for r in rules:
+    result = subprocess.run([
+        'az', 'sql', 'server', 'firewall-rule', 'show',
+        '--server', '$SQL_SERVER',
+        '--resource-group', '$RG',
+        '--name', r['name']
+    ], capture_output=True)
+    if result.returncode == 0:
+        print(f'    Brandväggsregel {r[\"name\"]} finns redan – hoppar över.')
+        continue
     subprocess.run([
         'az', 'sql', 'server', 'firewall-rule', 'create',
         '--server', '$SQL_SERVER',
@@ -1391,7 +1506,7 @@ for r in rules:
         '--start-ip-address', r['startIpAddress'],
         '--end-ip-address', r['endIpAddress']
     ])
-    print(f'    Kopierade brandväggsregel: {r["name"]}')
+    print(f'    Kopierade brandväggsregel: {r[\"name\"]}')
 "
 fi
 
@@ -1403,7 +1518,6 @@ fi
 
 log "16. Sätter upp IAM-roller..."
 
-# Hämta principal IDs för systemidentiteter
 echo "  Hämtar systemidentiteter..."
 APP_PRINCIPAL=$(az webapp identity show \
   --name "$BACKEND_APP_NAME" --resource-group "$RG" \
