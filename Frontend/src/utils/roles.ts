@@ -17,10 +17,11 @@ export function normaliseRole(raw: string): UserRole {
     const map: Record<string, UserRole> = {
         admin:       "admin",
         student:     "student",
+        participant: "student",   // backend name for the same role
         courseadmin: "courseAdmin",
         courseAdmin: "courseAdmin",
     };
-    return map[raw.toLowerCase()] ?? "student";
+    return map[raw] ?? map[raw.toLowerCase()] ?? "student";
 }
 
 // normaliseRoles maps the full Set<String> from the API to typed UserRole[]

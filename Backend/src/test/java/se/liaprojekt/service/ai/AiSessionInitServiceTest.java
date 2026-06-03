@@ -60,11 +60,11 @@ class AiSessionInitServiceTest {
 
     @Test
     void shouldThrowWhenUserNotFound() {
-        when(userRepo.findById(1L)).thenReturn(Optional.empty());
+        when(userRepo.findByEntraId("1")).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class,
-                () -> service.createSession(1L, 10L)
+                () -> service.createSession("1", 10L)
         );
 
         assertEquals("User not found: 1", exception.getMessage());
@@ -73,12 +73,12 @@ class AiSessionInitServiceTest {
 
     @Test
     void shouldThrowWhenCourseNotFound() {
-        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepo.findByEntraId("1")).thenReturn(Optional.of(user));
         when(courseRepo.findById(10L)).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class,
-                () -> service.createSession(1L, 10L)
+                () -> service.createSession("1", 10L)
         );
 
         assertEquals("Course not found: 10", exception.getMessage());
@@ -89,13 +89,13 @@ class AiSessionInitServiceTest {
     void shouldThrowWhenAssistantMissing() {
         // Arrange
         course.setAssistantId(null); // Eller "" / " "
-        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepo.findByEntraId("1")).thenReturn(Optional.of(user));
         when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
 
         // Act + Assert
         BadRequestException exception = assertThrows(
                 BadRequestException.class,
-                () -> service.createSession(1L, 10L)
+                () -> service.createSession("1", 10L)
         );
 
         assertEquals("Course does not have an AI assistant assigned", exception.getMessage());
@@ -111,12 +111,12 @@ class AiSessionInitServiceTest {
         existing.setUser(user);
         existing.setCourse(course);
 
-        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepo.findByEntraId("1")).thenReturn(Optional.of(user));
         when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
         when(sessionRepo.findAllByUser_IdAndCourse_Id(1L, 10L)).thenReturn(List.of(existing));
 
         // Act
-        AiSession result = service.createSession(1L, 10L);
+        AiSession result = service.createSession("1", 10L);
 
         // Assert
         assertNotNull(result);
@@ -136,12 +136,12 @@ class AiSessionInitServiceTest {
         AiSession duplicate = new AiSession();
         duplicate.setId(2L);
 
-        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepo.findByEntraId("1L")).thenReturn(Optional.of(user));
         when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
         when(sessionRepo.findAllByUser_IdAndCourse_Id(1L, 10L)).thenReturn(List.of(keep, duplicate));
 
         // Act
-        AiSession result = service.createSession(1L, 10L);
+        AiSession result = service.createSession("1L", 10L);
 
         // Assert
         assertNotNull(result);
@@ -155,7 +155,7 @@ class AiSessionInitServiceTest {
     @Test
     void shouldCreateNewSession() {
         // Arrange
-        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepo.findByEntraId("1")).thenReturn(Optional.of(user));
         when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
         when(sessionRepo.findAllByUser_IdAndCourse_Id(1L, 10L)).thenReturn(List.of());
 
@@ -172,7 +172,7 @@ class AiSessionInitServiceTest {
         when(sessionRepo.save(any(AiSession.class))).thenReturn(savedSession);
 
         // Act
-        AiSession result = service.createSession(1L, 10L);
+        AiSession result = service.createSession("1", 10L);
 
         // Assert
         assertNotNull(result);
@@ -189,7 +189,7 @@ class AiSessionInitServiceTest {
         // Arrange
         course.setVectorStoreId(null); // Tar bort vector store id så att det blir null/blankt
 
-        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepo.findByEntraId("1")).thenReturn(Optional.of(user));
         when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
 
         // Koden kommer att köra den här raden, så vi mockar den till en tom lista
@@ -198,7 +198,7 @@ class AiSessionInitServiceTest {
         // Act + Assert
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> service.createSession(1L, 10L)
+                () -> service.createSession("1", 10L)
         );
 
         assertEquals("Course has no vector store configured", exception.getMessage());

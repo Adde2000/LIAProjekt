@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
-import type { CourseRequest } from "../../types";
-import { createCourse } from "../../api/api";
+import type { CourseRequest, UserResponse } from "../../types";
+import { createCourse, getUsers } from "../../api/api";
+import { normaliseRole } from "../../utils/roles";
 
 type FormStatus = "idle" | "submitting" | "success" | "error";
 
-const EMPTY_FORM: CourseRequest = { id: null, title: "", description: "", aiSessionTtlWeeks: 6 };
+const EMPTY_FORM: CourseRequest = {
+    title: "",
+    description: "",
+    aiSessionTtlWeeks: null,
+    courseAdminId: null,
+};
 
 export function CreateCourseView() {
     const { instance }            = useMsal();
@@ -13,7 +19,27 @@ export function CreateCourseView() {
     const [status, setStatus]     = useState<FormStatus>("idle");
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    function updateField(field: keyof CourseRequest, value: string) {
+    const [courseAdmins, setCourseAdmins]   = useState<UserResponse[]>([]);
+    const [adminsLoading, setAdminsLoading] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        setAdminsLoading(true);
+        getUsers(instance)
+            .then((data) => {
+                if (!cancelled && data) {
+                    const admins = (data as UserResponse[]).filter((u) =>
+                        u.role.some((r) => normaliseRole(r) === "courseAdmin")
+                    );
+                    setCourseAdmins(admins);
+                }
+            })
+            .catch(console.error)
+            .finally(() => { if (!cancelled) setAdminsLoading(false); });
+        return () => { cancelled = true; };
+    }, [instance]);
+
+    function updateField(field: keyof CourseRequest, value: string | number | null) {
         setForm((prev) => ({ ...prev, [field]: value }));
     }
 
@@ -70,35 +96,30 @@ export function CreateCourseView() {
                 </div>
 
                 <div className="vmv-form-field">
-                    <label className="vmv-form-label" htmlFor="course-ttl">
-                        Kursens längd i veckor
+                    <label className="vmv-form-label" htmlFor="course-admin">
+                        Kursledare
                     </label>
-
-                    <input
-                        id="course-ttl"
+                    <select
+                        id="course-admin"
                         className="vmv-form-input"
-                        type="number"
-                        min={1}
-                        max={52}
-                        value={form.aiSessionTtlWeeks}
+                        value={form.courseAdminId ?? ""}
                         onChange={(e) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                aiSessionTtlWeeks: Number(e.target.value)
-                            }))
+                            updateField(
+                                "courseAdminId",
+                                e.target.value ? Number(e.target.value) : null
+                            )
                         }
-                        disabled={status === "submitting"}
-                    />
-
-                    <div
-                        style={{
-                            fontSize: "0.9rem",
-                            opacity: 0.7,
-                            marginTop: "0.4rem"
-                        }}
+                        disabled={status === "submitting" || adminsLoading}
                     >
-                        Hur länge AI-sessioner sparas innan cleanup körs.
-                    </div>
+                        <option value="">
+                            {adminsLoading ? "Hämtar kursledare…" : "Välj kursledare (valfritt)"}
+                        </option>
+                        {courseAdmins.map((u) => (
+                            <option key={u.id} value={u.id}>
+                                {u.displayName}{u.mail ? ` — ${u.mail}` : ""}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 <div className="vmv-form-preview">
@@ -108,9 +129,6 @@ export function CreateCourseView() {
                     </div>
                     <div className="vmv-form-preview-desc">
                         {form.description || <span style={{ opacity: 0.4 }}>Ingen beskrivning ännu</span>}
-                    </div>
-                    <div className="vmv-form-preview-desc">
-                        Kursen är  {form.aiSessionTtlWeeks} veckor
                     </div>
                 </div>
 
