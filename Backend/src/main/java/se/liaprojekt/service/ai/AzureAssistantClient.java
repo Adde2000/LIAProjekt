@@ -1,7 +1,5 @@
 package se.liaprojekt.service.ai;
 
-import com.azure.core.credential.TokenCredential;
-import com.azure.core.credential.TokenRequestContext;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,9 +19,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class AzureAssistantClient {
-
-    private static final String AZURE_SCOPE =
-            "https://cognitiveservices.azure.com/.default";
 
     @Value("${azure.openai.poll.max-attempts}")
     private int maxPollAttempts;
@@ -529,58 +524,6 @@ public class AzureAssistantClient {
 
             throw new AzureAssistantException(
                     "Unexpected Azure POST error",
-                    ex
-            );
-        }
-    }
-
-    // =========================
-    // GENERIC PATCH
-    // =========================
-
-    private void patch(
-            String url,
-            Object body
-    ) {
-        log.info("PATCH {}", url);
-
-        try {
-
-            HttpEntity<?> entity =
-                    new HttpEntity<>(
-                            body,
-                            headers()
-                    );
-
-            restTemplate.exchange(
-                    url,
-                    HttpMethod.PATCH,
-                    entity,
-                    Void.class
-            );
-
-        } catch (HttpClientErrorException ex) {
-
-            log.error(
-                    "Azure PATCH failed: {} | {}",
-                    ex.getStatusCode(),
-                    ex.getResponseBodyAsString()
-            );
-
-            throw new AzureAssistantException(
-                    "Azure PATCH request failed",
-                    ex
-            );
-
-        } catch (Exception ex) {
-
-            log.error(
-                    "Unexpected Azure PATCH error",
-                    ex
-            );
-
-            throw new AzureAssistantException(
-                    "Unexpected Azure PATCH error",
                     ex
             );
         }
