@@ -7,7 +7,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
-import se.liaprojekt.event.CourseCompletedEvent;
 import se.liaprojekt.event.TestResultEvent;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.Course;
@@ -99,12 +98,7 @@ public class TestResultListener {
                     course.getId()
             );
 
-            eventPublisher.publishEvent(
-                    new CourseCompletedEvent(
-                            result.getUser().getEntraId(),
-                            course.getId()
-                    )
-            );
+            emailService.sendCourseCompletedEmail(email, course);
         }
     }
 }

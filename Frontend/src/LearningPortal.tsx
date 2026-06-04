@@ -6,6 +6,7 @@ import type { ViewKey } from "./types";
 import { VIEWS } from "./data";
 import { CoursesView } from "./views/CoursesView";
 import { AdminView }   from "./views/admin/AdminView";
+import vinkelbodaLogo from "./assets/vinkelboda_logo_vektor .svg";
 
 // CSS — one import per concern, all pulled in here
 import "./styles/global.css";
@@ -65,8 +66,7 @@ export default function LearningPortal() {
     return (
         <div className="vmv">
             <header className="vmv-header">
-                <h1 className="vmv-title">Lärportal</h1>
-                <p className="vmv-subtitle">Här står det mer text om man vill ha en undertitel</p>
+                <img src={vinkelbodaLogo} alt="Vinkelboda logotyp" className="vmv-logo" />
             </header>
 
             <nav className="vmv-nav">
