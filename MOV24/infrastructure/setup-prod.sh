@@ -362,7 +362,7 @@ else
   FA_DEV_HTTPS=$(az functionapp show --name "$DEV_FUNCTION_APP" --resource-group "$DEV_RG" \
     --query "httpsOnly" -o tsv 2>/dev/null || echo "true")
 
-  echo "  Skapar Function App '$FUNCTION_APP_NAME' (Flex Consumption)..."
+echo "  Skapar Function App '$FUNCTION_APP_NAME' (Flex Consumption)..."
   az functionapp create \
     --name "$FUNCTION_APP_NAME" \
     --resource-group "$RG" \
@@ -370,18 +370,20 @@ else
     --runtime "$FUNCTION_RUNTIME" \
     --runtime-version "$FUNCTION_RUNTIME_VERSION" \
     --storage-account "$FUNCTION_STORAGE" \
-    --flexconsumption-location "$LOCATION" \
-    --assign-identity "$MSI_ID"
+    --flexconsumption-location "$LOCATION"
 
-  az functionapp config set \
+  echo "  Tilldelar Managed Identity..."
+  az functionapp identity assign \
     --name "$FUNCTION_APP_NAME" \
     --resource-group "$RG" \
-    --min-tls-version "$FA_DEV_TLS" \
-    --http20-enabled "$FA_DEV_HTTP"
+    --identities "$MSI_ID"
 
+  echo "  Konfigurerar TLS, HTTP/2 och HTTPS..."
   az functionapp update \
     --name "$FUNCTION_APP_NAME" \
     --resource-group "$RG" \
+    --set siteConfig.minTlsVersion="$FA_DEV_TLS" \
+    --set siteConfig.http20Enabled="$FA_DEV_HTTP" \
     --set httpsOnly="$FA_DEV_HTTPS"
 fi
 
