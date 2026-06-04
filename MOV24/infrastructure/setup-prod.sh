@@ -63,10 +63,10 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # KONFIGURATION – justera dessa värden innan körning
 # ---------------------------------------------------------------------------
-RG="rg-app-prod"
+RG="rg-app-testning60"
 DEV_RG="rg-app-dev"           # Källmiljö att kopiera inställningar från
 LOCATION="westeurope"
-ENV="prod"
+ENV="testning60"
 
 # SQL
 SQL_SERVER="sqlsrv-app-${ENV}"
@@ -108,7 +108,7 @@ SWA_LOCATION="$LOCATION"
 ASP_NAME="asp-app-${ENV}"
 ASP_SKU="S1"                       # Standard-nivå
 BACKEND_APP_NAME="app-${ENV}-api"
-BACKEND_APP_RUNTIME="JAVA:21:Java SE:21"  # Java 21
+BACKEND_APP_RUNTIME="JAVA:21-java21"  # Java 21
 
 # Autoskalning (används om App Service skapas)
 AUTOSCALE_MIN=1
@@ -210,11 +210,14 @@ if az appservice plan show --name "$ASP_NAME" --resource-group "$RG" &>/dev/null
   echo "  App Service Plan '$ASP_NAME' finns redan – hoppar över."
 else
   echo "  Hämtar App Service Plan-konfiguration från dev..."
-  DEV_ASP_NAME=$(az webapp show --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" \
-    --query "appServicePlanId" -o tsv 2>/dev/null | xargs az appservice plan show --ids \
-    --query "name" -o tsv 2>/dev/null || echo "")
-  ASP_DEV_SKU=$(az appservice plan show --name "$DEV_ASP_NAME" --resource-group "$DEV_RG" \
-    --query "sku.name" -o tsv 2>/dev/null || echo "$ASP_SKU")
+  DEV_ASP_ID=$(az webapp show --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" \
+    --query "appServicePlanId" -o tsv 2>/dev/null || echo "")
+if [ -n "$DEV_ASP_ID" ]; then
+    ASP_DEV_SKU=$(az appservice plan show --ids "$DEV_ASP_ID" \
+        --query "sku.name" -o tsv 2>/dev/null || echo "$ASP_SKU")
+else
+    ASP_DEV_SKU="$ASP_SKU"
+fi
 
   echo "  Skapar App Service Plan '$ASP_NAME' (SKU: $ASP_DEV_SKU)..."
   az appservice plan create \
@@ -341,13 +344,74 @@ print($AUTOSCALE_MEM_OUT)
     --condition "CpuPercentage < ${AS_CPU_IN} avg 15m" \
     --cooldown 15
 else
-  echo "  Autoskalning hoppas över (App Service fanns redan)."
+  echo "  Kontrollerar autoskalning (App Service fanns redan)..."
+  if az monitor autoscale show --name "autoscale-backend-${ENV}" --resource-group "$RG" &>/dev/null; then
+    echo "  Autoskalning finns redan – hoppar över."
+  else
+    echo "  Skapar autoskalningsregler..."
+    ASP_ID=$(az appservice plan show --name "$ASP_NAME" --resource-group "$RG" --query id -o tsv)
+
+    az monitor autoscale create \
+      --name "autoscale-backend-${ENV}" \
+      --resource-group "$RG" \
+      --resource "$ASP_ID" \
+      --min-count "$AUTOSCALE_MIN" \
+      --max-count "$AUTOSCALE_MAX" \
+      --count "$AUTOSCALE_DEFAULT"
+
+    az monitor autoscale rule create \
+      --autoscale-name "autoscale-backend-${ENV}" \
+      --resource-group "$RG" \
+      --scale out 1 \
+      --condition "CpuPercentage > ${AUTOSCALE_CPU_OUT} avg 5m" \
+      --cooldown 5
+
+    az monitor autoscale rule create \
+      --autoscale-name "autoscale-backend-${ENV}" \
+      --resource-group "$RG" \
+      --scale out 1 \
+      --condition "MemoryPercentage > ${AUTOSCALE_MEM_OUT} avg 5m" \
+      --cooldown 5
+
+    az monitor autoscale rule create \
+      --autoscale-name "autoscale-backend-${ENV}" \
+      --resource-group "$RG" \
+      --scale in 1 \
+      --condition "CpuPercentage < ${AUTOSCALE_CPU_IN} avg 15m" \
+      --cooldown 15
+  fi
 fi
 
 
 # ---------------------------------------------------------------------------
 # 3b. FUNCTION APP (Service Bus worker) – skapas om den inte redan finns
 # ---------------------------------------------------------------------------
+
+log "Skapar Storage Account (krävs av Function App)..."
+
+echo "  Hämtar Storage-konfiguration från dev..."
+STORAGE_DEV_SKU=$(az storage account show --name "$DEV_STORAGE" --resource-group "$DEV_RG" \
+  --query "sku.name" -o tsv 2>/dev/null || echo "Standard_LRS")
+STORAGE_DEV_KIND=$(az storage account show --name "$DEV_STORAGE" --resource-group "$DEV_RG" \
+  --query "kind" -o tsv 2>/dev/null || echo "StorageV2")
+STORAGE_DEV_TLS=$(az storage account show --name "$DEV_STORAGE" --resource-group "$DEV_RG" \
+  --query "minimumTlsVersion" -o tsv 2>/dev/null || echo "TLS1_2")
+
+if az storage account show --name "$STORAGE_ACCOUNT" --resource-group "$RG" &>/dev/null; then
+  echo "  Storage Account '$STORAGE_ACCOUNT' finns redan – hoppar över."
+else
+  echo "  Skapar Storage Account '$STORAGE_ACCOUNT'..."
+  az storage account create \
+    --name "$STORAGE_ACCOUNT" \
+    --resource-group "$RG" \
+    --location "$LOCATION" \
+    --sku "$STORAGE_DEV_SKU" \
+    --kind "$STORAGE_DEV_KIND" \
+    --public-network-access Disabled \
+    --allow-blob-public-access false \
+    --min-tls-version "$STORAGE_DEV_TLS"
+fi
+
 log "3b. Kontrollerar Function App..."
 
 # Flex Consumption hanterar sin egen plan – ingen separat az appservice plan create
@@ -363,10 +427,9 @@ else
     --query "httpsOnly" -o tsv 2>/dev/null || echo "true")
 
 echo "  Skapar Function App '$FUNCTION_APP_NAME' (Flex Consumption)..."
-  az functionapp create \
+az functionapp create \
     --name "$FUNCTION_APP_NAME" \
     --resource-group "$RG" \
-    --location "$LOCATION" \
     --runtime "$FUNCTION_RUNTIME" \
     --runtime-version "$FUNCTION_RUNTIME_VERSION" \
     --storage-account "$FUNCTION_STORAGE" \
