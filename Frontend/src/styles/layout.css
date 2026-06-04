@@ -8,6 +8,7 @@
     width: 100vw;
     box-sizing: border-box;
     border-bottom: none;
+    align-items: center;
 }
 
 .vmv-eyebrow {
@@ -32,6 +33,12 @@
     font-size: 14px;
     color: rgba(255,255,255,0.8);
     font-style: italic;
+}
+
+.vmv-logo {
+    height: 80px;
+    width: auto;
+    object-fit: contain;
 }
 
 /* ── Nav ──────────────────────────────────────────────────────────────────── */
