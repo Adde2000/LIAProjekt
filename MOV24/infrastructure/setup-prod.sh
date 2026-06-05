@@ -189,7 +189,13 @@ MSI_PRINCIPAL=$(az identity show --name "$MSI_NAME" --resource-group "$RG" --que
 log "2. Kontrollerar Static Web App..."
 
 if az staticwebapp show --name "$SWA_NAME" --resource-group "$RG" &>/dev/null; then
-  echo "  Static Web App '$SWA_NAME' finns redan – hoppar över."
+  echo "  Static Web App '$SWA_NAME' finns redan – uppdaterar inställningar..."
+  SWA_DEV_SKU=$(az staticwebapp show --name "$DEV_SWA" --resource-group "$DEV_RG" \
+    --query "sku.name" -o tsv 2>/dev/null || echo "Standard")
+  az staticwebapp update \
+    --name "$SWA_NAME" \
+    --resource-group "$RG" \
+    --sku "$SWA_DEV_SKU" > /dev/null
 else
   echo "  Hämtar Static Web App-konfiguration från dev..."
   SWA_DEV_SKU=$(az staticwebapp show --name "$DEV_SWA" --resource-group "$DEV_RG" \
@@ -212,7 +218,19 @@ log "3. Kontrollerar App Service Plan och backend..."
 APP_SERVICE_CREATED=false
 
 if az appservice plan show --name "$ASP_NAME" --resource-group "$RG" &>/dev/null; then
-  echo "  App Service Plan '$ASP_NAME' finns redan – hoppar över."
+  echo "  App Service Plan '$ASP_NAME' finns redan – uppdaterar inställningar..."
+  DEV_ASP_ID=$(az webapp show --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" \
+    --query "appServicePlanId" -o tsv 2>/dev/null || echo "")
+  if [ -n "$DEV_ASP_ID" ]; then
+    ASP_DEV_SKU=$(az appservice plan show --ids "$DEV_ASP_ID" \
+      --query "sku.name" -o tsv 2>/dev/null || echo "$ASP_SKU")
+  else
+    ASP_DEV_SKU="$ASP_SKU"
+  fi
+  az appservice plan update \
+    --name "$ASP_NAME" \
+    --resource-group "$RG" \
+    --sku "$ASP_DEV_SKU" > /dev/null
 else
   echo "  Hämtar App Service Plan-konfiguration från dev..."
   DEV_ASP_ID=$(az webapp show --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" \
@@ -242,16 +260,31 @@ if az webapp show --name "$BACKEND_APP_NAME" --resource-group "$RG" &>/dev/null;
   APP_DEV_ALWAYS_ON=$(echo "$APP_DEV_CONFIG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('alwaysOn', True))")
   APP_DEV_HTTPS=$(az webapp show --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" \
     --query "httpsOnly" -o tsv 2>/dev/null || echo "true")
+  APP_DEV_CLIENT_AFFINITY=$(az webapp show --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" \
+    --query "clientAffinityEnabled" -o tsv 2>/dev/null || echo "false")
   az webapp update \
     --name "$BACKEND_APP_NAME" \
     --resource-group "$RG" \
-    --https-only "$APP_DEV_HTTPS" > /dev/null
+    --https-only "$APP_DEV_HTTPS" \
+    --client-affinity-enabled "$APP_DEV_CLIENT_AFFINITY" \
+    --set basicPublishingCredentialsPolicies.scm.allow=true > /dev/null
   az webapp config set \
     --name "$BACKEND_APP_NAME" \
     --resource-group "$RG" \
     --min-tls-version "$APP_DEV_TLS" \
     --http20-enabled "$APP_DEV_HTTP" \
     --always-on "$APP_DEV_ALWAYS_ON" > /dev/null
+
+  PROD_SWA_URL=$(az staticwebapp show --name "$SWA_NAME" --resource-group "$RG" \
+    --query "defaultHostname" -o tsv 2>/dev/null | tr -d '\r' || echo "")
+
+  if [ -n "$PROD_SWA_URL" ]; then
+    echo "  Sätter CORS för App Service -> https://$PROD_SWA_URL..."
+    az webapp cors add \
+      --name "$BACKEND_APP_NAME" \
+      --resource-group "$RG" \
+      --allowed-origins "https://$PROD_SWA_URL"
+  fi
 else
   echo "  Skapar App Service '$BACKEND_APP_NAME'..."
   echo "  Hämtar App Service-konfiguration från dev..."
@@ -262,6 +295,8 @@ else
   APP_DEV_ALWAYS_ON=$(echo "$APP_DEV_CONFIG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('alwaysOn', True))")
   APP_DEV_HTTPS=$(az webapp show --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" \
     --query "httpsOnly" -o tsv 2>/dev/null || echo "true")
+  APP_DEV_CLIENT_AFFINITY=$(az webapp show --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" \
+    --query "clientAffinityEnabled" -o tsv 2>/dev/null || echo "false")
 
   echo "  Tilldelar Managed Identity till App Service..."
   az webapp create \
@@ -277,6 +312,7 @@ else
     --name "$BACKEND_APP_NAME" \
     --resource-group "$RG" \
     --https-only "$APP_DEV_HTTPS" \
+    --client-affinity-enabled "$APP_DEV_CLIENT_AFFINITY" \
     --set basicPublishingCredentialsPolicies.scm.allow=true
 
   az webapp config set \
@@ -556,9 +592,20 @@ STORAGE_DEV_KIND=$(az storage account show --name "$DEV_STORAGE" --resource-grou
   --query "kind" -o tsv 2>/dev/null || echo "StorageV2")
 STORAGE_DEV_TLS=$(az storage account show --name "$DEV_STORAGE" --resource-group "$DEV_RG" \
   --query "minimumTlsVersion" -o tsv 2>/dev/null || echo "TLS1_2")
+STORAGE_DEV_SHARED_KEY=$(az storage account show --name "$DEV_STORAGE" --resource-group "$DEV_RG" \
+  --query "allowSharedKeyAccess" -o tsv 2>/dev/null || echo "true")
 
 if az storage account show --name "$STORAGE_ACCOUNT" --resource-group "$RG" &>/dev/null; then
-  echo "  Storage Account '$STORAGE_ACCOUNT' finns redan – hoppar över."
+  echo "  Storage Account '$STORAGE_ACCOUNT' finns redan – uppdaterar inställningar..."
+  az storage account update \
+    --name "$STORAGE_ACCOUNT" \
+    --resource-group "$RG" \
+    --sku "$STORAGE_DEV_SKU" \
+    --min-tls-version "$STORAGE_DEV_TLS" \
+    --allow-blob-public-access false \
+    --public-network-access Enabled \
+    --https-only true \
+    --allow-shared-key-access "$STORAGE_DEV_SHARED_KEY" > /dev/null
 else
   echo "  Skapar Storage Account '$STORAGE_ACCOUNT'..."
   az storage account create \
@@ -569,7 +616,9 @@ else
     --kind "$STORAGE_DEV_KIND" \
     --public-network-access Enabled \
     --allow-blob-public-access false \
-    --min-tls-version "$STORAGE_DEV_TLS"
+    --min-tls-version "$STORAGE_DEV_TLS" \
+    --https-only true \
+    --allow-shared-key-access "$STORAGE_DEV_SHARED_KEY"
 fi
 
 STORAGE_ID=$(az storage account show --name "$STORAGE_ACCOUNT" --resource-group "$RG" --query id -o tsv)
@@ -672,6 +721,26 @@ if az functionapp show --name "$FUNCTION_APP_NAME" --resource-group "$RG" &>/dev
     --set siteConfig.minTlsVersion="$FA_DEV_TLS" \
     --set siteConfig.http20Enabled="$FA_DEV_HTTP" \
     --set httpsOnly="$FA_DEV_HTTPS" > /dev/null
+
+  az resource update \
+    --resource-group "$RG" \
+    --name "$FUNCTION_APP_NAME" \
+    --resource-type "Microsoft.Web/sites" \
+    --set properties.httpsOnly=true \
+    --set properties.siteConfig.http20Enabled="$FA_DEV_HTTP" > /dev/null
+
+  echo "  Kontrollerar Managed Identity för Function App..."
+  FA_IDENTITY=$(az functionapp identity show \
+    --name "$FUNCTION_APP_NAME" \
+    --resource-group "$RG" \
+    --query principalId -o tsv 2>/dev/null || echo "")
+  if [ -z "$FA_IDENTITY" ]; then
+    echo "  Tilldelar Managed Identity..."
+    az functionapp identity assign \
+      --name "$FUNCTION_APP_NAME" \
+      --resource-group "$RG" \
+      --system-assigned > /dev/null
+  fi
 else
   echo "  Hämtar Function App-konfiguration från dev..."
   FA_DEV_CONFIG=$(az functionapp config show \
@@ -719,6 +788,13 @@ az functionapp vnet-integration add \
     --set siteConfig.http20Enabled="$FA_DEV_HTTP" \
     --set httpsOnly="$FA_DEV_HTTPS"
 
+  az resource update \
+    --resource-group "$RG" \
+    --name "$FUNCTION_APP_NAME" \
+    --resource-type "Microsoft.Web/sites" \
+    --set properties.httpsOnly=true \
+    --set properties.siteConfig.http20Enabled="$FA_DEV_HTTP" > /dev/null
+
   az functionapp config appsettings set \
     --name "$FUNCTION_APP_NAME" \
     --resource-group "$RG" \
@@ -738,7 +814,12 @@ KV_DEV_SKU=$(az keyvault show --name "$DEV_KEY_VAULT" --resource-group "$DEV_RG"
   --query "properties.sku.name" -o tsv 2>/dev/null || echo "standard")
 
 if az keyvault show --name "$KEY_VAULT" --resource-group "$RG" &>/dev/null; then
-  echo "  Key Vault '$KEY_VAULT' finns redan – hoppar över."
+  echo "  Key Vault '$KEY_VAULT' finns redan – uppdaterar inställningar..."
+  az keyvault update \
+    --name "$KEY_VAULT" \
+    --resource-group "$RG" \
+    --enable-rbac-authorization true \
+    --public-network-access Enabled > /dev/null
 else
   echo "  Skapar Key Vault '$KEY_VAULT'..."
   az keyvault create \
@@ -839,7 +920,11 @@ if [ -n "$DEV_SECRETS" ]; then
       --query "value" -o tsv 2>/dev/null || echo "")
 
     if az keyvault secret show --vault-name "$KEY_VAULT" --name "$secret_name" &>/dev/null; then
-      echo "    Secret '$secret_name' finns redan – hoppar över."
+      echo "    Secret '$secret_name' finns redan – uppdaterar värde..."
+      az keyvault secret set \
+        --vault-name "$KEY_VAULT" \
+        --name "$secret_name" \
+        --value "$SECRET_VALUE" > /dev/null
     else
       az keyvault secret set \
         --vault-name "$KEY_VAULT" \
@@ -861,14 +946,31 @@ if [ -z "$SQL_ADMIN_PASSWORD" ]; then
 fi
 
 if az sql server show --name "$SQL_SERVER" --resource-group "$RG" &>/dev/null; then
-  echo "  SQL Server '$SQL_SERVER' finns redan – uppdaterar TLS..."
+  echo "  SQL Server '$SQL_SERVER' finns redan – uppdaterar inställningar..."
   SQL_DEV_SERVER_PROPS=$(az sql server show \
     --name "$DEV_SQL_SERVER" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "{}")
   SQL_DEV_TLS=$(echo "$SQL_DEV_SERVER_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('minimalTlsVersion', '1.2'))")
   az sql server update \
     --name "$SQL_SERVER" \
     --resource-group "$RG" \
+    --set publicNetworkAccess=Enabled \
     --minimal-tls-version "$SQL_DEV_TLS" > /dev/null
+
+  SQL_DEV_AAD_LOGIN=$(az sql server ad-admin list \
+    --server "$DEV_SQL_SERVER" --resource-group "$DEV_RG" \
+    --query "[0].login" -o tsv 2>/dev/null || echo "")
+  SQL_DEV_AAD_SID=$(az sql server ad-admin list \
+    --server "$DEV_SQL_SERVER" --resource-group "$DEV_RG" \
+    --query "[0].sid" -o tsv 2>/dev/null || echo "")
+
+  if [ -n "$SQL_DEV_AAD_LOGIN" ]; then
+    echo "  Uppdaterar Entra ID-administratör '$SQL_DEV_AAD_LOGIN'..."
+    az sql server ad-admin create \
+      --server "$SQL_SERVER" \
+      --resource-group "$RG" \
+      --display-name "$SQL_DEV_AAD_LOGIN" \
+      --object-id "$SQL_DEV_AAD_SID" > /dev/null
+  fi
 else
   echo "  Skapar SQL Server '$SQL_SERVER'..."
   az sql server create \
@@ -938,7 +1040,8 @@ if az sql db show --name "$SQL_DB" --server "$SQL_SERVER" --resource-group "$RG"
     --server "$SQL_SERVER" \
     --resource-group "$RG" \
     --tier "$SQL_DEV_TIER" \
-    --capacity "$SQL_DEV_CAPACITY" > /dev/null
+    --capacity "$SQL_DEV_CAPACITY" \
+    --zone-redundant "$SQL_DEV_ZONE" > /dev/null
 else
   echo "  Skapar SQL databas '$SQL_DB'..."
 az sql db create \
@@ -1080,7 +1183,11 @@ SB_DEV_SKU=$(az servicebus namespace show \
   --query "sku.name" -o tsv 2>/dev/null || echo "Standard")
 
 if az servicebus namespace show --name "$SERVICE_BUS" --resource-group "$RG" &>/dev/null; then
-  echo "  Service Bus '$SERVICE_BUS' finns redan – hoppar över."
+  echo "  Service Bus '$SERVICE_BUS' finns redan – uppdaterar inställningar..."
+  az servicebus namespace update \
+    --name "$SERVICE_BUS" \
+    --resource-group "$RG" \
+    --sku "$SB_DEV_SKU" > /dev/null
 else
   echo "  Skapar Service Bus '$SERVICE_BUS'..."
   az servicebus namespace create \
@@ -1101,7 +1208,12 @@ OAI_DEV_SKU=$(az cognitiveservices account show \
   --query "sku.name" -o tsv 2>/dev/null || echo "S0")
 
 if az cognitiveservices account show --name "$OPENAI_ACCOUNT" --resource-group "$RG" &>/dev/null; then
-  echo "  Azure OpenAI '$OPENAI_ACCOUNT' finns redan – hoppar över."
+  echo "  Azure OpenAI '$OPENAI_ACCOUNT' finns redan – uppdaterar inställningar..."
+  az cognitiveservices account update \
+    --name "$OPENAI_ACCOUNT" \
+    --resource-group "$RG" \
+    --sku "$OAI_DEV_SKU" \
+    --custom-domain "$OPENAI_ACCOUNT" > /dev/null
 else
   echo "  Skapar Azure OpenAI '$OPENAI_ACCOUNT'..."
 az cognitiveservices account create \
@@ -1179,16 +1291,23 @@ echo "  Hämtar Front Door-konfiguration från dev..."
 AFD_DEV_SKU=$(az afd profile show \
   --profile-name "$DEV_AFD_PROFILE" --resource-group "$DEV_RG" \
   --query "sku.name" -o tsv 2>/dev/null || echo "Standard_AzureFrontDoor")
+AFD_DEV_TIMEOUT=$(az afd profile show \
+  --profile-name "$DEV_AFD_PROFILE" --resource-group "$DEV_RG" \
+  --query "originResponseTimeoutSeconds" -o tsv 2>/dev/null || echo "60")
 
 if az afd profile show --profile-name "$AFD_PROFILE" --resource-group "$RG" &>/dev/null; then
-  echo "  Front Door '$AFD_PROFILE' finns redan – hoppar över."
+  echo "  Front Door '$AFD_PROFILE' finns redan – uppdaterar inställningar..."
+  az afd profile update \
+    --profile-name "$AFD_PROFILE" \
+    --resource-group "$RG" \
+    --origin-response-timeout-seconds "$AFD_DEV_TIMEOUT" > /dev/null
 else
   echo "  Skapar Front Door '$AFD_PROFILE'..."
   az afd profile create \
     --profile-name "$AFD_PROFILE" \
     --resource-group "$RG" \
     --sku "$AFD_DEV_SKU" \
-    --origin-response-timeout-seconds 60
+    --origin-response-timeout-seconds "$AFD_DEV_TIMEOUT"
 fi
 
 if az afd endpoint show --endpoint-name "$AFD_ENDPOINT" --profile-name "$AFD_PROFILE" --resource-group "$RG" &>/dev/null; then
@@ -1265,11 +1384,11 @@ if [ -n "$BACKEND_APP_ID" ]; then
       --query "$prop" -o tsv 2>/dev/null || echo "$default"
   }
 
-  CPU_THRESHOLD=$(az monitor metrics alert show --name "alrt-cpu-dev" --resource-group "$DEV_RG" \
+  CPU_THRESHOLD=$(az monitor metrics alert show --name "alert-cpu-dev" --resource-group "$DEV_RG" \
     --query "criteria.allOf[0].threshold" -o tsv 2>/dev/null || echo "80")
-  CPU_WINDOW=$(get_alert_prop "alrt-cpu-dev" "windowSize" "PT5M")
-  CPU_FREQ=$(get_alert_prop "alrt-cpu-dev" "evaluationFrequency" "PT1M")
-  CPU_SEVERITY=$(get_alert_prop "alrt-cpu-dev" "severity" "2")
+  CPU_WINDOW=$(get_alert_prop "alert-cpu-dev" "windowSize" "PT5M")
+  CPU_FREQ=$(get_alert_prop "alert-cpu-dev" "evaluationFrequency" "PT1M")
+  CPU_SEVERITY=$(get_alert_prop "alert-cpu-dev" "severity" "2")
 
   REQ_THRESHOLD=$(az monitor metrics alert show --name "alert-requests-dev" --resource-group "$DEV_RG" \
     --query "criteria.allOf[0].threshold" -o tsv 2>/dev/null || echo "10")
@@ -1283,12 +1402,12 @@ if [ -n "$BACKEND_APP_ID" ]; then
   RESP_FREQ=$(get_alert_prop "alert-response-dev" "evaluationFrequency" "PT1M")
   RESP_SEVERITY=$(get_alert_prop "alert-response-dev" "severity" "3")
 
-  if az monitor metrics alert show --name "alrt-cpu-${ENV}" --resource-group "$RG" &>/dev/null; then
-    echo "  Metric alert 'alrt-cpu-${ENV}' finns redan – hoppar över."
+  if az monitor metrics alert show --name "alert-cpu-${ENV}" --resource-group "$RG" &>/dev/null; then
+    echo "  Metric alert 'alert-cpu-${ENV}' finns redan – hoppar över."
   else
-    echo "  Skapar metric alert 'alrt-cpu-${ENV}'..."
+    echo "  Skapar metric alert 'alert-cpu-${ENV}'..."
 az monitor metrics alert create \
-  --name "alrt-cpu-${ENV}" \
+  --name "alert-cpu-${ENV}" \
   --resource-group "$RG" \
   --scopes "$ASP_ID" \
   --condition "avg CpuPercentage > $CPU_THRESHOLD" \
@@ -1481,6 +1600,47 @@ fi
 log "15. Kopierar inställningar från dev-miljön..."
 
 # --- App Service: app settings och connection strings ---
+echo "  Static Web App: kopierar environment variables..."
+DEV_SWA_VARS=$(az staticwebapp appsettings list \
+  --name "$DEV_SWA" --resource-group "$DEV_RG" \
+  --query "properties" -o json 2>/dev/null || echo "{}")
+
+if [ "$DEV_SWA_VARS" != "{}" ] && [ -n "$DEV_SWA_VARS" ]; then
+  az staticwebapp appsettings set \
+    --name "$SWA_NAME" \
+    --resource-group "$RG" \
+    --setting-names "$(echo "$DEV_SWA_VARS" | python3 -c "
+import json, sys
+props = json.load(sys.stdin)
+print(' '.join(f'{k}={v}' for k, v in props.items()))
+")" > /dev/null
+  echo "  SWA environment variables kopierade."
+else
+  echo "  Inga environment variables hittades i dev."
+fi
+
+echo "  Static Web App: kopplar backend..."
+BACKEND_APP_ID=$(az webapp show \
+  --name "$BACKEND_APP_NAME" --resource-group "$RG" \
+  --query "id" -o tsv 2>/dev/null || echo "")
+
+if [ -n "$BACKEND_APP_ID" ]; then
+  EXISTING_BACKEND=$(az staticwebapp backends show \
+    --name "$SWA_NAME" --resource-group "$RG" 2>/dev/null || echo "[]")
+  if echo "$EXISTING_BACKEND" | python3 -c "import json,sys; d=json.load(sys.stdin); exit(0 if len(d) > 0 else 1)" 2>/dev/null; then
+    echo "  Backend finns redan kopplad – hoppar över."
+  else
+    az staticwebapp backends link \
+      --name "$SWA_NAME" \
+      --resource-group "$RG" \
+      --backend-resource-id "$BACKEND_APP_ID" \
+      --backend-region "$LOCATION" > /dev/null
+    echo "  Backend kopplad till SWA."
+  fi
+else
+  echo "  VARNING: Kunde inte hitta App Service – hoppar över backend-koppling." >&2
+fi
+
 echo "  App Service: kopierar app settings..."
 DEV_APPSETTINGS=$(az webapp config appsettings list   --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "[]")
 
@@ -1796,7 +1956,50 @@ print('true' if match else 'false')
 " 2>/dev/null || echo "false")
 
     if [ "$EXISTS" = "true" ]; then
-      echo "    Assistent '$name' finns redan – hoppar över."
+      echo "    Assistent '$name' finns redan – uppdaterar..."
+      ASSISTANT_ID=$(echo "$PROD_ASSISTANTS" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+name = '${name}'.strip()
+match = [a for a in data.get('data', []) if a['name'].strip() == name]
+print(match[0]['id'] if match else '')
+")
+      if [ -n "$ASSISTANT_ID" ]; then
+        echo "$assistant" | python3 -c "
+import json, sys, urllib.request
+
+data = json.loads(sys.stdin.buffer.read().decode('utf-8'))
+prod_vs_ids = json.loads('${PROD_VS_IDS}')
+
+body = {
+    'name': data['name'].strip(),
+    'instructions': data.get('instructions', ''),
+    'model': data['model'],
+    'tools': data.get('tools', []),
+    'temperature': data.get('temperature', 1.0),
+    'top_p': data.get('top_p', 1.0),
+    'tool_resources': {'file_search': {'vector_store_ids': prod_vs_ids}}
+}
+body_bytes = json.dumps(body, ensure_ascii=False).encode('utf-8')
+
+req = urllib.request.Request(
+    '${PROD_OAI_ENDPOINT}/openai/assistants/${ASSISTANT_ID}?api-version=${OAI_API_VERSION}',
+    data=body_bytes,
+    headers={
+        'api-key': '${PROD_OAI_KEY}',
+        'Content-Type': 'application/json; charset=utf-8'
+    },
+    method='POST'
+)
+try:
+    with urllib.request.urlopen(req) as resp:
+        response = json.loads(resp.read().decode('utf-8'))
+        print(f'    Uppdaterade assistent: {response[\"name\"]}')
+except urllib.error.HTTPError as e:
+    error = json.loads(e.read().decode('utf-8'))
+    print(f'    FEL: {error[\"error\"][\"message\"]}')
+"
+      fi
     else
       echo "    Skapar vector stores för assistent: $name"
       VS_IDS=$(echo "$assistant" | python3 -c "
@@ -2035,7 +2238,21 @@ if [ -n "$DEV_ROUTES" ]; then
   while IFS= read -r route_name; do
     route_name=$(echo "$route_name" | tr -d '\r')
     if az afd route show --route-name "$route_name" --profile-name "$AFD_PROFILE" --resource-group "$RG" --endpoint-name "$AFD_ENDPOINT" &>/dev/null; then
-      echo "    Route '$route_name' finns redan – hoppar över."
+      echo "    Route '$route_name' finns redan – uppdaterar inställningar..."
+      az afd route update \
+        --route-name "$route_name" \
+        --profile-name "$AFD_PROFILE" \
+        --resource-group "$RG" \
+        --endpoint-name "$AFD_ENDPOINT" \
+        --origin-group "$OG" \
+        --patterns-to-match $PATTERNS \
+        --https-redirect "$HTTPS" \
+        --forwarding-protocol "$FORWARDING" \
+        --supported-protocols $PROTOCOLS \
+        --link-to-default-domain "$LINK_DEFAULT" \
+        ${ORIGIN_PATH:+--origin-path "$ORIGIN_PATH"} \
+        --enable-caching true \
+        --query-string-caching-behavior "$QUERY_STRING" > /dev/null
     else
       ROUTE_PROPS=$(az afd route show \
         --profile-name "$DEV_AFD_PROFILE" \
@@ -2064,7 +2281,8 @@ if [ -n "$DEV_ROUTES" ]; then
         --supported-protocols $PROTOCOLS \
         --link-to-default-domain "$LINK_DEFAULT" \
         ${ORIGIN_PATH:+--origin-path "$ORIGIN_PATH"} \
-        $( [ "$CACHE_ENABLED" = "true" ] && echo "--enable-caching true --query-string-caching-behavior $QUERY_STRING" ) > /dev/null
+        --enable-caching true \
+        --query-string-caching-behavior UseQueryString > /dev/null
       echo "    Skapade route: $route_name"
     fi
   done <<< "$DEV_ROUTES"
