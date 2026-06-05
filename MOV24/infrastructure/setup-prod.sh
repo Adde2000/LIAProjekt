@@ -86,6 +86,7 @@ SERVICE_BUS="sb-app-${ENV}01"
 
 # OpenAI
 OPENAI_ACCOUNT="oai-app-${ENV}01"
+OPENAI_LOCATION="swedencentral"
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 
 # Front Door
@@ -116,7 +117,7 @@ BACKEND_APP_RUNTIME="JAVA:21-java21"  # Java 21
 
 # Autoskalning (används om App Service skapas)
 AUTOSCALE_MIN=1
-AUTOSCALE_MAX=5
+AUTOSCALE_MAX=2
 AUTOSCALE_DEFAULT=1
 AUTOSCALE_CPU_OUT=70               # Skala ut när CPU > 70% i 5 min
 AUTOSCALE_MEM_OUT=75               # Skala ut när minne > 75% i 5 min
@@ -135,7 +136,7 @@ MSI_NAME="oidc-msi-${ENV}"
 ALERT_EMAIL=""                 # Fyll i
 
 # Backend App Service URL (behövs för availability test)
-BACKEND_APP_URL="https://app-prod-api-f6cag3ctetdpc3gf.westeurope-01.azurewebsites.net/health"             # t.ex. https://app-prod-api.azurewebsites.net/health
+BACKEND_APP_URL=""          # t.ex. https://app-prod-api.azurewebsites.net/health
 
 
 # Dev-resursnamn (används vid kopiering av inställningar)
@@ -233,7 +234,24 @@ fi
 fi
 
 if az webapp show --name "$BACKEND_APP_NAME" --resource-group "$RG" &>/dev/null; then
-  echo "  App Service '$BACKEND_APP_NAME' finns redan – hoppar över."
+  echo "  App Service '$BACKEND_APP_NAME' finns redan – uppdaterar inställningar..."
+  APP_DEV_CONFIG=$(az webapp config show \
+    --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "{}")
+  APP_DEV_HTTP=$(echo "$APP_DEV_CONFIG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('http20Enabled', False))")
+  APP_DEV_TLS=$(echo "$APP_DEV_CONFIG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('minTlsVersion', '1.2'))")
+  APP_DEV_ALWAYS_ON=$(echo "$APP_DEV_CONFIG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('alwaysOn', True))")
+  APP_DEV_HTTPS=$(az webapp show --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" \
+    --query "httpsOnly" -o tsv 2>/dev/null || echo "true")
+  az webapp update \
+    --name "$BACKEND_APP_NAME" \
+    --resource-group "$RG" \
+    --https-only "$APP_DEV_HTTPS" > /dev/null
+  az webapp config set \
+    --name "$BACKEND_APP_NAME" \
+    --resource-group "$RG" \
+    --min-tls-version "$APP_DEV_TLS" \
+    --http20-enabled "$APP_DEV_HTTP" \
+    --always-on "$APP_DEV_ALWAYS_ON" > /dev/null
 else
   echo "  Skapar App Service '$BACKEND_APP_NAME'..."
   echo "  Hämtar App Service-konfiguration från dev..."
@@ -245,19 +263,21 @@ else
   APP_DEV_HTTPS=$(az webapp show --name "$DEV_BACKEND_APP" --resource-group "$DEV_RG" \
     --query "httpsOnly" -o tsv 2>/dev/null || echo "true")
 
+  echo "  Tilldelar Managed Identity till App Service..."
   az webapp create \
     --name "$BACKEND_APP_NAME" \
     --resource-group "$RG" \
     --plan "$ASP_NAME" \
     --runtime "$BACKEND_APP_RUNTIME" \
-    --assign-identity "$MSI_ID"
+    --assign-identity "[system]"
 
   APP_SERVICE_CREATED=true
 
   az webapp update \
     --name "$BACKEND_APP_NAME" \
     --resource-group "$RG" \
-    --https-only "$APP_DEV_HTTPS"
+    --https-only "$APP_DEV_HTTPS" \
+    --set basicPublishingCredentialsPolicies.scm.allow=true
 
   az webapp config set \
     --name "$BACKEND_APP_NAME" \
@@ -265,6 +285,17 @@ else
     --min-tls-version "$APP_DEV_TLS" \
     --http20-enabled "$APP_DEV_HTTP" \
     --always-on "$APP_DEV_ALWAYS_ON"
+
+  PROD_SWA_URL=$(az staticwebapp show --name "$SWA_NAME" --resource-group "$RG" \
+    --query "defaultHostname" -o tsv 2>/dev/null | tr -d '\r' || echo "")
+
+  if [ -n "$PROD_SWA_URL" ]; then
+    echo "  Sätter CORS för App Service -> https://$PROD_SWA_URL..."
+    az webapp cors add \
+      --name "$BACKEND_APP_NAME" \
+      --resource-group "$RG" \
+      --allowed-origins "https://$PROD_SWA_URL"
+  fi
 fi
 
 # Autoskalning – skapas bara om App Service skapades i detta körning
@@ -350,7 +381,13 @@ print($AUTOSCALE_MEM_OUT)
 else
   echo "  Kontrollerar autoskalning (App Service fanns redan)..."
   if az monitor autoscale show --name "autoscale-backend-${ENV}" --resource-group "$RG" &>/dev/null; then
-    echo "  Autoskalning finns redan – hoppar över."
+    echo "  Autoskalning finns redan – uppdaterar..."
+    az monitor autoscale update \
+      --name "autoscale-backend-${ENV}" \
+      --resource-group "$RG" \
+      --min-count "$AUTOSCALE_MIN" \
+      --max-count "$AUTOSCALE_MAX" \
+      --count "$AUTOSCALE_DEFAULT" > /dev/null
   else
     echo "  Skapar autoskalningsregler..."
     ASP_ID=$(az appservice plan show --name "$ASP_NAME" --resource-group "$RG" --query id -o tsv)
@@ -530,12 +567,35 @@ else
     --location "$LOCATION" \
     --sku "$STORAGE_DEV_SKU" \
     --kind "$STORAGE_DEV_KIND" \
-    --public-network-access Disabled \
+    --public-network-access Enabled \
     --allow-blob-public-access false \
     --min-tls-version "$STORAGE_DEV_TLS"
 fi
 
 STORAGE_ID=$(az storage account show --name "$STORAGE_ACCOUNT" --resource-group "$RG" --query id -o tsv)
+
+echo "  Kopierar blob service-inställningar från dev..."
+DEV_BLOB_PROPS=$(az storage account blob-service-properties show \
+  --account-name "$DEV_STORAGE" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "{}")
+
+BLOB_DELETE_ENABLED=$(echo "$DEV_BLOB_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deleteRetentionPolicy',{}).get('enabled', False))")
+BLOB_DELETE_DAYS=$(echo "$DEV_BLOB_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deleteRetentionPolicy',{}).get('days', 7))")
+CONTAINER_DELETE_ENABLED=$(echo "$DEV_BLOB_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('containerDeleteRetentionPolicy',{}).get('enabled', False))")
+CONTAINER_DELETE_DAYS=$(echo "$DEV_BLOB_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('containerDeleteRetentionPolicy',{}).get('days', 7))")
+VERSIONING_ENABLED=$(echo "$DEV_BLOB_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('isVersioningEnabled', False))")
+CHANGE_FEED=$(echo "$DEV_BLOB_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('changeFeed',{}).get('enabled', False))")
+
+az storage account blob-service-properties update \
+  --account-name "$STORAGE_ACCOUNT" \
+  --resource-group "$RG" \
+  --enable-delete-retention "$BLOB_DELETE_ENABLED" \
+  --delete-retention-days "$BLOB_DELETE_DAYS" \
+  --enable-container-delete-retention "$CONTAINER_DELETE_ENABLED" \
+  --container-delete-retention-days "$CONTAINER_DELETE_DAYS" \
+  --enable-versioning "$VERSIONING_ENABLED" \
+  --enable-change-feed "$CHANGE_FEED" > /dev/null
+
+echo "  Blob service-inställningar kopierade."
 
 log "4b. Kontrollerar Private DNS Zone – Blob..."
 if az network private-dns zone show --resource-group "$RG" --name "privatelink.blob.core.windows.net" &>/dev/null; then
@@ -599,7 +659,19 @@ log "3b. Kontrollerar Function App..."
 
 # Flex Consumption hanterar sin egen plan – ingen separat az appservice plan create
 if az functionapp show --name "$FUNCTION_APP_NAME" --resource-group "$RG" &>/dev/null; then
-  echo "  Function App '$FUNCTION_APP_NAME' finns redan – hoppar över."
+  echo "  Function App '$FUNCTION_APP_NAME' finns redan – uppdaterar inställningar..."
+  FA_DEV_CONFIG=$(az functionapp config show \
+    --name "$DEV_FUNCTION_APP" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "{}")
+  FA_DEV_TLS=$(echo "$FA_DEV_CONFIG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('minTlsVersion', '1.2'))")
+  FA_DEV_HTTP=$(echo "$FA_DEV_CONFIG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('http20Enabled', False))")
+  FA_DEV_HTTPS=$(az functionapp show --name "$DEV_FUNCTION_APP" --resource-group "$DEV_RG" \
+    --query "httpsOnly" -o tsv 2>/dev/null || echo "true")
+  az functionapp update \
+    --name "$FUNCTION_APP_NAME" \
+    --resource-group "$RG" \
+    --set siteConfig.minTlsVersion="$FA_DEV_TLS" \
+    --set siteConfig.http20Enabled="$FA_DEV_HTTP" \
+    --set httpsOnly="$FA_DEV_HTTPS" > /dev/null
 else
   echo "  Hämtar Function App-konfiguration från dev..."
   FA_DEV_CONFIG=$(az functionapp config show \
@@ -630,15 +702,30 @@ az functionapp vnet-integration add \
   az functionapp identity assign \
     --name "$FUNCTION_APP_NAME" \
     --resource-group "$RG" \
-    --identities "$MSI_ID"
+    --system-assigned
 
   echo "  Konfigurerar TLS, HTTP/2 och HTTPS..."
+  AI_KEY=$(az monitor app-insights component show \
+    --app "$AI_NAME" --resource-group "$RG" \
+    --query "instrumentationKey" -o tsv 2>/dev/null || echo "")
+  AI_CONN=$(az monitor app-insights component show \
+    --app "$AI_NAME" --resource-group "$RG" \
+    --query "connectionString" -o tsv 2>/dev/null || echo "")
+
   az functionapp update \
     --name "$FUNCTION_APP_NAME" \
     --resource-group "$RG" \
     --set siteConfig.minTlsVersion="$FA_DEV_TLS" \
     --set siteConfig.http20Enabled="$FA_DEV_HTTP" \
     --set httpsOnly="$FA_DEV_HTTPS"
+
+  az functionapp config appsettings set \
+    --name "$FUNCTION_APP_NAME" \
+    --resource-group "$RG" \
+    --settings \
+      "APPINSIGHTS_INSTRUMENTATIONKEY=$AI_KEY" \
+      "APPLICATIONINSIGHTS_CONNECTION_STRING=$AI_CONN" > /dev/null
+  echo "  Kopplade Function App till Application Insights '$AI_NAME'."
 fi
 
 # ---------------------------------------------------------------------------
@@ -660,7 +747,7 @@ else
     --location "$LOCATION" \
     --sku "$KV_DEV_SKU" \
     --enable-rbac-authorization true \
-    --public-network-access Disabled
+    --public-network-access Enabled
 fi
 
 KV_ID=$(az keyvault show --name "$KEY_VAULT" --resource-group "$RG" --query id -o tsv)
@@ -729,6 +816,40 @@ else
     --ipv4-address "$KV_PE_IP"
 fi
 
+echo "  Tilldelar Key Vault Secrets Officer till inloggad användare..."
+CURRENT_USER=$(az ad signed-in-user show --query id -o tsv 2>/dev/null || echo "")
+if [ -n "$CURRENT_USER" ]; then
+  az role assignment create \
+    --role "Key Vault Secrets Officer" \
+    --assignee "$CURRENT_USER" \
+    --scope "$KV_ID" > /dev/null 2>&1 || true
+  sleep 15
+fi
+
+echo "  Kopierar secrets från dev Key Vault till prod..."
+
+DEV_SECRETS=$(az keyvault secret list --vault-name "$DEV_KEY_VAULT" --query "[].name" -o tsv 2>/dev/null || echo "")
+
+if [ -n "$DEV_SECRETS" ]; then
+  while IFS= read -r secret_name; do
+    secret_name=$(echo "$secret_name" | tr -d '\r')
+    SECRET_VALUE=$(az keyvault secret show \
+      --vault-name "$DEV_KEY_VAULT" \
+      --name "$secret_name" \
+      --query "value" -o tsv 2>/dev/null || echo "")
+
+    if az keyvault secret show --vault-name "$KEY_VAULT" --name "$secret_name" &>/dev/null; then
+      echo "    Secret '$secret_name' finns redan – hoppar över."
+    else
+      az keyvault secret set \
+        --vault-name "$KEY_VAULT" \
+        --name "$secret_name" \
+        --value "$SECRET_VALUE" > /dev/null
+      echo "    Kopierade secret: $secret_name"
+    fi
+  done <<< "$DEV_SECRETS"
+fi
+
 # ---------------------------------------------------------------------------
 # 5. SQL SERVER + DATABAS + Private Endpoint
 # ---------------------------------------------------------------------------
@@ -740,7 +861,14 @@ if [ -z "$SQL_ADMIN_PASSWORD" ]; then
 fi
 
 if az sql server show --name "$SQL_SERVER" --resource-group "$RG" &>/dev/null; then
-  echo "  SQL Server '$SQL_SERVER' finns redan – hoppar över."
+  echo "  SQL Server '$SQL_SERVER' finns redan – uppdaterar TLS..."
+  SQL_DEV_SERVER_PROPS=$(az sql server show \
+    --name "$DEV_SQL_SERVER" --resource-group "$DEV_RG" -o json 2>/dev/null || echo "{}")
+  SQL_DEV_TLS=$(echo "$SQL_DEV_SERVER_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('minimalTlsVersion', '1.2'))")
+  az sql server update \
+    --name "$SQL_SERVER" \
+    --resource-group "$RG" \
+    --minimal-tls-version "$SQL_DEV_TLS" > /dev/null
 else
   echo "  Skapar SQL Server '$SQL_SERVER'..."
   az sql server create \
@@ -758,7 +886,7 @@ else
   az sql server update \
     --name "$SQL_SERVER" \
     --resource-group "$RG" \
-    --set publicNetworkAccess=Disabled \
+    --set publicNetworkAccess=Enabled \
     --minimal-tls-version "$SQL_DEV_TLS"
 
   SQL_DEV_AAD_LOGIN=$(az sql server ad-admin list \
@@ -804,7 +932,13 @@ else:
 SQL_DEV_ZONE=$(echo "$SQL_DEV_PROPS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(str(d.get('zoneRedundant', False)).lower())")
 
 if az sql db show --name "$SQL_DB" --server "$SQL_SERVER" --resource-group "$RG" &>/dev/null; then
-  echo "  SQL databas '$SQL_DB' finns redan – hoppar över."
+  echo "  SQL databas '$SQL_DB' finns redan – uppdaterar inställningar..."
+  az sql db update \
+    --name "$SQL_DB" \
+    --server "$SQL_SERVER" \
+    --resource-group "$RG" \
+    --tier "$SQL_DEV_TIER" \
+    --capacity "$SQL_DEV_CAPACITY" > /dev/null
 else
   echo "  Skapar SQL databas '$SQL_DB'..."
 az sql db create \
@@ -815,6 +949,69 @@ az sql db create \
     $( [ "$SQL_DEV_FAMILY" != "None" ] && echo "--family $SQL_DEV_FAMILY" ) \
     --capacity "$SQL_DEV_CAPACITY" \
     --zone-redundant "$SQL_DEV_ZONE"
+fi
+
+echo "  Exporterar databas från dev..."
+EXPORT_STORAGE_KEY=$(az storage account keys list \
+  --account-name "$DEV_STORAGE" \
+  --resource-group "$DEV_RG" \
+  --query "[0].value" -o tsv 2>/dev/null || echo "")
+
+if [ -z "$EXPORT_STORAGE_KEY" ]; then
+  echo "  Kunde inte hämta storage-nyckel – hoppar över databasexport." >&2
+else
+  # Skapa container om den inte finns
+  az rest \
+    --method put \
+    --url "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${DEV_RG}/providers/Microsoft.Storage/storageAccounts/${DEV_STORAGE}/blobServices/default/containers/sqlexport?api-version=2023-01-01" \
+    --body '{"properties": {"publicAccess": "None"}}' > /dev/null 2>&1 || true
+
+  echo "  Tar bort eventuell gammal exportfil..."
+  az storage blob delete \
+    --account-name "$DEV_STORAGE" \
+    --container-name "sqlexport" \
+    --name "schema-export.bacpac" \
+    --account-key "$EXPORT_STORAGE_KEY" > /dev/null 2>&1 || true
+  
+  echo "  Startar export från dev-databas..."
+  az sql db export \
+    --name "$DEV_SQL_DB" \
+    --server "$DEV_SQL_SERVER" \
+    --resource-group "$DEV_RG" \
+    --admin-user "$SQL_ADMIN_USER" \
+    --admin-password "$SQL_ADMIN_PASSWORD" \
+    --storage-key-type StorageAccessKey \
+    --storage-key "$EXPORT_STORAGE_KEY" \
+    --storage-uri "https://${DEV_STORAGE}.blob.core.windows.net/sqlexport/schema-export.bacpac" > /dev/null
+
+  echo "  Väntar på att export ska slutföras..."
+  while true; do
+    STATUS=$(az sql db operation list \
+      --name "$DEV_SQL_DB" \
+      --server "$DEV_SQL_SERVER" \
+      --resource-group "$DEV_RG" \
+      --query "[?operation=='ExportDatabase'].percentComplete" \
+      -o tsv 2>/dev/null || echo "")
+    if [ -z "$STATUS" ] || [ "$STATUS" = "100" ]; then
+      echo "  Export klar."
+      break
+    fi
+    echo "  Export pågår ($STATUS%)..."
+    sleep 10
+  done
+  
+  echo "  Importerar databas till prod..."
+  az sql db import \
+    --name "$SQL_DB" \
+    --server "$SQL_SERVER" \
+    --resource-group "$RG" \
+    --admin-user "$SQL_ADMIN_USER" \
+    --admin-password "$SQL_ADMIN_PASSWORD" \
+    --storage-key-type StorageAccessKey \
+    --storage-key "$EXPORT_STORAGE_KEY" \
+    --storage-uri "https://${DEV_STORAGE}.blob.core.windows.net/sqlexport/schema-export.bacpac" > /dev/null
+
+  echo "  Databas importerad till prod."
 fi
 
 SQL_ID=$(az sql server show --name "$SQL_SERVER" --resource-group "$RG" --query id -o tsv)
@@ -910,14 +1107,11 @@ else
 az cognitiveservices account create \
     --name "$OPENAI_ACCOUNT" \
     --resource-group "$RG" \
-    --location "$LOCATION" \
+    --location "$OPENAI_LOCATION" \
     --kind OpenAI \
     --sku "$OAI_DEV_SKU" \
     --custom-domain "$OPENAI_ACCOUNT"
 
-az rest --method patch \
-    --url "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RG}/providers/Microsoft.CognitiveServices/accounts/${OPENAI_ACCOUNT}?api-version=2023-05-01" \
-    --body '{"properties":{"publicNetworkAccess":"Disabled"}}'
 fi
 
 OAI_ID=$(az cognitiveservices account show \
@@ -993,7 +1187,8 @@ else
   az afd profile create \
     --profile-name "$AFD_PROFILE" \
     --resource-group "$RG" \
-    --sku "$AFD_DEV_SKU"
+    --sku "$AFD_DEV_SKU" \
+    --origin-response-timeout-seconds 60
 fi
 
 if az afd endpoint show --endpoint-name "$AFD_ENDPOINT" --profile-name "$AFD_PROFILE" --resource-group "$RG" &>/dev/null; then
@@ -1147,7 +1342,14 @@ log "13. Kontrollerar Application Insights..."
 
 AI_NAME="app-${ENV}-api"
 if az monitor app-insights component show --app "$AI_NAME" --resource-group "$RG" &>/dev/null; then
-  echo "  Application Insights '$AI_NAME' finns redan – hoppar över."
+  echo "  Application Insights '$AI_NAME' finns redan – uppdaterar retention..."
+  AI_DEV_RETENTION=$(az monitor app-insights component show \
+    --app "$DEV_BACKEND_APP" --resource-group "$DEV_RG" \
+    --query "retentionInDays" -o tsv 2>/dev/null || echo "90")
+  az monitor app-insights component update \
+    --app "$AI_NAME" \
+    --resource-group "$RG" \
+    --retention-time "$AI_DEV_RETENTION" > /dev/null
 else
   echo "  Skapar Application Insights '$AI_NAME'..."
   echo "  Hämtar Application Insights-konfiguration från dev..."
@@ -1175,6 +1377,9 @@ AI_ID=$(az monitor app-insights component show \
 # ---------------------------------------------------------------------------
 log "14. Skapar Availability Tests..."
 
+BACKEND_APP_URL=$(az webapp show --name "$BACKEND_APP_NAME" --resource-group "$RG" \
+  --query "defaultHostName" -o tsv 2>/dev/null | tr -d '\r' || echo "")
+BACKEND_APP_URL="https://${BACKEND_APP_URL}/health"
 if [ -n "$BACKEND_APP_URL" ]; then
   echo "  Hämtar Availability Test-konfiguration från dev..."
   DEV_AVAIL_PROPS=$(az monitor app-insights web-test show \
@@ -1254,6 +1459,25 @@ fi
 # ---------------------------------------------------------------------------
 # 15. KOPIERA INSTÄLLNINGAR FRÅN DEV
 # ---------------------------------------------------------------------------
+
+echo "  Kopplar App Service till Application Insights..."
+AI_KEY=$(az monitor app-insights component show \
+  --app "$AI_NAME" --resource-group "$RG" \
+  --query "instrumentationKey" -o tsv 2>/dev/null || echo "")
+AI_CONN=$(az monitor app-insights component show \
+  --app "$AI_NAME" --resource-group "$RG" \
+  --query "connectionString" -o tsv 2>/dev/null || echo "")
+
+if [ -n "$AI_KEY" ]; then
+  az webapp config appsettings set \
+    --name "$BACKEND_APP_NAME" \
+    --resource-group "$RG" \
+    --settings \
+      "APPINSIGHTS_INSTRUMENTATIONKEY=$AI_KEY" \
+      "APPLICATIONINSIGHTS_CONNECTION_STRING=$AI_CONN" > /dev/null
+  echo "  App Service kopplad till Application Insights '$AI_NAME'."
+fi
+
 log "15. Kopierar inställningar från dev-miljön..."
 
 # --- App Service: app settings och connection strings ---
@@ -1335,13 +1559,28 @@ fi
 # --- Service Bus: köer och topics ---
 echo "  Service Bus: kopierar köer..."
 DEV_QUEUES=$(az servicebus queue list   --namespace-name "$DEV_SERVICE_BUS"   --resource-group "$DEV_RG"   --query "[].name" -o tsv 2>/dev/null || echo "")
-echo "  DEBUG DEV_QUEUES: '$DEV_QUEUES'"
 
 if [ -n "$DEV_QUEUES" ]; then
   while IFS= read -r queue_name; do
     queue_name=$(echo "$queue_name" | tr -d '\r')
     if az servicebus queue show --namespace-name "$SERVICE_BUS" --resource-group "$RG" --name "$queue_name" &>/dev/null; then
-      echo "    Kö '$queue_name' finns redan – hoppar över."
+      echo "    Kö '$queue_name' finns redan – uppdaterar inställningar..."
+      QUEUE_PROPS=$(az servicebus queue show \
+        --namespace-name "$DEV_SERVICE_BUS" \
+        --resource-group "$DEV_RG" \
+        --name "$queue_name" -o json)
+      LOCK_DURATION=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['lockDuration'])")
+      MAX_SIZE=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['maxSizeInMegabytes'])")
+      MAX_DELIVERY=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['maxDeliveryCount'])")
+      DEFAULT_TTL=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['defaultMessageTimeToLive'])")
+      az servicebus queue update \
+        --namespace-name "$SERVICE_BUS" \
+        --resource-group "$RG" \
+        --name "$queue_name" \
+        --max-size "$MAX_SIZE" \
+        --max-delivery-count "$MAX_DELIVERY" \
+        --lock-duration "$LOCK_DURATION" \
+        --default-message-time-to-live "$DEFAULT_TTL" > /dev/null
     else
       QUEUE_PROPS=$(az servicebus queue show \
         --namespace-name "$DEV_SERVICE_BUS" \
@@ -1350,13 +1589,23 @@ if [ -n "$DEV_QUEUES" ]; then
       LOCK_DURATION=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['lockDuration'])")
       MAX_SIZE=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['maxSizeInMegabytes'])")
       MAX_DELIVERY=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['maxDeliveryCount'])")
-      echo "    lock-duration: $LOCK_DURATION, max-size: $MAX_SIZE, max-delivery: $MAX_DELIVERY"
+      DEFAULT_TTL=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['defaultMessageTimeToLive'])")
+      DUPLICATE_DETECTION=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('requiresDuplicateDetection', False))")
+      DUPLICATE_WINDOW=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('duplicateDetectionHistoryTimeWindow', 'PT10M'))")
+      DEAD_LETTERING=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deadLetteringOnMessageExpiration', False))")
+      BATCHED_OPS=$(echo "$QUEUE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('enableBatchedOperations', True))")
+
       az servicebus queue create \
       --namespace-name "$SERVICE_BUS" \
       --resource-group "$RG" \
       --name "$queue_name" \
       --max-size "$MAX_SIZE" \
-      --max-delivery-count "$MAX_DELIVERY"
+      --max-delivery-count "$MAX_DELIVERY" \
+      --lock-duration "$LOCK_DURATION" \
+      --default-message-time-to-live "$DEFAULT_TTL" \
+      $( [ "$DUPLICATE_DETECTION" = "True" ] && echo "--duplicate-detection --duplicate-detection-history-time-window $DUPLICATE_WINDOW" ) \
+      $( [ "$DEAD_LETTERING" = "True" ] && echo "--dead-lettering-on-message-expiration true" ) \
+      $( [ "$BATCHED_OPS" = "True" ] && echo "--enable-batched-operations true" )
       echo "    Skapade kö: $queue_name"
     fi
   done <<< "$DEV_QUEUES"
@@ -1368,7 +1617,17 @@ DEV_TOPICS=$(az servicebus topic list   --namespace-name "$DEV_SERVICE_BUS"   --
 if [ -n "$DEV_TOPICS" ]; then
   while IFS= read -r topic_name; do
     if az servicebus topic show --namespace-name "$SERVICE_BUS" --resource-group "$RG" --name "$topic_name" &>/dev/null; then
-      echo "    Topic '$topic_name' finns redan – hoppar över."
+      echo "    Topic '$topic_name' finns redan – uppdaterar inställningar..."
+      TOPIC_PROPS=$(az servicebus topic show \
+        --namespace-name "$DEV_SERVICE_BUS" \
+        --resource-group "$DEV_RG" \
+        --name "$topic_name" -o json)
+      MAX_SIZE=$(echo "$TOPIC_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin)['maxSizeInMegabytes'])")
+      az servicebus topic update \
+        --namespace-name "$SERVICE_BUS" \
+        --resource-group "$RG" \
+        --name "$topic_name" \
+        --max-size "$MAX_SIZE" > /dev/null
     else
       TOPIC_PROPS=$(az servicebus topic show \
         --namespace-name "$DEV_SERVICE_BUS" \
@@ -1415,19 +1674,23 @@ DEV_CONTAINERS=$(az rest \
   --query "value[].name" -o tsv 2>/dev/null | tr -d '\r' || echo "")
 
 if [ -n "$DEV_CONTAINERS" ]; then
-while IFS= read -r container_name; do
+  while IFS= read -r container_name; do
     container_name=$(echo "$container_name" | tr -d '\r')
-    az rest \
-      --method put \
+    if az rest \
+      --method get \
       --url "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RG}/providers/Microsoft.Storage/storageAccounts/${STORAGE_ACCOUNT}/blobServices/default/containers/${container_name}?api-version=2023-01-01" \
-      --body '{"properties": {"publicAccess": "None"}}' > /dev/null
-    echo "    Skapade container: $container_name"
+      &>/dev/null; then
+      echo "    Container '$container_name' finns redan – hoppar över."
+    else
+      az rest \
+        --method put \
+        --url "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RG}/providers/Microsoft.Storage/storageAccounts/${STORAGE_ACCOUNT}/blobServices/default/containers/${container_name}?api-version=2023-01-01" \
+        --body '{"properties": {"publicAccess": "None"}}' > /dev/null
+      echo "    Skapade container: $container_name"
+    fi
   done <<< "$DEV_CONTAINERS"
 else
   echo "  Inga containers hittades i dev."
-fi
-else
-  echo "  Kunde inte läsa storage-containers från dev (kontrollera behörigheter)."
 fi
 
 # --- Azure OpenAI: deployments ---
@@ -1435,41 +1698,189 @@ echo "  Azure OpenAI: kopierar model deployments..."
 DEV_DEPLOYMENTS=$(az cognitiveservices account deployment list   --name "$DEV_OPENAI"   --resource-group "$DEV_RG" -o json 2>/dev/null || echo "[]")
 
 if [ "$DEV_DEPLOYMENTS" != "[]" ] && [ -n "$DEV_DEPLOYMENTS" ]; then
-  echo "$DEV_DEPLOYMENTS" | python3 -c "
-import json, sys, subprocess
+  while IFS= read -r deployment; do
+    name=$(echo "$deployment" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])")
+    model_name=$(echo "$deployment" | python3 -c "import json,sys; print(json.load(sys.stdin)['properties']['model']['name'])")
+    model_version=$(echo "$deployment" | python3 -c "import json,sys; print(json.load(sys.stdin)['properties']['model']['version'])")
+    model_format=$(echo "$deployment" | python3 -c "import json,sys; print(json.load(sys.stdin)['properties']['model']['format'])")
+    capacity=$(echo "$deployment" | python3 -c "import json,sys; print(json.load(sys.stdin)['sku']['capacity'])")
+    sku_name=$(echo "$deployment" | python3 -c "import json,sys; print(json.load(sys.stdin)['sku']['name'])")
+
+    if az cognitiveservices account deployment show \
+        --name "$OPENAI_ACCOUNT" \
+        --resource-group "$RG" \
+        --deployment-name "$name" &>/dev/null; then
+      echo "    Deployment '$name' finns redan – hoppar över."
+    else
+      echo "    Deploying $name ($model_name $model_version)..."
+      az cognitiveservices account deployment create \
+        --name "$OPENAI_ACCOUNT" \
+        --resource-group "$RG" \
+        --deployment-name "$name" \
+        --model-name "$model_name" \
+        --model-version "$model_version" \
+        --model-format "$model_format" \
+        --sku-name "$sku_name" \
+        --sku-capacity "$capacity"
+    fi
+  done < <(echo "$DEV_DEPLOYMENTS" | python3 -c "
+import json, sys
 deployments = json.load(sys.stdin)
 for d in deployments:
-    name = d['name']
-    model_name = d['properties']['model']['name']
-    model_version = d['properties']['model']['version']
-    model_format = d['properties']['model']['format']
-    capacity = d['sku']['capacity']
-    sku_name = d['sku']['name']
-    result = subprocess.run([
-        'az', 'cognitiveservices', 'account', 'deployment', 'show',
-        '--name', '$OPENAI_ACCOUNT',
-        '--resource-group', '$RG',
-        '--deployment-name', name
-    ], capture_output=True)
-    if result.returncode == 0:
-        print(f'    Deployment {name} finns redan – hoppar över.')
-        continue
-    print(f'    Deploying {name} ({model_name} {model_version})...')
-    subprocess.run([
-        'az', 'cognitiveservices', 'account', 'deployment', 'create',
-        '--name', '$OPENAI_ACCOUNT',
-        '--resource-group', '$RG',
-        '--deployment-name', name,
-        '--model-name', model_name,
-        '--model-version', model_version,
-        '--model-format', model_format,
-        '--sku-name', sku_name,
-        '--sku-capacity', str(capacity)
-    ])
-"
+    print(json.dumps(d))
+")
   echo "  OpenAI deployments kopierade."
 else
   echo "  Inga OpenAI deployments hittades i dev."
+fi
+
+# ---------------------------------------------------------------------------
+# 15b. KOPIERA AZURE OPENAI ASSISTENTER
+# ---------------------------------------------------------------------------
+
+echo "  Azure OpenAI: kopierar assistenter..."
+
+DEV_OAI_KEY=$(az cognitiveservices account keys list \
+  --name "$DEV_OPENAI" --resource-group "$DEV_RG" \
+  --query "key1" -o tsv 2>/dev/null || echo "")
+
+PROD_OAI_KEY=$(az cognitiveservices account keys list \
+  --name "$OPENAI_ACCOUNT" --resource-group "$RG" \
+  --query "key1" -o tsv 2>/dev/null || echo "")
+
+DEV_OAI_ENDPOINT="https://${DEV_OPENAI}.openai.azure.com"
+PROD_OAI_ENDPOINT="https://oai-app-${ENV}01.openai.azure.com"
+OAI_API_VERSION="2024-05-01-preview"
+
+if [ -z "$DEV_OAI_KEY" ] || [ -z "$PROD_OAI_KEY" ]; then
+  echo "  VARNING: Kunde inte hämta API-nycklar – hoppar över assistenter." >&2
+else
+  DEV_ASSISTANTS=$(curl -s \
+    -H "api-key: $DEV_OAI_KEY" \
+    "${DEV_OAI_ENDPOINT}/openai/assistants?api-version=${OAI_API_VERSION}" | \
+    python3 -c "
+import sys, json
+data = json.loads(sys.stdin.buffer.read().decode('utf-8'))
+print(json.dumps(data, ensure_ascii=False))
+")
+
+  echo "$DEV_ASSISTANTS" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+assistants = data.get('data', [])
+print(f'  Hittade {len(assistants)} assistenter i dev.')
+for a in assistants:
+    print(a['name'])
+" 
+
+  PROD_ASSISTANTS=$(curl -s \
+    -H "api-key: $PROD_OAI_KEY" \
+    "${PROD_OAI_ENDPOINT}/openai/assistants?api-version=${OAI_API_VERSION}")
+
+  while IFS= read -r assistant; do
+    name=$(echo "$assistant" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'].strip())" | tr -d '\r')
+    instructions=$(echo "$assistant" | python3 -c "import json,sys; print(json.load(sys.stdin).get('instructions',''))" | tr -d '\r')
+    model=$(echo "$assistant" | python3 -c "import json,sys; print(json.load(sys.stdin)['model'])" | tr -d '\r')
+    tools=$(echo "$assistant" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('tools',[])))" | tr -d '\r')
+    temperature=$(echo "$assistant" | python3 -c "import json,sys; print(json.load(sys.stdin).get('temperature',1.0))" | tr -d '\r')
+    top_p=$(echo "$assistant" | python3 -c "import json,sys; print(json.load(sys.stdin).get('top_p',1.0))" | tr -d '\r')
+
+    # Kolla om assistenten redan finns i prod
+    EXISTS=$(echo "$PROD_ASSISTANTS" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+assistants = data.get('data', [])
+name = '${name}'.strip()
+match = [a for a in assistants if a['name'].strip() == name]
+print('true' if match else 'false')
+" 2>/dev/null || echo "false")
+
+    if [ "$EXISTS" = "true" ]; then
+      echo "    Assistent '$name' finns redan – hoppar över."
+    else
+      echo "    Skapar vector stores för assistent: $name"
+      VS_IDS=$(echo "$assistant" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+vs_ids = d.get('tool_resources', {}).get('file_search', {}).get('vector_store_ids', [])
+print(json.dumps(vs_ids))
+")
+      VS_COUNT=$(echo "$VS_IDS" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
+
+      PROD_VS_IDS="[]"
+      if [ "$VS_COUNT" -gt 0 ]; then
+        PROD_VS_IDS_LIST=""
+        for i in $(seq 0 $(( VS_COUNT - 1 ))); do
+          DEV_VS_ID=$(echo "$VS_IDS" | python3 -c "import json,sys; print(json.load(sys.stdin)[$i])")
+          DEV_VS_NAME=$(curl -s \
+            -H "api-key: $DEV_OAI_KEY" \
+            "${DEV_OAI_ENDPOINT}/openai/vector_stores/${DEV_VS_ID}?api-version=${OAI_API_VERSION}" | \
+            python3 -c "import json,sys; print(json.load(sys.stdin).get('name',''))" | tr -d '\r')
+
+          echo "      Skapar vector store: $DEV_VS_NAME"
+          PROD_VS_ID=$(curl -s -X POST \
+            -H "api-key: $PROD_OAI_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\": \"${DEV_VS_NAME}\"}" \
+            "${PROD_OAI_ENDPOINT}/openai/vector_stores?api-version=${OAI_API_VERSION}" | \
+            python3 -c "import json,sys; print(json.load(sys.stdin)['id'])" | tr -d '\r')
+
+          if [ -z "$PROD_VS_IDS_LIST" ]; then
+            PROD_VS_IDS_LIST="\"$PROD_VS_ID\""
+          else
+            PROD_VS_IDS_LIST="$PROD_VS_IDS_LIST, \"$PROD_VS_ID\""
+          fi
+        done
+        PROD_VS_IDS="[$PROD_VS_IDS_LIST]"
+      fi
+
+      echo "    Skapar assistent: $name"
+      echo "$assistant" | python3 -c "
+import json, sys, urllib.request
+
+data = json.loads(sys.stdin.buffer.read().decode('utf-8'))
+prod_vs_ids = json.loads('${PROD_VS_IDS}')
+
+body = {
+    'name': data['name'].strip(),
+    'instructions': data.get('instructions', ''),
+    'model': data['model'],
+    'tools': data.get('tools', []),
+    'temperature': data.get('temperature', 1.0),
+    'top_p': data.get('top_p', 1.0),
+    'tool_resources': {'file_search': {'vector_store_ids': prod_vs_ids}}
+}
+
+instructions_clean = data.get('instructions', '').encode('utf-8', errors='ignore').decode('utf-8')
+body['instructions'] = instructions_clean
+body_bytes = json.dumps(body, ensure_ascii=False).encode('utf-8')
+
+req = urllib.request.Request(
+    '${PROD_OAI_ENDPOINT}/openai/assistants?api-version=${OAI_API_VERSION}',
+    data=body_bytes,
+    headers={
+        'api-key': '${PROD_OAI_KEY}',
+        'Content-Type': 'application/json; charset=utf-8'
+    },
+    method='POST'
+)
+try:
+    with urllib.request.urlopen(req) as resp:
+        response = json.loads(resp.read().decode('utf-8'))
+        print(f'    Skapade assistent: {response[\"name\"]}')
+except urllib.error.HTTPError as e:
+    error = json.loads(e.read().decode('utf-8'))
+    print(f'    FEL: {error[\"error\"][\"message\"]}')
+"
+    fi
+  done < <(echo "$DEV_ASSISTANTS" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for a in data.get('data', []):
+    print(json.dumps(a))
+")
+
+  echo "  Assistenter kopierade."
 fi
 
 # --- Front Door: origin groups, origins och routes ---
@@ -1478,8 +1889,31 @@ DEV_ORIGIN_GROUPS=$(az afd origin-group list   --profile-name "$DEV_AFD_PROFILE"
 
 if [ -n "$DEV_ORIGIN_GROUPS" ]; then
   while IFS= read -r og_name; do
+    og_name=$(echo "$og_name" | tr -d '\r')
     if az afd origin-group show --origin-group-name "$og_name" --profile-name "$AFD_PROFILE" --resource-group "$RG" &>/dev/null; then
-      echo "    Origin group '$og_name' finns redan – hoppar över."
+      echo "    Origin group '$og_name' finns redan – uppdaterar inställningar..."
+      OG_PROPS=$(az afd origin-group show \
+        --profile-name "$DEV_AFD_PROFILE" \
+        --resource-group "$DEV_RG" \
+        --origin-group-name "$og_name" -o json)
+      PROBE_PATH=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('healthProbeSettings',{}).get('probePath','/'))")
+      PROBE_INTERVAL=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('healthProbeSettings',{}).get('probeIntervalInSeconds',100))")
+      PROBE_PROTOCOL=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('healthProbeSettings',{}).get('probeProtocol','Https'))")
+      PROBE_REQUEST_TYPE=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('healthProbeSettings',{}).get('probeRequestType','HEAD'))")
+      LB_SAMPLE_SIZE=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('loadBalancingSettings',{}).get('sampleSize',4))")
+      LB_SUCCESSFUL_SAMPLES=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('loadBalancingSettings',{}).get('successfulSamplesRequired',3))")
+      LB_LATENCY=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('loadBalancingSettings',{}).get('additionalLatencyInMilliseconds',50))")
+      az afd origin-group update \
+        --origin-group-name "$og_name" \
+        --profile-name "$AFD_PROFILE" \
+        --resource-group "$RG" \
+        --probe-path "$PROBE_PATH" \
+        --probe-interval-in-seconds "$PROBE_INTERVAL" \
+        --probe-protocol "$PROBE_PROTOCOL" \
+        --probe-request-type "$PROBE_REQUEST_TYPE" \
+        --sample-size "$LB_SAMPLE_SIZE" \
+        --successful-samples-required "$LB_SUCCESSFUL_SAMPLES" \
+        --additional-latency-in-milliseconds "$LB_LATENCY" > /dev/null
     else
       OG_PROPS=$(az afd origin-group show \
         --profile-name "$DEV_AFD_PROFILE" \
@@ -1487,12 +1921,23 @@ if [ -n "$DEV_ORIGIN_GROUPS" ]; then
         --origin-group-name "$og_name" -o json)
       PROBE_PATH=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('healthProbeSettings',{}).get('probePath','/'))")
       PROBE_INTERVAL=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('healthProbeSettings',{}).get('probeIntervalInSeconds',100))")
+      PROBE_PROTOCOL=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('healthProbeSettings',{}).get('probeProtocol','Https'))")
+      PROBE_REQUEST_TYPE=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('healthProbeSettings',{}).get('probeRequestType','HEAD'))")
+      LB_SAMPLE_SIZE=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('loadBalancingSettings',{}).get('sampleSize',4))")
+      LB_SUCCESSFUL_SAMPLES=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('loadBalancingSettings',{}).get('successfulSamplesRequired',3))")
+      LB_LATENCY=$(echo "$OG_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('loadBalancingSettings',{}).get('additionalLatencyInMilliseconds',50))")
+
       az afd origin-group create \
         --origin-group-name "$og_name" \
         --profile-name "$AFD_PROFILE" \
         --resource-group "$RG" \
         --probe-path "$PROBE_PATH" \
-        --probe-interval-in-seconds "$PROBE_INTERVAL" > /dev/null
+        --probe-interval-in-seconds "$PROBE_INTERVAL" \
+        --probe-protocol "$PROBE_PROTOCOL" \
+        --probe-request-type "$PROBE_REQUEST_TYPE" \
+        --sample-size "$LB_SAMPLE_SIZE" \
+        --successful-samples-required "$LB_SUCCESSFUL_SAMPLES" \
+        --additional-latency-in-milliseconds "$LB_LATENCY" > /dev/null
       echo "    Skapade origin group: $og_name"
     fi
 
@@ -1502,42 +1947,82 @@ if [ -n "$DEV_ORIGIN_GROUPS" ]; then
       --resource-group "$DEV_RG" \
       --origin-group-name "$og_name" -o json 2>/dev/null || echo "[]")
 
-    echo "$DEV_ORIGINS" | python3 -c "
-import json, sys, subprocess
+    while IFS= read -r origin; do
+      origin_name=$(echo "$origin" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" | tr -d '\r')
+      origin_host=$(echo "$origin" | python3 -c "import json,sys; print(json.load(sys.stdin)['hostName'].replace('-dev','-prod').replace('dev01','prod01'))" | tr -d '\r')
+      origin_http=$(echo "$origin" | python3 -c "import json,sys; print(json.load(sys.stdin).get('httpPort',80))" | tr -d '\r')
+      origin_https=$(echo "$origin" | python3 -c "import json,sys; print(json.load(sys.stdin).get('httpsPort',443))" | tr -d '\r')
+      origin_priority=$(echo "$origin" | python3 -c "import json,sys; print(json.load(sys.stdin).get('priority',1))" | tr -d '\r')
+      origin_weight=$(echo "$origin" | python3 -c "import json,sys; print(json.load(sys.stdin).get('weight',1000))" | tr -d '\r')
+
+      if az afd origin show \
+          --origin-name "$origin_name" \
+          --origin-group-name "$og_name" \
+          --profile-name "$AFD_PROFILE" \
+          --resource-group "$RG" &>/dev/null; then
+        echo "      Origin '$origin_name' finns redan – hoppar över."
+      else
+        echo "      Skapar origin: $origin_name -> $origin_host"
+        az afd origin create \
+          --origin-name "$origin_name" \
+          --origin-group-name "$og_name" \
+          --profile-name "$AFD_PROFILE" \
+          --resource-group "$RG" \
+          --host-name "$origin_host" \
+          --http-port "$origin_http" \
+          --https-port "$origin_https" \
+          --priority "$origin_priority" \
+          --weight "$origin_weight"
+      fi
+    done < <(echo "$DEV_ORIGINS" | python3 -c "
+import json, sys
 origins = json.load(sys.stdin)
 for o in origins:
-    host = o['hostName'].replace('-dev', '-prod')
-    name = o['name']
-    http_port = o.get('httpPort', 80)
-    https_port = o.get('httpsPort', 443)
-    priority = o.get('priority', 1)
-    weight = o.get('weight', 1000)
-    result = subprocess.run([
-        'az', 'afd', 'origin', 'show',
-        '--origin-name', name,
-        '--origin-group-name', '$og_name',
-        '--profile-name', '$AFD_PROFILE',
-        '--resource-group', '$RG'
-    ], capture_output=True)
-    if result.returncode == 0:
-        print(f'      Origin {name} finns redan – hoppar över.')
-        continue
-    print(f'      Skapar origin: {name} -> {host}')
-    subprocess.run([
-        'az', 'afd', 'origin', 'create',
-        '--origin-name', name,
-        '--origin-group-name', '$og_name',
-        '--profile-name', '$AFD_PROFILE',
-        '--resource-group', '$RG',
-        '--host-name', host,
-        '--http-port', str(http_port),
-        '--https-port', str(https_port),
-        '--priority', str(priority),
-        '--weight', str(weight)
-    ])
-"
+    print(json.dumps(o))
+")
   done <<< "$DEV_ORIGIN_GROUPS"
 fi
+
+# Hämta prod SWA och App Service URL:er för origin-uppdatering
+PROD_SWA_HOST=$(az staticwebapp show --name "$SWA_NAME" --resource-group "$RG" \
+  --query "defaultHostname" -o tsv 2>/dev/null | tr -d '\r' || echo "")
+PROD_APP_HOST=$(az webapp show --name "$BACKEND_APP_NAME" --resource-group "$RG" \
+  --query "defaultHostName" -o tsv 2>/dev/null | tr -d '\r' || echo "")
+PROD_STORAGE_HOST="${STORAGE_ACCOUNT}.blob.core.windows.net"
+
+# Uppdatera frontend-origin med rätt prod SWA-URL
+if [ -n "$PROD_SWA_HOST" ]; then
+  echo "  Uppdaterar frontend-origin till $PROD_SWA_HOST..."
+  az afd origin update \
+    --origin-name "swa-origin" \
+    --origin-group-name "og-frontend" \
+    --profile-name "$AFD_PROFILE" \
+    --resource-group "$RG" \
+    --host-name "$PROD_SWA_HOST" \
+    --origin-host-header "$PROD_SWA_HOST" > /dev/null 2>&1 || true
+fi
+
+# Uppdatera backend-origin med rätt prod App Service URL
+if [ -n "$PROD_APP_HOST" ]; then
+  echo "  Uppdaterar backend-origin till $PROD_APP_HOST..."
+  az afd origin update \
+    --origin-name "api-origin" \
+    --origin-group-name "og-backend" \
+    --profile-name "$AFD_PROFILE" \
+    --resource-group "$RG" \
+    --host-name "$PROD_APP_HOST" \
+    --origin-host-header "$PROD_APP_HOST" > /dev/null 2>&1 || true
+fi
+
+# Uppdatera blob-origin med rätt prod storage URL
+echo "  Uppdaterar blob-origin till $PROD_STORAGE_HOST..."
+az afd origin update \
+  --origin-name "blob-origin-group" \
+  --origin-group-name "blob-origin-group" \
+  --profile-name "$AFD_PROFILE" \
+  --resource-group "$RG" \
+  --host-name "$PROD_STORAGE_HOST" \
+  --origin-host-header "$PROD_STORAGE_HOST" > /dev/null 2>&1 || true
 
 # Kopiera routes
 DEV_ROUTES=$(az afd route list \
@@ -1548,6 +2033,7 @@ DEV_ROUTES=$(az afd route list \
 
 if [ -n "$DEV_ROUTES" ]; then
   while IFS= read -r route_name; do
+    route_name=$(echo "$route_name" | tr -d '\r')
     if az afd route show --route-name "$route_name" --profile-name "$AFD_PROFILE" --resource-group "$RG" --endpoint-name "$AFD_ENDPOINT" &>/dev/null; then
       echo "    Route '$route_name' finns redan – hoppar över."
     else
@@ -1559,6 +2045,13 @@ if [ -n "$DEV_ROUTES" ]; then
       PATTERNS=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin).get('patternsToMatch', ['/*'])))")
       OG=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['originGroup']['id'].split('/')[-1])")
       HTTPS=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('httpsRedirect','Enabled'))")
+      FORWARDING=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('forwardingProtocol','HttpsOnly'))")
+      PROTOCOLS=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin).get('supportedProtocols',['Https'])))")
+      LINK_DEFAULT=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('linkToDefaultDomain','Enabled'))")
+      ORIGIN_PATH=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('originPath','') or '')")
+      CACHE_ENABLED=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; d=json.load(sys.stdin); print('true' if d.get('cacheConfiguration') else 'false')")
+      QUERY_STRING=$(echo "$ROUTE_PROPS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('cacheConfiguration',{}).get('queryStringCachingBehavior','IgnoreQueryString') if d.get('cacheConfiguration') else 'IgnoreQueryString')")
+
       az afd route create \
         --route-name "$route_name" \
         --profile-name "$AFD_PROFILE" \
@@ -1567,7 +2060,11 @@ if [ -n "$DEV_ROUTES" ]; then
         --origin-group "$OG" \
         --patterns-to-match $PATTERNS \
         --https-redirect "$HTTPS" \
-        --forwarding-protocol MatchRequest > /dev/null
+        --forwarding-protocol "$FORWARDING" \
+        --supported-protocols $PROTOCOLS \
+        --link-to-default-domain "$LINK_DEFAULT" \
+        ${ORIGIN_PATH:+--origin-path "$ORIGIN_PATH"} \
+        $( [ "$CACHE_ENABLED" = "true" ] && echo "--enable-caching true --query-string-caching-behavior $QUERY_STRING" ) > /dev/null
       echo "    Skapade route: $route_name"
     fi
   done <<< "$DEV_ROUTES"
@@ -1575,32 +2072,37 @@ fi
 
 # --- SQL: brandväggsregler ---
 echo "  SQL: kopierar brandväggsregler..."
-DEV_FW_RULES=$(az sql server firewall-rule list   --server "$DEV_SQL_SERVER"   --resource-group "$DEV_RG" -o json 2>/dev/null || echo "[]")
+
+DEV_FW_RULES=$(az sql server firewall-rule list \
+  --server "$DEV_SQL_SERVER" \
+  --resource-group "$DEV_RG" -o json 2>/dev/null || echo "[]")
 
 if [ "$DEV_FW_RULES" != "[]" ] && [ -n "$DEV_FW_RULES" ]; then
-  echo "$DEV_FW_RULES" | python3 -c "
-import json, sys, subprocess
+  while IFS= read -r rule; do
+    rule_name=$(echo "$rule" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" | tr -d '\r')
+    rule_start=$(echo "$rule" | python3 -c "import json,sys; print(json.load(sys.stdin)['startIpAddress'])" | tr -d '\r')
+    rule_end=$(echo "$rule" | python3 -c "import json,sys; print(json.load(sys.stdin)['endIpAddress'])" | tr -d '\r')
+
+    if az sql server firewall-rule show \
+        --server "$SQL_SERVER" \
+        --resource-group "$RG" \
+        --name "$rule_name" &>/dev/null; then
+      echo "    Brandväggsregel '$rule_name' finns redan – hoppar över."
+    else
+      az sql server firewall-rule create \
+        --server "$SQL_SERVER" \
+        --resource-group "$RG" \
+        --name "$rule_name" \
+        --start-ip-address "$rule_start" \
+        --end-ip-address "$rule_end" > /dev/null
+      echo "    Kopierade brandväggsregel: $rule_name"
+    fi
+  done < <(echo "$DEV_FW_RULES" | python3 -c "
+import json, sys
 rules = json.load(sys.stdin)
 for r in rules:
-    result = subprocess.run([
-        'az', 'sql', 'server', 'firewall-rule', 'show',
-        '--server', '$SQL_SERVER',
-        '--resource-group', '$RG',
-        '--name', r['name']
-    ], capture_output=True)
-    if result.returncode == 0:
-        print(f'    Brandväggsregel {r[\"name\"]} finns redan – hoppar över.')
-        continue
-    subprocess.run([
-        'az', 'sql', 'server', 'firewall-rule', 'create',
-        '--server', '$SQL_SERVER',
-        '--resource-group', '$RG',
-        '--name', r['name'],
-        '--start-ip-address', r['startIpAddress'],
-        '--end-ip-address', r['endIpAddress']
-    ])
-    print(f'    Kopierade brandväggsregel: {r[\"name\"]}')
-"
+    print(json.dumps(r))
+")
 fi
 
 # ---------------------------------------------------------------------------
@@ -1662,8 +2164,14 @@ else
 fi
 
 # --- MSI (user-assigned) roller ---
-# Website Contributor på app-dev-web hoppas över då app-prod-web inte finns i prod.
-echo "  MSI-roller: inga att tilldela i prod."
+echo "  Följande roller har tilldelats i prod:"
+echo "    App Service '$BACKEND_APP_NAME':"
+echo "      - Storage Blob Data Contributor -> $STORAGE_ACCOUNT"
+echo "      - Azure Service Bus Data Sender -> $SERVICE_BUS"
+echo "      - Key Vault Secrets User -> $KEY_VAULT"
+echo "      - Cognitive Services OpenAI User -> $OPENAI_ACCOUNT"
+echo "    Function App '$FUNCTION_APP_NAME':"
+echo "      - Azure Service Bus Data Receiver -> $SERVICE_BUS"
 
 # ---------------------------------------------------------------------------
 # KLART
