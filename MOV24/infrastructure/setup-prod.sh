@@ -852,11 +852,11 @@ fi
 
 KV_ID=$(az keyvault show --name "$KEY_VAULT" --resource-group "$RG" --query id -o tsv)
 
-# Ge MSI åtkomst till KV
+# Ge Managed Identity åtkomst till KV
 if az role assignment list --assignee "$MSI_PRINCIPAL" --role "Key Vault Secrets User" --scope "$KV_ID" --query "[0].id" -o tsv 2>/dev/null | grep -q .; then
-  echo "  Roll 'Key Vault Secrets User' finns redan för MSI – hoppar över."
+  echo "  Roll 'Key Vault Secrets User' finns redan för Managed Identity – hoppar över."
 else
-  echo "  Tilldelar 'Key Vault Secrets User' till MSI..."
+  echo "  Tilldelar 'Key Vault Secrets User' till Managed Identity..."
   az role assignment create \
     --role "Key Vault Secrets User" \
     --assignee "$MSI_PRINCIPAL" \
@@ -1307,7 +1307,7 @@ if az afd profile show --profile-name "$AFD_PROFILE" --resource-group "$RG" &>/d
   az afd profile update \
     --profile-name "$AFD_PROFILE" \
     --resource-group "$RG" \
-    --origin-response-timeout-seconds "$AFD_DEV_TIMEOUT" > /dev/null
+    --origin-response-timeout-seconds "$AFD_DEV_TIMEOUT" > /dev/null 2>&1
 else
   echo "  Hämtar Front Door-konfiguration från dev..."
   AFD_DEV_SKU=$(az afd profile show \
@@ -1321,7 +1321,7 @@ else
     --profile-name "$AFD_PROFILE" \
     --resource-group "$RG" \
     --sku "$AFD_DEV_SKU" \
-    --origin-response-timeout-seconds "$AFD_DEV_TIMEOUT"
+    --origin-response-timeout-seconds "$AFD_DEV_TIMEOUT" > /dev/null 2>&1
 fi
 
 if az afd endpoint show --endpoint-name "$AFD_ENDPOINT" --profile-name "$AFD_PROFILE" --resource-group "$RG" &>/dev/null; then
@@ -1331,7 +1331,7 @@ else
   az afd endpoint create \
     --endpoint-name "$AFD_ENDPOINT" \
     --profile-name "$AFD_PROFILE" \
-    --resource-group "$RG"
+    --resource-group "$RG" > /dev/null 2>&1
 fi
 
 # ---------------------------------------------------------------------------
@@ -1472,7 +1472,7 @@ log "14. Kontrollerar Application Insights..."
 
 AI_NAME="app-${ENV}-api"
 if az monitor app-insights component show --app "$AI_NAME" --resource-group "$RG" &>/dev/null; then
-  echo "  Application Insights '$AI_NAME' finns redan – uppdaterar retention..."
+  echo "  Application Insights '$AI_NAME' finns redan – uppdaterar inställningar..."
   AI_DEV_RETENTION=$(az monitor app-insights component show \
     --app "$DEV_BACKEND_APP" --resource-group "$DEV_RG" \
     --query "retentionInDays" -o tsv 2>/dev/null || echo "90")
@@ -1629,7 +1629,7 @@ if [ "$DEV_SWA_VARS" != "{}" ] && [ -n "$DEV_SWA_VARS" ]; then
 import json, sys
 props = json.load(sys.stdin)
 print(' '.join(f'{k}={v}' for k, v in props.items()))
-")" > /dev/null
+")" > /dev/null 2>&1
   echo "  SWA environment variables kopierade."
 else
   echo "  Inga environment variables hittades i dev."
@@ -1664,6 +1664,8 @@ if [ "$DEV_APPSETTINGS" != "[]" ] && [ -n "$DEV_APPSETTINGS" ]; then
   echo "$DEV_APPSETTINGS" | python3 -c "
 import json, sys
 settings = json.load(sys.stdin)
+skip = {'APPINSIGHTS_INSTRUMENTATIONKEY', 'APPLICATIONINSIGHTS_CONNECTION_STRING'}
+settings = [s for s in settings if s['name'] not in skip]
 for s in settings:
     s['value'] = s['value'].replace('-dev', '-prod').replace('dev01', 'prod01')
 print(json.dumps(settings))
@@ -2168,7 +2170,7 @@ if [ -n "$DEV_ORIGIN_GROUPS" ]; then
         --probe-request-type "$PROBE_REQUEST_TYPE" \
         --sample-size "$LB_SAMPLE_SIZE" \
         --successful-samples-required "$LB_SUCCESSFUL_SAMPLES" \
-        --additional-latency-in-milliseconds "$LB_LATENCY" > /dev/null
+        --additional-latency-in-milliseconds "$LB_LATENCY" > /dev/null 2>&1
     else
       OG_PROPS=$(az afd origin-group show \
         --profile-name "$DEV_AFD_PROFILE" \
@@ -2192,7 +2194,7 @@ if [ -n "$DEV_ORIGIN_GROUPS" ]; then
         --probe-request-type "$PROBE_REQUEST_TYPE" \
         --sample-size "$LB_SAMPLE_SIZE" \
         --successful-samples-required "$LB_SUCCESSFUL_SAMPLES" \
-        --additional-latency-in-milliseconds "$LB_LATENCY" > /dev/null
+        --additional-latency-in-milliseconds "$LB_LATENCY" > /dev/null 2>&1
       echo "    Skapade origin group: $og_name"
     fi
 
@@ -2227,7 +2229,7 @@ if [ -n "$DEV_ORIGIN_GROUPS" ]; then
           --http-port "$origin_http" \
           --https-port "$origin_https" \
           --priority "$origin_priority" \
-          --weight "$origin_weight"
+          --weight "$origin_weight" > /dev/null 2>&1
       fi
     done < <(echo "$DEV_ORIGINS" | python3 -c "
 import json, sys
@@ -2317,7 +2319,7 @@ if [ -n "$DEV_ROUTES" ]; then
         --link-to-default-domain "$LINK_DEFAULT" \
         ${ORIGIN_PATH:+--origin-path "$ORIGIN_PATH"} \
         --enable-caching true \
-        --query-string-caching-behavior "$QUERY_STRING" > /dev/null
+        --query-string-caching-behavior "$QUERY_STRING" > /dev/null 2>&1
     else
       ROUTE_PROPS=$(az afd route show \
         --profile-name "$DEV_AFD_PROFILE" \
@@ -2347,7 +2349,7 @@ if [ -n "$DEV_ROUTES" ]; then
         --link-to-default-domain "$LINK_DEFAULT" \
         ${ORIGIN_PATH:+--origin-path "$ORIGIN_PATH"} \
         --enable-caching true \
-        --query-string-caching-behavior UseQueryString > /dev/null
+        --query-string-caching-behavior UseQueryString > /dev/null 2>&1
       echo "    Skapade route: $route_name"
     fi
   done <<< "$DEV_ROUTES"
