@@ -13,7 +13,6 @@ import se.liaprojekt.exception.ResourceNotFoundException;
 
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -197,7 +196,7 @@ public class GraphService {
                     user.getGivenName(),
                     user.getSurname(),
                     user.getMail(),
-                    translateRoles(roles)
+                    roles
             );
         } else {
             throw new ResourceNotFoundException("User not found");
@@ -228,19 +227,6 @@ public class GraphService {
 
         }
         return roles;
-    }
-
-    //removes everything before final '-' and only leaves the roles name
-    private Set<String> translateRoles(Set<String> roles) {
-        return roles;
-//        Set<String> translatedRoles = new HashSet<>();
-//        for (String role : roles) {
-//            if (ROLES.contains(role)) {
-//                int index = role.lastIndexOf('-');
-//                translatedRoles.add(role.substring(index + 1));
-//            }
-//        }
-//        return translatedRoles;
     }
 
     public void sendEmail(String to,
