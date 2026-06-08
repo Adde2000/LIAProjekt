@@ -26,7 +26,7 @@ public class UserController {
 
     //Admin
     @GetMapping("/all")
-//    @PreAuthorize(Roles.ROLE_ADMIN)
+    @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<List<UserResponse>> getAllUsers() {
         List<UserResponse> userResponseList = userService.getAllUserResponses();
         return ResponseEntity.ok(userResponseList);
@@ -41,6 +41,7 @@ public class UserController {
     }
 
     @PostMapping("/invite")
+    @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<List<UserResponse>> inviteUser(@RequestBody List<InviteRequest> invites) {
         List<UserResponse> userResponses = new ArrayList<>();
         for (InviteRequest invite : invites) {
@@ -51,12 +52,14 @@ public class UserController {
     }
 
     @DeleteMapping("/{userId}")
+    @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<Void> deleteUser(@PathVariable long userId) {
         userService.deleteUser(userId);
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{userId}")
+    @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<UserResponse> updateCourse(@PathVariable long userId, @RequestBody InviteRequest inviteRequest) {
         Roles.checkRolesValid(inviteRequest.roles);
         UserResponse userResponse = userService.updateUser(userId, inviteRequest.displayName, inviteRequest.roles);
