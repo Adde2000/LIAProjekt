@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
-import type { CourseResponse, UserResponse, AssistantAdminResponse, LoadState } from "../../types";
+import type { CourseResponse, SectionResponse, UserResponse, AssistantAdminResponse, LoadState } from "../../types";
 import { getCourses, deleteCourse, getAssistants, assignAssistantToCourse, getUsers, updateCourse } from "../../api/api";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { FetchState } from "../../components/FetchState";
@@ -9,6 +9,7 @@ import { normaliseRole } from "../../utils/roles";
 import { pad } from "../../components/Shared";
 import { CourseStudentsPanel } from "../../components/CourseStudentsPanel";
 import { CourseSectionsPanel } from "../../components/CourseSectionsPanel";
+import { SectionQuizView } from "./SectionQuizView";
 
 // ── Course list panel ─────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ function CourseList({
 
 // ── Course detail panel ───────────────────────────────────────────────────────
 
-function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: (id: number) => void }) {
+function CourseDetail({ course, onDelete, onOpenQuiz, }: { course: CourseResponse; onDelete: (id: number) => void;  onOpenQuiz: (section: SectionResponse) => void; } ) {
     const { instance } = useMsal();
     const isAdmin = useHasRole("admin");
 
@@ -59,33 +60,45 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
     const [selectedAssistant, setSelectedAssistant] = useState(course.assistantId ?? "");
 
     const [courseAdmins, setCourseAdmins]               = useState<UserResponse[]>([]);
-    const [selectedCourseAdmin, setSelectedCourseAdmin] = useState<number | null>(null);
+    const [selectedCourseAdmin, setSelectedCourseAdmin] = useState<number | null>(course.courseAdmin?.id ?? null);
     const [courseAdminStatus, setCourseAdminStatus]     = useState<"idle" | "saving" | "saved" | "error">("idle");
     const [courseAdminError, setCourseAdminError]       = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
         getAssistants(instance)
-            .then((data) => { if (!cancelled) setAssistants(data as AssistantAdminResponse[]); })
-            .catch(console.error);
-        return () => { cancelled = true; };
-    }, [instance]);
-
-    useEffect(() => {
-        let cancelled = false;
-        getUsers(instance)
             .then((data) => {
-                if (!cancelled && data) {
-                    setCourseAdmins(
-                        (data as UserResponse[]).filter((u) =>
-                            u.role.some((r) => normaliseRole(r) === "courseAdmin")
-                        )
-                    );
+                if (!cancelled) {
+                    const list = data as AssistantAdminResponse[];
+                    setAssistants(list);
+                    // Förvälj nuvarande assistant om den finns i listan
+                    if (course.assistantId && list.find((a) => a.id === course.assistantId)) {
+                        setSelectedAssistant(course.assistantId);
+                    }
                 }
             })
             .catch(console.error);
         return () => { cancelled = true; };
     }, [instance]);
+
+    useEffect(() => {
+        if (!isAdmin) return;
+        let cancelled = false;
+        getUsers(instance)
+            .then((data) => {
+                if (!cancelled && data) {
+                    const admins = (data as UserResponse[]).filter((u) =>
+                        u.role.some((r) => normaliseRole(r) === "courseAdmin")
+                    );
+                    if (course.courseAdmin && !admins.find((u) => u.id === course.courseAdmin!.id)) {
+                        admins.unshift(course.courseAdmin);
+                    }
+                    setCourseAdmins(admins);
+                }
+            })
+            .catch(console.error);
+        return () => { cancelled = true; };
+    }, [instance, isAdmin]);
 
     async function handleAssistantChange(assistantId: string) {
         try {
@@ -126,18 +139,35 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
         }
     }
 
+    const currentAssistantName =
+        assistants.find((a) => a.id === selectedAssistant)?.name
+        ?? null;
+
     return (
         <div className="vmv-mgmt-detail">
 
             {/* ── Header: title, assistant, course admin, delete ── */}
             <div className="vmv-mgmt-detail-header">
+
                 <div>
                     <div className="vmv-mgmt-detail-title">{course.title}</div>
                     <div className="vmv-mgmt-detail-desc">{course.description}</div>
-                    <div className="vmv-mgmt-detail-meta">Skapad av: {course.createdBy}</div>
+                    <div className="vmv-mgmt-detail-meta">
+                        Skapad av: {course.createdBy}
+                    </div>
 
                     <div style={{ marginTop: "1rem" }}>
                         <div className="vmv-section-head">AI Assistant</div>
+
+                        {currentAssistantName && (
+                            <div
+                                className="vmv-mgmt-detail-meta"
+                                style={{ marginBottom: "0.4rem" }}
+                            >
+                                Nuvarande: <strong>{currentAssistantName}</strong>
+                            </div>
+                        )}
+
                         <select
                             className="vmv-mgmt-section-input"
                             value={selectedAssistant}
@@ -145,44 +175,93 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
                         >
                             <option value="">Välj AI Assistant</option>
                             {assistants.map((a) => (
-                                <option key={a.id} value={a.id}>{a.name}</option>
+                                <option key={a.id} value={a.id}>
+                                    {a.name}
+                                </option>
                             ))}
                         </select>
                     </div>
 
                     <div style={{ marginTop: "1rem" }}>
                         <div className="vmv-section-head">Kursledare</div>
-                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
-                            <select
-                                className="vmv-mgmt-section-input"
-                                value={selectedCourseAdmin ?? ""}
-                                onChange={(e) => setSelectedCourseAdmin(e.target.value ? Number(e.target.value) : null)}
-                                disabled={courseAdminStatus === "saving"}
-                            >
-                                <option value="">Ingen kursledare</option>
-                                {courseAdmins.map((u) => (
-                                    <option key={u.id} value={u.id}>
-                                        {u.displayName}{u.mail ? ` — ${u.mail}` : ""}
-                                    </option>
-                                ))}
-                            </select>
-                            <button
-                                className="vmv-quiz-start"
-                                onClick={handleSaveCourseAdmin}
-                                disabled={courseAdminStatus === "saving"}
-                            >
-                                {courseAdminStatus === "saving" ? "Sparar..." : "Spara ↗"}
-                            </button>
-                        </div>
-                        {courseAdminStatus === "saved" && (
-                            <div className="vmv-form-feedback vmv-form-feedback--success" style={{ marginTop: "0.5rem" }}>
-                                ✓ Kursledare uppdaterad.
-                            </div>
-                        )}
-                        {courseAdminStatus === "error" && (
-                            <div className="vmv-form-feedback vmv-form-feedback--error" style={{ marginTop: "0.5rem" }}>
-                                Fel: {courseAdminError}
-                            </div>
+
+                        {isAdmin ? (
+                            <>
+                                {course.courseAdmin && (
+                                    <div
+                                        className="vmv-mgmt-detail-meta"
+                                        style={{ marginBottom: "0.4rem" }}
+                                    >
+                                        Nuvarande:{" "}
+                                        <strong>{course.courseAdmin.displayName}</strong>
+                                    </div>
+                                )}
+
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        gap: "0.5rem",
+                                        alignItems: "center",
+                                        flexWrap: "wrap",
+                                    }}
+                                >
+                                    <select
+                                        className="vmv-mgmt-section-input"
+                                        value={selectedCourseAdmin ?? ""}
+                                        onChange={(e) =>
+                                            setSelectedCourseAdmin(
+                                                e.target.value
+                                                    ? Number(e.target.value)
+                                                    : null
+                                            )
+                                        }
+                                        disabled={courseAdminStatus === "saving"}
+                                    >
+                                        <option value="">Ingen kursledare</option>
+
+                                        {courseAdmins.map((u) => (
+                                            <option key={u.id} value={u.id}>
+                                                {u.displayName}
+                                                {u.mail ? ` — ${u.mail}` : ""}
+                                            </option>
+                                        ))}
+                                    </select>
+
+                                    <button
+                                        className="vmv-quiz-start"
+                                        onClick={handleSaveCourseAdmin}
+                                        disabled={courseAdminStatus === "saving"}
+                                    >
+                                        {courseAdminStatus === "saving"
+                                            ? "Sparar..."
+                                            : "Spara ↗"}
+                                    </button>
+                                </div>
+
+                                {courseAdminStatus === "saved" && (
+                                    <div
+                                        className="vmv-form-feedback vmv-form-feedback--success"
+                                        style={{ marginTop: "0.5rem" }}
+                                    >
+                                        ✓ Kursledare uppdaterad.
+                                    </div>
+                                )}
+
+                                {courseAdminStatus === "error" && (
+                                    <div
+                                        className="vmv-form-feedback vmv-form-feedback--error"
+                                        style={{ marginTop: "0.5rem" }}
+                                    >
+                                        Fel: {courseAdminError}
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            course.courseAdmin && (
+                                <div className="vmv-mgmt-detail-meta">
+                                    <strong>{course.courseAdmin.displayName}</strong>
+                                </div>
+                            )
                         )}
                     </div>
                 </div>
@@ -195,8 +274,11 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
                         >
                             Ta bort kurs
                         </button>
+
                         {deleteError && (
-                            <span className="vmv-form-feedback vmv-form-feedback--error">Fel: {deleteError}</span>
+                            <span className="vmv-form-feedback vmv-form-feedback--error">
+                        Fel: {deleteError}
+                    </span>
                         )}
                     </div>
                 )}
@@ -215,7 +297,7 @@ function CourseDetail({ course, onDelete }: { course: CourseResponse; onDelete: 
             )}
 
             <CourseStudentsPanel course={course} />
-            <CourseSectionsPanel course={course} />
+            <CourseSectionsPanel course={course} onOpenQuiz={onOpenQuiz} />
         </div>
     );
 }
@@ -226,6 +308,7 @@ export function ManageCoursesView() {
     const { instance } = useMsal();
     const [courses, setCourses]               = useState<LoadState<CourseResponse[]>>({ data: null, loading: true, error: null });
     const [selectedCourse, setSelectedCourse] = useState<CourseResponse | null>(null);
+    const [quizSection, setQuizSection]       = useState<SectionResponse | null>(null);
 
     function handleCourseDeleted(id: number) {
         setCourses((prev) => ({ ...prev, data: (prev.data ?? []).filter((c) => c.id !== id) }));
@@ -242,6 +325,10 @@ export function ManageCoursesView() {
         return () => { cancelled = true; };
     }, [instance]);
 
+    if (quizSection) {
+        return <SectionQuizView section={quizSection} onBack={() => setQuizSection(null)} />;
+    }
+
     return (
         <>
             <div className="vmv-section-head">Hantera kurser</div>
@@ -257,7 +344,7 @@ export function ManageCoursesView() {
                     />
                     <div className="vmv-mgmt-detail-pane">
                         {selectedCourse ? (
-                            <CourseDetail course={selectedCourse} onDelete={handleCourseDeleted} />
+                            <CourseDetail course={selectedCourse} onDelete={handleCourseDeleted} onOpenQuiz={setQuizSection} />
                         ) : (
                             <div className="vmv-mgmt-placeholder">
                                 ← Välj en kurs för att hantera studenter

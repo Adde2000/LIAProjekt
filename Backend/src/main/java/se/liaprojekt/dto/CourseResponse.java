@@ -12,4 +12,5 @@ public class CourseResponse {
     private String createdBy;
     Integer aiSessionTtlWeeks;
     UserResponse courseAdmin;
+    private String assistantId;
 }

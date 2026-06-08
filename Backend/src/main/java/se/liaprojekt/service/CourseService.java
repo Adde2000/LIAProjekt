@@ -286,7 +286,8 @@ public class CourseService {
                 course.getDescription(),
                 course.getCreatedBy(),
                 course.getAiSessionTtlWeeks(),
-                courseAdminResponse
+                courseAdminResponse,
+                course.getAssistantId()
         );
     }
 

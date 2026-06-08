@@ -131,6 +131,7 @@ export interface CourseResponse {
     createdBy:   string;
     //Optional assistantId
     assistantId?: string;
+    courseAdmin?:      UserResponse;
 }
 
 export interface ChatMessage {
