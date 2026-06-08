@@ -343,7 +343,6 @@ export async function addCourseSection(
 
 export async function createAiSession(
     instance: IPublicClientApplication,
-    userId: number,
     courseId: number,
 ) {
 
@@ -352,7 +351,7 @@ export async function createAiSession(
     const token = await getAccessToken(instance);
 
     return safePost(
-        `${BASE_URL}/api/ai/session?userId=${userId}&courseId=${courseId}`,
+        `${BASE_URL}/api/ai/session?&courseId=${courseId}`,
         token,
         {},
         "Failed to create AI session"
@@ -676,14 +675,36 @@ export async function submitQuiz(
     );
 }
 
-export async function getMe(
-    instance: IPublicClientApplication
-): Promise<UserResponse | null> {
+export async function updateCourse(
+    instance: IPublicClientApplication,
+    courseId: number,
+    course: CourseRequest
+) {
     if (!BASE_URL) return null;
+
     const token = await getAccessToken(instance);
-    return safeFetch(
-        `${BASE_URL}/api/users/me`,
-        token,
-        "Failed to fetch current user"
-    );
+
+    try {
+        const res = await fetch(`${BASE_URL}/api/courses/${courseId}`, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(course),
+        });
+
+        if (!res.ok) {
+            const text = await res.text().catch(() => "");
+            console.error("API error:", res.status, text);
+            throw new Error("Failed to update course");
+        }
+
+        const contentType = res.headers.get("content-type") ?? "";
+        if (res.status === 204 || !contentType.includes("application/json")) return null;
+        return await res.json();
+    } catch (err) {
+        console.error("Network/API failure:", err);
+        throw err;
+    }
 }

@@ -39,6 +39,13 @@ public class CourseService {
                 .toList();
     }
 
+    public List<CourseResponse> getAllCourses(Long courseAdminId) {
+        return courseRepository.findByCourseAdminId(courseAdminId)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
     public List<Map<String, Object>> getAllRegisteredCourses(long userId) {
         List<UserProgress> userProgressList = userProgressRepository.findByUserId(userId);
         List<Map<String, Object>> responseList = new ArrayList<>();
@@ -73,11 +80,16 @@ public class CourseService {
                         ? request.aiSessionTtlWeeks()
                         : 6
         );
+        if(request.courseAdminId() != null) {
+            course.setCourseAdmin(userService.getUserById(request.courseAdminId()));
+        }
 
         // namn från JWT token
         course.setCreatedBy(
                 currentUserService.getName()
         );
+
+
 
         Course saved = courseRepository.save(course);
 
@@ -89,7 +101,6 @@ public class CourseService {
         return mapToResponse(saved);
     }
 
-    //TODO return UserProgressResponse
     public List<UserProgressResponse> addStudentsToCourse(Long courseId, List<UserRequest> students) {
         Course course = courseRepository.findById(courseId).orElseThrow(() ->
                 new ResourceNotFoundException("Course not found with id: " + courseId));
@@ -101,7 +112,6 @@ public class CourseService {
         return getStudentsInCourse(courseId);
     }
 
-    //TODO return UserProgressResponse
     public List<UserProgressResponse> getStudentsInCourse(Long courseId) {
         List<UserProgress> userProgressList = userProgressRepository.findByCourseId(courseId);
         List<UserProgressResponse> userProgressResponseList = new ArrayList<>();
@@ -117,9 +127,18 @@ public class CourseService {
                         new ResourceNotFoundException("Course not found with id: " + id)
                 );
 
-        course.setTitle(request.title());
-        course.setDescription(request.description());
-        course.setAiSessionTtlWeeks(request.aiSessionTtlWeeks());
+        if(request.title() != null) {
+            course.setTitle(request.title());
+        }
+        if(request.description() != null) {
+            course.setDescription(request.description());
+        }
+        if (request.aiSessionTtlWeeks() != null) {
+            course.setAiSessionTtlWeeks(request.aiSessionTtlWeeks());
+        }
+        if(request.courseAdminId() != null) {
+            course.setCourseAdmin(userService.getUserById(request.courseAdminId()));
+        }
 
         return mapToResponse(courseRepository.save(course));
     }
@@ -257,17 +276,21 @@ public class CourseService {
     }
 
     private CourseResponse mapToResponse(Course course) {
+        UserResponse courseAdminResponse = null;
+        if (course.getCourseAdmin() != null) {
+            courseAdminResponse = userService.getUserResponseById(course.getCourseAdmin().getId());
+        }
         return new CourseResponse(
                 course.getId(),
                 course.getTitle(),
                 course.getDescription(),
                 course.getCreatedBy(),
-                course.getAiSessionTtlWeeks()
+                course.getAiSessionTtlWeeks(),
+                courseAdminResponse
         );
     }
 
     private UserProgressResponse mapToResponse(UserProgress userProgress) {
-        System.out.println(userProgress.getCompletedSections() + " " + userProgress.getProgressPercentage());
         return new UserProgressResponse(
                 userService.getUserResponseById(userProgress.getUser().getId()),
                 userProgress.getCompletedSections(),

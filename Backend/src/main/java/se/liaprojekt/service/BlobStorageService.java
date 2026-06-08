@@ -20,16 +20,12 @@ import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
 public class BlobStorageService {
 
     private static final Logger log = LoggerFactory.getLogger(BlobStorageService.class);
-
-    /** Default chunk size for streaming responses: 10MB. */
-    private static final long CHUNK_SIZE = 10 * 1024 * 1024;
 
     private final BlobContainerClient pdfContainerClient;
     private final BlobContainerClient videoContainerClient;
@@ -273,7 +269,7 @@ public class BlobStorageService {
                                 resolveContainer(blob.getName()), blob.getName());
                         return new FileEntry(fileId, originalName);
                     })
-                    .collect(Collectors.toList());
+                    .toList();
         } catch (BlobStorageException ex) {
             throw translateException(ex);
         }
@@ -307,7 +303,7 @@ public class BlobStorageService {
                                 resolveContainer(blob.getName()), blob.getName());
                         return new FileEntry(fileId, originalName);
                     })
-                    .collect(Collectors.toList());
+                    .toList();
         } catch (BlobStorageException ex) {
             throw translateException(ex);
         }

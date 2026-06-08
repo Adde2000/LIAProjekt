@@ -22,6 +22,7 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/health").permitAll()
                         //Stream security is handled via StreamToken

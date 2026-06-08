@@ -45,6 +45,12 @@ public class EmailMessageHandler {
             EmailEvent event =
                     objectMapper.readValue(body, EmailEvent.class);
 
+            if (event.to() == null || event.to().isBlank()) {
+                log.warn("Skipping email — recipient address is empty, acknowledging message");
+                context.complete(); // markera meddelandet som hanterat så det inte levereras om
+                return;
+            }
+
             graphService.sendEmail(
                     event.to(),
                     event.subject(),

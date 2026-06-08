@@ -62,10 +62,10 @@ export interface Material {
 }
 
 export interface CourseRequest {
-    id:          number | null;   // null on create; the server assigns the ID
-    title:       string;
-    description: string;
-    aiSessionTtlWeeks: number;
+    title:             string;
+    description:       string;
+    aiSessionTtlWeeks: number | null;
+    courseAdminId:     number | null;
 }
 
 // Mirrors the Java SubmitAnswerRequest record

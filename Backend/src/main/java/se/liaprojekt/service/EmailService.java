@@ -30,6 +30,11 @@ public class EmailService {
             return;
         }
 
+        if (email == null || email.isBlank()) {
+            log.warn("Skipping TEST_RESULT email — recipient address is empty");
+            return;
+        }
+
         EmailEvent event = new EmailEvent(
                 email,
                 "Test avklarat",
@@ -54,6 +59,11 @@ public class EmailService {
             return;
         }
 
+        if (email == null || email.isBlank()) {
+            log.warn("Skipping COURSE_COMPLETED email — recipient address is empty");
+            return;
+        }
+
         EmailEvent event = new EmailEvent(
                 email,
                 "Kurs avklarad 🎉",
@@ -62,6 +72,31 @@ public class EmailService {
                 <p>Du har klarat kursen: %s</p>
                 """.formatted(course.getTitle()),
                 EmailType.COURSE_COMPLETED
+        );
+
+        publisher.publish(event);
+    }
+
+    public void sendWelcomeEmail(String email) {
+
+        if (!emailEnabled) {
+            log.info("Email disabled - skipped {} email to {}", EmailType.WELCOME_EMAIL, email);
+            return;
+        }
+
+        if (email == null || email.isBlank()) {
+            log.warn("Skipping WELCOME email — recipient address is empty");
+            return;
+        }
+
+        EmailEvent event = new EmailEvent(
+                email,
+                "Välkommen!",
+                """
+                <h1>Välkommen!</h1>
+                <p>Ditt konto har skapats.</p>
+                """,
+                EmailType.WELCOME_EMAIL
         );
 
         publisher.publish(event);

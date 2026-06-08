@@ -145,7 +145,12 @@ class CourseServiceTest {
     @Test
     void shouldCreateCourse() {
         // Arrange
-        CourseRequest request = new CourseRequest("Spring", "Spring Boot course", 6);
+        CourseRequest request = new CourseRequest(
+                "Spring",
+                "Spring Boot course",
+                6,
+                null
+        );
 
         when(currentUserService.getName()).thenReturn("Teacher");
         when(vectorStoreService.createVectorStore("Spring")).thenReturn("vs-spring-123");
@@ -168,7 +173,12 @@ class CourseServiceTest {
 
     @Test
     void shouldUpdateCourse() {
-        CourseRequest request = new CourseRequest("Updated", "Updated desc", 1);
+        CourseRequest request = new CourseRequest(
+                "Updated",
+                "Updated desc",
+                1,
+                null
+        );
 
         when(courseRepository.findById(1L)).thenReturn(Optional.of(course));
         when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> invocation.getArgument(0));

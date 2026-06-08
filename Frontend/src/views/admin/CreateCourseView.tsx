@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
-import type { CourseRequest } from "../../types";
-import { createCourse } from "../../api/api";
+import type { CourseRequest, UserResponse } from "../../types";
+import { createCourse, getUsers } from "../../api/api";
+import { normaliseRole } from "../../utils/roles";
 
 type FormStatus = "idle" | "submitting" | "success" | "error";
 
-const EMPTY_FORM: CourseRequest = { id: null, title: "", description: "", aiSessionTtlWeeks: 6 };
+const EMPTY_FORM: CourseRequest = {
+    title: "",
+    description: "",
+    aiSessionTtlWeeks: 6,
+    courseAdminId: null,
+};
 
 export function CreateCourseView() {
     const { instance }            = useMsal();
@@ -13,7 +19,26 @@ export function CreateCourseView() {
     const [status, setStatus]     = useState<FormStatus>("idle");
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    function updateField(field: keyof CourseRequest, value: string) {
+    const [courseAdmins, setCourseAdmins]   = useState<UserResponse[]>([]);
+    const [adminsLoading, setAdminsLoading] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+        getUsers(instance)
+            .then((data) => {
+                if (!cancelled && data) {
+                    const admins = (data as UserResponse[]).filter((u) =>
+                        u.role.some((r) => normaliseRole(r) === "courseAdmin")
+                    );
+                    setCourseAdmins(admins);
+                }
+            })
+            .catch(console.error)
+            .finally(() => { if (!cancelled) setAdminsLoading(false); });
+        return () => { cancelled = true; };
+    }, [instance]);
+
+    function updateField(field: keyof CourseRequest, value: string | number | null) {
         setForm((prev) => ({ ...prev, [field]: value }));
     }
 
@@ -70,17 +95,43 @@ export function CreateCourseView() {
                 </div>
 
                 <div className="vmv-form-field">
+                    <label className="vmv-form-label" htmlFor="course-admin">
+                        Kursledare
+                    </label>
+                    <select
+                        id="course-admin"
+                        className="vmv-form-input"
+                        value={form.courseAdminId ?? ""}
+                        onChange={(e) =>
+                            updateField(
+                                "courseAdminId",
+                                e.target.value ? Number(e.target.value) : null
+                            )
+                        }
+                        disabled={status === "submitting" || adminsLoading}
+                    >
+                        <option value="">
+                            {adminsLoading ? "Hämtar kursledare…" : "Välj kursledare (valfritt)"}
+                        </option>
+                        {courseAdmins.map((u) => (
+                            <option key={u.id} value={u.id}>
+                                {u.displayName}{u.mail ? ` — ${u.mail}` : ""}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="vmv-form-field">
                     <label className="vmv-form-label" htmlFor="course-ttl">
                         Kursens längd i veckor
                     </label>
-
                     <input
                         id="course-ttl"
                         className="vmv-form-input"
                         type="number"
                         min={1}
                         max={52}
-                        value={form.aiSessionTtlWeeks}
+                        value={form.aiSessionTtlWeeks ?? ""}
                         onChange={(e) =>
                             setForm((prev) => ({
                                 ...prev,

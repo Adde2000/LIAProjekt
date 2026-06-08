@@ -3,8 +3,6 @@ package se.liaprojekt.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import se.liaprojekt.controller.util.Roles;
@@ -30,7 +28,7 @@ public class UserController {
 
     //Admin
     @GetMapping("/all")
-//    @PreAuthorize(Roles.ADMIN)
+//    @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<List<UserResponse>> getAllUsers() {
         List<UserResponse> userResponseList = userService.getAllUserResponses();
         return ResponseEntity.ok(userResponseList);
@@ -38,7 +36,7 @@ public class UserController {
 
     //Admin
     @GetMapping("/{userId}")
-    @PreAuthorize(Roles.ADMIN)
+    @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<UserResponse> getUserById(@PathVariable long userId) {
         UserResponse userResponse = userService.getUserResponseById(userId);
         return ResponseEntity.ok(userResponse);
@@ -77,9 +75,9 @@ public class UserController {
 
     //Participant
     @GetMapping("/me/courses")
-    @PreAuthorize(Roles.PARTICIPANT)
-    public ResponseEntity<List<Map<String, Object>>> getMyCourses(@AuthenticationPrincipal Jwt jwt) {
-        String entraId = jwt.getClaim("oid");
+    @PreAuthorize(Roles.ROLE_PARTICIPANT)
+    public ResponseEntity<List<Map<String, Object>>> getMyCourses() {
+        String entraId = currentUserService.getEntraId();
         long userId = userService.getUserByEntraId(entraId).getId();
         List<Map<String, Object>> courseResponseList = courseService.getAllRegisteredCourses(userId);
         return ResponseEntity.ok(courseResponseList);

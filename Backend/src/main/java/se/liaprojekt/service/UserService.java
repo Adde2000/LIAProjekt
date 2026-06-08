@@ -3,7 +3,10 @@ package se.liaprojekt.service;
 import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import se.liaprojekt.dto.GraphResponse;
 import se.liaprojekt.dto.UserResponse;
 import se.liaprojekt.event.UserCreatedEvent;
@@ -20,9 +23,11 @@ import java.util.*;
 public class UserService {
     private final GraphService graphService;
     private final ApplicationEventPublisher eventPublisher;
-    UserRepository userRepository;
+    private final UserRepository userRepository;
 
-    @PostConstruct
+    //@PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
     public void init() {
         try {
             log.info("Starting user sync from Graph API...");
@@ -95,8 +100,10 @@ public class UserService {
 
     private void updateFromGraphAPI(List<GraphResponse> graphResponseList) {
 
+        log.info("Graph API returned {} users", graphResponseList.size());
         //Get all users in database end put their unique entraId in a set
         List<User> usersInDatabaseList = userRepository.findAll();
+        log.info("Database contains {} users", usersInDatabaseList.size());
 
         Map<String, User> usersInDataBaseMap = new HashMap<>();
         for (User user : usersInDatabaseList) {
@@ -126,6 +133,7 @@ public class UserService {
                 usersInDataBaseMap.remove(graphResponse.id());
             }
         }
+        log.info("New users to create: {}", newlyCreatedUserIds.size());
 
         List<User> savedUsers = userRepository.saveAll(usersToSave);
 

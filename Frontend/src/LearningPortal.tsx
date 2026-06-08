@@ -1,9 +1,12 @@
 import { type JSX, useState } from "react";
 import { useStreamServiceWorker } from "./auth/useStreamServiceWorker";
+import { useHasRole } from "./auth/useRoles";
+import { RequireRole } from "./components/RequireRole";
 import type { ViewKey } from "./types";
 import { VIEWS } from "./data";
 import { CoursesView } from "./views/CoursesView";
 import { AdminView }   from "./views/admin/AdminView";
+import vinkelbodaLogo from "./assets/vinkelboda_logo_vektor .svg";
 
 // CSS — one import per concern, all pulled in here
 import "./styles/global.css";
@@ -19,28 +22,59 @@ import "./styles/ai-chat.css";
 
 export default function LearningPortal() {
     useStreamServiceWorker();
-    const [view, setView] = useState<ViewKey>("courses");
+    const isAdmin       = useHasRole("admin");
+    const isCourseAdmin = useHasRole("courseAdmin");
+    const isStudent     = useHasRole("student");
+    const canSeeAdmin   = isAdmin || isCourseAdmin;
+
+    // `selected` is what the user clicked; `view` is what actually renders —
+    // clamped to a tab they're allowed to see. This avoids setState-in-effect.
+    const [selected, setSelected] = useState<ViewKey>("courses");
+
+    function permittedView(key: ViewKey): boolean {
+        if (key === "courses") return isStudent;
+        if (key === "admin")   return canSeeAdmin;
+        return true;
+    }
+
+    const view: ViewKey = permittedView(selected)
+        ? selected
+        : isStudent ? "courses" : canSeeAdmin ? "admin" : "aiChat";
 
     const viewMap: Record<ViewKey, JSX.Element> = {
-        courses: <CoursesView />,
+        courses: (
+            <RequireRole role="student">
+                <CoursesView />
+            </RequireRole>
+        ),
         quizzes: <></>,
-        admin:   <AdminView />,
+        admin: (
+            <RequireRole role={["admin", "courseAdmin"]}>
+                <AdminView />
+            </RequireRole>
+        ),
         aiChat:  <></>,
     };
+
+    // Hide nav tabs the user has no access to
+    const visibleViews = VIEWS.filter((v) => {
+        if (v.key === "courses") return isStudent;
+        if (v.key === "admin")   return canSeeAdmin;
+        return true;
+    });
 
     return (
         <div className="vmv">
             <header className="vmv-header">
-                <h1 className="vmv-title">Vinkelboda Mekaniska Verkstad</h1>
-                <p className="vmv-subtitle">GRUNDAT 1932 • KVALITET SEDAN STARTEN</p>
+                <img src={vinkelbodaLogo} alt="Vinkelboda logotyp" className="vmv-logo" />
             </header>
 
             <nav className="vmv-nav">
-                {VIEWS.map((v) => (
+                {visibleViews.map((v) => (
                     <button
                         key={v.key}
                         className={view === v.key ? "active" : ""}
-                        onClick={() => setView(v.key)}
+                        onClick={() => setSelected(v.key)}
                     >
                         {v.label}
                     </button>
