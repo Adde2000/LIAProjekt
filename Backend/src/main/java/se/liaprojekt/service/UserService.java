@@ -83,7 +83,15 @@ public class UserService {
         return mapToResponse(user, graphResponse);
     }
 
+    public UserResponse updateUser(long userId, String displayName, List<String> roles) {
+        User user = getUserById(userId);
+        graphService.updateUser(user.getEntraId(), displayName);
+        graphService.updateRoles(user.getEntraId(), roles);
+        return mapToResponse(user, graphService.getUserByEntraId(user.getEntraId()));
+    }
+
     public void assignRoles(String entraId, List<String> roles) {
+
         graphService.setRoles(entraId, roles);
     }
 

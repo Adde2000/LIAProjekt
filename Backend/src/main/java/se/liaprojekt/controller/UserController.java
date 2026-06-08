@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.*;
 
 import se.liaprojekt.controller.util.Roles;
 import se.liaprojekt.dto.UserResponse;
-import se.liaprojekt.model.User;
 import se.liaprojekt.service.CourseService;
 import se.liaprojekt.service.CurrentUserService;
 import se.liaprojekt.service.UserService;
@@ -58,12 +57,10 @@ public class UserController {
     }
 
     @PutMapping("/{userId}")
-    public ResponseEntity<String> updateCourse(@PathVariable long userId, @RequestBody InviteRequest inviteRequest) {
-        User user = userService.getUserById(userId);
-        //TODO
+    public ResponseEntity<UserResponse> updateCourse(@PathVariable long userId, @RequestBody InviteRequest inviteRequest) {
         Roles.checkRolesValid(inviteRequest.roles);
-        userService.assignRoles(user.getEntraId(), List.of(Roles.ADMIN));
-        return ResponseEntity.ok("Test");
+        UserResponse userResponse = userService.updateUser(userId, inviteRequest.displayName, inviteRequest.roles);
+        return ResponseEntity.ok(userResponse);
     }
 
     @GetMapping("/me")

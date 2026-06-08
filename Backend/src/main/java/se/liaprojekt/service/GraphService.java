@@ -13,6 +13,8 @@ import se.liaprojekt.exception.ResourceNotFoundException;
 
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Service
 public class GraphService {
@@ -94,15 +96,25 @@ public class GraphService {
         }
     }
 
+    public void updateUser(String entraId, String displayName) {
+        User user = new User();
+        user.setDisplayName(displayName);
+
+        graphServiceClient
+                .users()
+                .byUserId(entraId)
+                .patch(user);
+    }
+
     public void setRoles(String entraId, List<String> roles) {
 
         for (String role : roles) {
             UUID appRoleId = null;
 
-            assert appRoles != null;
             for (AppRole appRole : appRoles) {
                 if (Objects.equals(appRole.getDisplayName(), role.toLowerCase())) {
                     appRoleId = appRole.getId();
+                    break;
                 }
             }
 
@@ -119,8 +131,57 @@ public class GraphService {
                     .users().byUserId(entraId).appRoleAssignments().post(assignment);
             System.out.println(result);
         }
+    }
 
+    void updateRoles(String entraId, List<String> newRoles) {
+        List<String> newAppRoleIds = new ArrayList<>();
 
+        for (String role : newRoles) {
+            for (AppRole appRole : appRoles) {
+                if (Objects.equals(appRole.getDisplayName(), role.toLowerCase())) {
+                    newAppRoleIds.add(appRole.getId().toString());
+                    break;
+                }
+            }
+        }
+
+        List<AppRoleAssignment> currentAssignments = graphServiceClient
+                .users()
+                .byUserId(entraId)
+                .appRoleAssignments()
+                .get()
+                .getValue();
+
+        Set<String> currentRoleIds = currentAssignments.stream()
+                .map(a -> a.getAppRoleId().toString())
+                .collect(Collectors.toSet());
+
+        Set<String> desiredRoleIds = new HashSet<>(newAppRoleIds);
+
+        // Delete roles not in the new set
+        currentAssignments.stream()
+                .filter(a -> !desiredRoleIds.contains(a.getAppRoleId().toString()))
+                .forEach(a -> graphServiceClient
+                        .users()
+                        .byUserId(entraId)
+                        .appRoleAssignments()
+                        .byAppRoleAssignmentId(a.getId())
+                        .delete()
+                );
+
+        // Add roles not already assigned
+        desiredRoleIds.stream()
+                .filter(id -> !currentRoleIds.contains(id))
+                .forEach(id -> {
+                    AppRoleAssignment assignment = new AppRoleAssignment();
+                    assignment.setPrincipalId(UUID.fromString(entraId));
+                    assignment.setResourceId(UUID.fromString(resourceId));
+                    assignment.setAppRoleId(UUID.fromString(id));
+                    graphServiceClient.users()
+                            .byUserId(entraId)
+                            .appRoleAssignments()
+                            .post(assignment);
+                });
     }
 
     public void deleteUser(String entraId) {
