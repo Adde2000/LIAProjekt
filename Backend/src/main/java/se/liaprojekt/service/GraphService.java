@@ -2,6 +2,7 @@ package se.liaprojekt.service;
 
 import com.microsoft.graph.models.*;
 import com.microsoft.graph.models.UserCollectionResponse;
+import com.microsoft.graph.models.odataerrors.ODataError;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
 import com.microsoft.graph.users.item.sendmail.SendMailPostRequestBody;
 import jakarta.annotation.PostConstruct;
@@ -15,16 +16,6 @@ import java.util.List;
 
 @Service
 public class GraphService {
-
-//    private static final String ROLE_NAME_ADMIN       = "sg-app-admin";
-//    private static final String ROLE_NAME_COURSEADMIN = "sg-app-courseadmin";
-//    private static final String ROLE_NAME_PARTICIPANT = "sg-app-participant";
-//
-//    private static final Set<String> ROLES = Set.of(
-//            ROLE_NAME_ADMIN,
-//            ROLE_NAME_COURSEADMIN,
-//            ROLE_NAME_PARTICIPANT
-//    );
 
     @Value("${app.email.enabled}")
     private boolean appEmailEnabled;
@@ -60,6 +51,10 @@ public class GraphService {
                 });
         assert sp != null;
         appRoles = Objects.requireNonNull(sp.getValue()).getFirst().getAppRoles();
+        assert appRoles != null;
+        for (AppRole appRole : appRoles) {
+            appRole.setDisplayName(Objects.requireNonNull(appRole.getDisplayName()).toLowerCase());
+        }
         resourceId = Objects.requireNonNull(sp.getValue()).getFirst().getId();
     }
 
@@ -106,7 +101,7 @@ public class GraphService {
 
             assert appRoles != null;
             for (AppRole appRole : appRoles) {
-                if (Objects.equals(appRole.getDisplayName(), role)) {
+                if (Objects.equals(appRole.getDisplayName(), role.toLowerCase())) {
                     appRoleId = appRole.getId();
                 }
             }
@@ -153,21 +148,6 @@ public class GraphService {
         return mapToGraphResponse(user, Set.of());
     }
 
-//    private Set<String> getRoles(String entraId) {
-//        Set<String> roles = new HashSet<>();
-//        try {
-//            graphServiceClient.users()
-//                    .byUserId(entraId)
-//                    .appRoleAssignments()
-//                    .get().getValue().forEach(role -> {
-//                        roles.add(role.getPrincipalDisplayName());
-//                    });
-//        } catch (NullPointerException e) {
-//            throw new ResourceNotFoundException("User not found");
-//        }
-//        return roles;
-//    }
-
     private Set<String> getRoles(String entraId) {
         Set<String> roles = new HashSet<>();
         try {
@@ -183,6 +163,8 @@ public class GraphService {
 
         } catch (NullPointerException e) {
             throw new ResourceNotFoundException("User not found");
+        } catch (ODataError ignored) {
+
         }
         return roles;
     }

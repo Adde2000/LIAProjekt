@@ -6,7 +6,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import se.liaprojekt.controller.util.Roles;
-import se.liaprojekt.dto.UserRequest;
 import se.liaprojekt.dto.UserResponse;
 import se.liaprojekt.model.User;
 import se.liaprojekt.service.CourseService;
@@ -46,12 +45,11 @@ public class UserController {
     public ResponseEntity<List<UserResponse>> inviteUser(@RequestBody List<InviteRequest> invites) {
         List<UserResponse> userResponses = new ArrayList<>();
         for (InviteRequest invite : invites) {
-            userResponses.add(userService.inviteUser(invite.email, invite.displayName, List.of("Admin", "Participant")));
+            Roles.checkRolesValid(invite.roles);
+            userResponses.add(userService.inviteUser(invite.email, invite.displayName, invite.roles));
         }
         return ResponseEntity.ok(userResponses);
     }
-
-    public record InviteRequest(String email, String displayName) {}
 
     @DeleteMapping("/{userId}")
     public ResponseEntity<Void> deleteUser(@PathVariable long userId) {
@@ -59,9 +57,11 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/test/{userId}")
-    public ResponseEntity<String> test(@PathVariable long userId) {
+    @PutMapping("/{userId}")
+    public ResponseEntity<String> updateCourse(@PathVariable long userId, @RequestBody InviteRequest inviteRequest) {
         User user = userService.getUserById(userId);
+        //TODO
+        Roles.checkRolesValid(inviteRequest.roles);
         userService.assignRoles(user.getEntraId(), List.of(Roles.ADMIN));
         return ResponseEntity.ok("Test");
     }
@@ -83,4 +83,5 @@ public class UserController {
         return ResponseEntity.ok(courseResponseList);
     }
 
+    public record InviteRequest(String email, String displayName, List<String> roles) {}
 }
