@@ -71,10 +71,15 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + entraId));
     }
 
-    public void inviteUser(String email) {
-        GraphResponse graphResponse = graphService.inviteUser(email);
-        List<GraphResponse> graphResponseList = List.of(graphResponse);
-        updateFromGraphAPI(graphResponseList);
+    public UserResponse inviteUser(String email, String displayName, List<String> roles) {
+        GraphResponse graphResponse = graphService.inviteUser(email, displayName);
+        User user = userRepository.save(graphResponseToUser(graphResponse));
+        assignRoles(user.getEntraId(), roles);
+        return mapToResponse(user, graphResponse);
+    }
+
+    public void assignRoles(String entraId, List<String> roles) {
+        graphService.setRoles(entraId, roles);
     }
 
     public void deleteUser(long userId) {
