@@ -1,6 +1,5 @@
 package se.liaprojekt.service;
 
-import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -74,6 +73,36 @@ public class UserService {
     public User getUserByEntraId(String entraId) {
         return userRepository.findByEntraId(entraId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + entraId));
+    }
+
+    public UserResponse inviteUser(String email, String displayName, List<String> roles) {
+        GraphResponse graphResponse = graphService.inviteUser(email, displayName);
+        User user = userRepository.save(graphResponseToUser(graphResponse));
+        assignRoles(user.getEntraId(), roles);
+        return mapToResponse(user, graphResponse);
+    }
+
+    public UserResponse updateUser(long userId, String displayName, List<String> roles) {
+        User user = getUserById(userId);
+        graphService.updateUser(user.getEntraId(), displayName);
+        graphService.updateRoles(user.getEntraId(), roles);
+        return mapToResponse(user, graphService.getUserByEntraId(user.getEntraId()));
+    }
+
+    public void assignRoles(String entraId, List<String> roles) {
+
+        graphService.setRoles(entraId, roles);
+    }
+
+    public void deleteUser(long userId) {
+        User user;
+        try {
+            user = getUserById(userId);
+        } catch (ResourceNotFoundException ignored) {
+            return;
+        }
+        graphService.deleteUser(user.getEntraId());
+        userRepository.delete(user);
     }
 
     private void updateFromGraphAPI(List<GraphResponse> graphResponseList) {

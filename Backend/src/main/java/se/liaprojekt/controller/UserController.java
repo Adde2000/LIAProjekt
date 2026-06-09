@@ -1,6 +1,8 @@
 package se.liaprojekt.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +13,7 @@ import se.liaprojekt.service.CourseService;
 import se.liaprojekt.service.CurrentUserService;
 import se.liaprojekt.service.UserService;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +21,8 @@ import java.util.Map;
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
+    private final Logger log = LoggerFactory.getLogger(UserController.class);
+
     private final UserService userService;
     private final CourseService courseService;
     private final CurrentUserService currentUserService;
@@ -27,6 +32,7 @@ public class UserController {
     @GetMapping("/all")
     @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<List<UserResponse>> getAllUsers() {
+        log.info("Get all users");
         List<UserResponse> userResponseList = userService.getAllUserResponses();
         return ResponseEntity.ok(userResponseList);
     }
@@ -35,13 +41,43 @@ public class UserController {
     @GetMapping("/{userId}")
     @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<UserResponse> getUserById(@PathVariable long userId) {
+        log.info("Get user by id: {}", userId);
         UserResponse userResponse = userService.getUserResponseById(userId);
         return ResponseEntity.ok(userResponse);
     }
 
+    @PostMapping("/invite")
+    @PreAuthorize(Roles.ROLE_ADMIN)
+    public ResponseEntity<List<UserResponse>> inviteUser(@RequestBody List<InviteRequest> invites) {
+        log.info("Invite users: {}", invites);
+        List<UserResponse> userResponses = new ArrayList<>();
+        for (InviteRequest invite : invites) {
+            Roles.checkRolesValid(invite.roles);
+            userResponses.add(userService.inviteUser(invite.email, invite.displayName, invite.roles));
+        }
+        return ResponseEntity.ok(userResponses);
+    }
+
+    @DeleteMapping("/{userId}")
+    @PreAuthorize(Roles.ROLE_ADMIN)
+    public ResponseEntity<Void> deleteUser(@PathVariable long userId) {
+        log.info("Delete user: {}", userId);
+        userService.deleteUser(userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{userId}")
+    @PreAuthorize(Roles.ROLE_ADMIN)
+    public ResponseEntity<UserResponse> updateUser(@PathVariable long userId, @RequestBody InviteRequest inviteRequest) {
+        log.info("Update user: {}", userId);
+        Roles.checkRolesValid(inviteRequest.roles);
+        UserResponse userResponse = userService.updateUser(userId, inviteRequest.displayName, inviteRequest.roles);
+        return ResponseEntity.ok(userResponse);
+    }
 
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getCurrentUser() {
+        log.info("Get current user");
         String entraId = currentUserService.getEntraId();
         UserResponse user = userService.getUserResponseByEntraId(entraId);
         return ResponseEntity.ok(user);
@@ -51,10 +87,12 @@ public class UserController {
     @GetMapping("/me/courses")
     @PreAuthorize(Roles.ROLE_PARTICIPANT)
     public ResponseEntity<List<Map<String, Object>>> getMyCourses() {
+        log.info("Get courses for current user");
         String entraId = currentUserService.getEntraId();
         long userId = userService.getUserByEntraId(entraId).getId();
         List<Map<String, Object>> courseResponseList = courseService.getAllRegisteredCourses(userId);
         return ResponseEntity.ok(courseResponseList);
     }
 
+    public record InviteRequest(String email, String displayName, List<String> roles) {}
 }

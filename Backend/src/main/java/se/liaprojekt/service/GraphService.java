@@ -2,72 +2,191 @@ package se.liaprojekt.service;
 
 import com.microsoft.graph.models.*;
 import com.microsoft.graph.models.UserCollectionResponse;
+import com.microsoft.graph.models.odataerrors.ODataError;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
 import com.microsoft.graph.users.item.sendmail.SendMailPostRequestBody;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import se.liaprojekt.dto.GraphResponse;
 import se.liaprojekt.exception.ResourceNotFoundException;
 
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class GraphService {
 
-    private static final String ROLE_NAME_ADMIN       = "sg-app-admin";
-    private static final String ROLE_NAME_COURSEADMIN = "sg-app-courseadmin";
-    private static final String ROLE_NAME_PARTICIPANT = "sg-app-participant";
+    @Value("${app.email.enabled}")
+    private boolean appEmailEnabled;
 
-    private static final Set<String> ROLES = Set.of(
-            ROLE_NAME_ADMIN,
-            ROLE_NAME_COURSEADMIN,
-            ROLE_NAME_PARTICIPANT
-    );
+    @Value("${app.redirect.frontend}")
+    private String redirectUrl;
+
+    //TODO Either CLIENT_ID is needed or the ServicePrincipalId directly
+    @Value("${spring.cloud.azure.credential.client-id}")
+    private String clientId;
 
     @Value("${azure.graph.mail-user}")
     private String mailUser;
 
-    private final TokenService tokenService;
+    private final GraphServiceClient graphServiceClient;
+    private List<AppRole> appRoles;
+    private String resourceId;
 
-    public GraphService(TokenService tokenService) {
-        this.tokenService = tokenService;
+    public GraphService(
+            TokenService tokenService,
+            @Value("${graph.scope}") String[] scopes
+    ) {
+        graphServiceClient = new GraphServiceClient(tokenService.getCredential(), scopes);
+    }
+
+    @PostConstruct
+    public void getAppRoles() {
+        ServicePrincipalCollectionResponse sp = graphServiceClient
+                .servicePrincipals()
+                .get(config -> {
+                    assert config.queryParameters != null;
+                    config.queryParameters.filter = "appId eq '" + clientId + "'";
+                });
+        assert sp != null;
+        appRoles = Objects.requireNonNull(sp.getValue()).getFirst().getAppRoles();
+        assert appRoles != null;
+        for (AppRole appRole : appRoles) {
+            appRole.setDisplayName(Objects.requireNonNull(appRole.getDisplayName()).toLowerCase());
+        }
+        resourceId = Objects.requireNonNull(sp.getValue()).getFirst().getId();
     }
 
     public List<GraphResponse> getAllUsers() {
-        String[] scopes = {"https://graph.microsoft.com/.default"};
-        GraphServiceClient graphServiceClient = new GraphServiceClient(tokenService.getCredential(), scopes);
-
         UserCollectionResponse userCollectionResponse = graphServiceClient.users().get();
         List<GraphResponse> graphResponses = new ArrayList<>();
         if (userCollectionResponse != null && userCollectionResponse.getValue() != null) {
             userCollectionResponse.getValue().forEach((user) -> {
                 //getRoles() makes another call to Graph to ask for the roles, this leads to N+1 problem
                 //No other way to get them in v1.0
-                Set<String> roles = getRoles(user.getId(), graphServiceClient);
+                Set<String> roles = getRoles(user.getId());
 
-                graphResponses.add(new GraphResponse(
-                        user.getId(),
-                        user.getDisplayName(),
-                        user.getGivenName(),
-                        user.getSurname(),
-                        user.getMail(),
-                        translateRoles(roles)
-                ));
+                graphResponses.add(mapToGraphResponse(user, roles));
             });
         }
         return graphResponses;
     }
 
     public GraphResponse getUserByEntraId(String entraId) {
-        String[] scopes = {"https://graph.microsoft.com/.default"};
-        GraphServiceClient graphServiceClient = new GraphServiceClient(tokenService.getCredential(), scopes);
-
         User user = graphServiceClient.users().byUserId(entraId).get();
-        Set<String> roles = getRoles(entraId, graphServiceClient);
+        Set<String> roles = getRoles(entraId);
 
+        return mapToGraphResponse(user, roles);
+    }
+
+    public GraphResponse inviteUser(String email, String displayName) {
+        Invitation invitation = new Invitation();
+        invitation.setInvitedUserEmailAddress(email);
+        invitation.setInvitedUserDisplayName(displayName);
+        invitation.setInviteRedirectUrl(redirectUrl);
+        invitation.setSendInvitationMessage(appEmailEnabled);
+        Invitation result = graphServiceClient.invitations().post(invitation);
+        if (result != null) {
+            return mapToGraphResponse(result.getInvitedUser());
+        } else {
+            throw new ResourceNotFoundException("Graph returned null for: " + email);
+        }
+    }
+
+    public void updateUser(String entraId, String displayName) {
+        User user = new User();
+        user.setDisplayName(displayName);
+
+        graphServiceClient
+                .users()
+                .byUserId(entraId)
+                .patch(user);
+    }
+
+    public void setRoles(String entraId, List<String> roles) {
+
+        for (String role : roles) {
+            UUID appRoleId = null;
+
+            for (AppRole appRole : appRoles) {
+                if (Objects.equals(appRole.getDisplayName(), role.toLowerCase())) {
+                    appRoleId = appRole.getId();
+                    break;
+                }
+            }
+
+            if (appRoleId == null) {
+                throw new ResourceNotFoundException("Role not found for: " + role);
+            }
+
+            AppRoleAssignment assignment = new AppRoleAssignment();
+            assignment.setPrincipalId(UUID.fromString(entraId));
+            assignment.setResourceId(UUID.fromString(resourceId));
+            assignment.setAppRoleId(appRoleId);
+
+            graphServiceClient
+                    .users().byUserId(entraId).appRoleAssignments().post(assignment);
+        }
+    }
+
+    void updateRoles(String entraId, List<String> newRoles) {
+        List<String> newAppRoleIds = new ArrayList<>();
+
+        for (String role : newRoles) {
+            for (AppRole appRole : appRoles) {
+                if (Objects.equals(appRole.getDisplayName(), role.toLowerCase())) {
+                    newAppRoleIds.add(appRole.getId().toString());
+                    break;
+                }
+            }
+        }
+
+        List<AppRoleAssignment> currentAssignments = graphServiceClient
+                .users()
+                .byUserId(entraId)
+                .appRoleAssignments()
+                .get()
+                .getValue();
+
+        Set<String> currentRoleIds = currentAssignments.stream()
+                .map(a -> a.getAppRoleId().toString())
+                .collect(Collectors.toSet());
+
+        Set<String> desiredRoleIds = new HashSet<>(newAppRoleIds);
+
+        // Delete roles not in the new set
+        currentAssignments.stream()
+                .filter(a -> !desiredRoleIds.contains(a.getAppRoleId().toString()))
+                .forEach(a -> graphServiceClient
+                        .users()
+                        .byUserId(entraId)
+                        .appRoleAssignments()
+                        .byAppRoleAssignmentId(a.getId())
+                        .delete()
+                );
+
+        // Add roles not already assigned
+        desiredRoleIds.stream()
+                .filter(id -> !currentRoleIds.contains(id))
+                .forEach(id -> {
+                    AppRoleAssignment assignment = new AppRoleAssignment();
+                    assignment.setPrincipalId(UUID.fromString(entraId));
+                    assignment.setResourceId(UUID.fromString(resourceId));
+                    assignment.setAppRoleId(UUID.fromString(id));
+                    graphServiceClient.users()
+                            .byUserId(entraId)
+                            .appRoleAssignments()
+                            .post(assignment);
+                });
+    }
+
+    public void deleteUser(String entraId) {
+        graphServiceClient.users().byUserId(entraId).delete();
+    }
+
+    private GraphResponse mapToGraphResponse(User user, Set<String> roles) {
         GraphResponse graphResponse;
         if (user != null) {
             graphResponse = new GraphResponse(
@@ -76,7 +195,7 @@ public class GraphService {
                     user.getGivenName(),
                     user.getSurname(),
                     user.getMail(),
-                    translateRoles(roles)
+                    roles
             );
         } else {
             throw new ResourceNotFoundException("User not found");
@@ -84,39 +203,34 @@ public class GraphService {
         return graphResponse;
     }
 
-    private Set<String> getRoles(String entraId, GraphServiceClient graphServiceClient) {
-        Set<String> roles = new HashSet<>();
-        try {
-            graphServiceClient.users().byUserId(
-                            entraId)
-                    .appRoleAssignments()
-                    .get().getValue().forEach(role -> {
-                        roles.add(role.getPrincipalDisplayName());
-                    });
-        } catch (NullPointerException e) {
-            throw new ResourceNotFoundException("User not found");
-        }
-        return roles;
+    private GraphResponse mapToGraphResponse(User user) {
+        return mapToGraphResponse(user, Set.of());
     }
 
-    //removes everything before final '-' and only leaves the roles name
-    private Set<String> translateRoles(Set<String> roles) {
-        Set<String> translatedRoles = new HashSet<>();
-        for (String role : roles) {
-            if (ROLES.contains(role)) {
-                int index = role.lastIndexOf('-');
-                translatedRoles.add(role.substring(index + 1));
-            }
+    private Set<String> getRoles(String entraId) {
+        Set<String> roles = new HashSet<>();
+        try {
+            graphServiceClient.users()
+                    .byUserId(entraId)
+                    .appRoleAssignments()
+                    .get().getValue().forEach(assignment -> {
+                        appRoles.stream()
+                                .filter(r -> r.getId().equals(assignment.getAppRoleId()))
+                                .findFirst()
+                                .ifPresent(r -> roles.add(r.getValue())); // or getDisplayName()
+                    });
+
+        } catch (NullPointerException e) {
+            throw new ResourceNotFoundException("User not found");
+        } catch (ODataError ignored) {
+
         }
-        return translatedRoles;
+        return roles;
     }
 
     public void sendEmail(String to,
                           String subject,
                           String htmlBody) {
-        String[] scopes = {"https://graph.microsoft.com/.default"};
-        GraphServiceClient graphServiceClient = new GraphServiceClient(tokenService.getCredential(), scopes);
-
         // Email body
         ItemBody body = new ItemBody();
         body.setContentType(BodyType.Html);

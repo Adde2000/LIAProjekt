@@ -2,16 +2,13 @@ package se.liaprojekt.service;
 
 import com.azure.core.credential.TokenCredential;
 import com.microsoft.graph.models.*;
-import com.microsoft.graph.models.User;
-import com.microsoft.graph.models.UserCollectionResponse;
 
+import com.microsoft.graph.serviceclient.GraphServiceClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import org.springframework.test.util.ReflectionTestUtils;
@@ -19,7 +16,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import se.liaprojekt.dto.GraphResponse;
 import se.liaprojekt.exception.ResourceNotFoundException;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Set;
 
@@ -32,52 +28,23 @@ class GraphServiceTest {
     @Mock
     private TokenService tokenService;
 
-    @Spy
-    @InjectMocks
+    @Mock
+    private GraphServiceClient graphServiceClient;
+
     private GraphService graphService;
 
     @BeforeEach
     void setUp() {
+        // Mock the credential so the constructor doesn't fail
+        when(tokenService.getCredential()).thenReturn(mock(TokenCredential.class));
 
-        ReflectionTestUtils.setField(
-                graphService,
-                "mailUser",
-                "admin@test.se"
-        );
-    }
+        // Manually construct with the mock injected
+        graphService = spy(new GraphService(tokenService, new String[]{"https://graph.microsoft.com/.default"}));
 
-    @Test
-    void shouldTranslateRoles() throws Exception {
-
-        // Arrange
-        Set<String> roles = Set.of(
-                "sg-app-admin",
-                "sg-app-courseadmin",
-                "sg-app-participant",
-                "other-role"
-        );
-
-        Method method = GraphService.class
-                .getDeclaredMethod(
-                        "translateRoles",
-                        Set.class
-                );
-
-        method.setAccessible(true);
-
-        // Act
-        Set<String> result =
-                (Set<String>) method.invoke(
-                        graphService,
-                        roles
-                );
-
-        // Assert
-        assertEquals(3, result.size());
-
-        assertTrue(result.contains("admin"));
-        assertTrue(result.contains("courseadmin"));
-        assertTrue(result.contains("participant"));
+        // Inject the mocked GraphServiceClient so no real HTTP calls are made
+        ReflectionTestUtils.setField(graphService, "graphServiceClient", graphServiceClient);
+        ReflectionTestUtils.setField(graphService, "mailUser", "admin@test.se");
+        ReflectionTestUtils.setField(graphService, "clientId", "test-client-id");
     }
 
     @Test
@@ -162,28 +129,5 @@ class GraphServiceTest {
                         .getEmailAddress()
                         .getAddress()
         );
-    }
-
-    @Test
-    void shouldContainExpectedRoleConstants() throws Exception {
-
-        // Arrange
-        Method method = GraphService.class
-                .getDeclaredMethod(
-                        "translateRoles",
-                        Set.class
-                );
-
-        method.setAccessible(true);
-
-        // Act
-        Set<String> result =
-                (Set<String>) method.invoke(
-                        graphService,
-                        Set.of("sg-app-admin")
-                );
-
-        // Assert
-        assertTrue(result.contains("admin"));
     }
 }
