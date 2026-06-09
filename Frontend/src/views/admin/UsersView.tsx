@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
 import type { User, UserRole, UserResponse } from "../../types";
-import { getUsers, inviteUsers, deleteUser } from "../../api/api";
+import { getUsers, inviteUsers, deleteUser, updateUser } from "../../api/api";
 import { pad } from "../../components/Shared";
 import { ROLE_LABELS, ROLE_CLS, mapUser, toBackendRoles, normaliseRole } from "../../utils/roles";
 import { FetchState } from "../../components/FetchState";
@@ -288,6 +288,119 @@ function InviteModal({
     );
 }
 
+// ── Edit modal ────────────────────────────────────────────────────────────────
+
+function EditModal({
+    user,
+    onClose,
+    onSuccess,
+}: {
+    user: User;
+    onClose: () => void;
+    onSuccess: (updated: User) => void;
+}) {
+    const { instance }                    = useMsal();
+    const [displayName, setDisplayName]   = useState(user.name);
+    const [roles, setRoles]               = useState<UserRole[]>(user.roles);
+    const [submitting, setSubmitting]     = useState(false);
+    const [error, setError]               = useState<string | null>(null);
+
+    function toggleRole(role: UserRole) {
+        setRoles((prev) =>
+            prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]
+        );
+    }
+
+    async function handleSubmit() {
+        if (!displayName.trim()) {
+            setError("Namn är obligatoriskt.");
+            return;
+        }
+        if (roles.length === 0) {
+            setError("Välj minst en roll.");
+            return;
+        }
+        setSubmitting(true);
+        setError(null);
+        try {
+            await updateUser(instance, user.id, {
+                email: null,
+                displayName: displayName.trim(),
+                roles: toBackendRoles(roles),
+            });
+            onSuccess({ ...user, name: displayName.trim(), roles });
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Något gick fel.");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    return (
+        <div className="vmv-dialog-backdrop" onClick={onClose}>
+            <div className="vmv-dialog" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
+                <div className="vmv-dialog-title">Redigera användare</div>
+
+                <div className="vmv-course-form" style={{ marginTop: "1rem" }}>
+                    <div className="vmv-form-field">
+                        <label className="vmv-form-label">Visningsnamn</label>
+                        <input
+                            className="vmv-form-input"
+                            type="text"
+                            value={displayName}
+                            onChange={(e) => setDisplayName(e.target.value)}
+                            disabled={submitting}
+                        />
+                    </div>
+
+                    <div className="vmv-form-field">
+                        <label className="vmv-form-label">E-postadress</label>
+                        <input
+                            className="vmv-form-input"
+                            type="text"
+                            value={user.email ?? ""}
+                            disabled
+                            style={{ opacity: 0.45, cursor: "not-allowed" }}
+                        />
+                    </div>
+
+                    <div className="vmv-form-field">
+                        <label className="vmv-form-label">Roller</label>
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                            {ALL_ROLES.map((r) => (
+                                <button
+                                    key={r}
+                                    type="button"
+                                    className={`vmv-filter ${roles.includes(r) ? "active" : ""}`}
+                                    onClick={() => toggleRole(r)}
+                                    disabled={submitting}
+                                >
+                                    {ROLE_LABELS[r]}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {error && (
+                        <div style={{ color: "#c0392b", fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px" }}>
+                            {error}
+                        </div>
+                    )}
+                </div>
+
+                <div className="vmv-dialog-actions" style={{ marginTop: "1.5rem" }}>
+                    <button className="vmv-quiz-start" onClick={onClose} disabled={submitting}>
+                        Avbryt
+                    </button>
+                    <button className="vmv-quiz-start" onClick={handleSubmit} disabled={submitting}>
+                        {submitting ? "Sparar..." : "Spara"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function UsersView() {
@@ -297,6 +410,7 @@ export function UsersView() {
     const [roleFilter, setRoleFilter]       = useState<"all" | UserRole>("all");
     const [selectedUser, setSelectedUser]   = useState<User | null>(null);
     const [showInvite, setShowInvite]       = useState(false);
+    const [userToEdit, setUserToEdit]       = useState<User | null>(null);
     const [userToDelete, setUserToDelete]   = useState<User | null>(null);
     const [deleting, setDeleting]           = useState(false);
 
@@ -444,6 +558,12 @@ export function UsersView() {
                     </div>
                     <div className="vmv-user-detail-actions">
                         <button
+                            className="vmv-quiz-start"
+                            onClick={() => setUserToEdit(selectedUser)}
+                        >
+                            Redigera
+                        </button>
+                        <button
                             className="vmv-quiz-start vmv-action--danger"
                             onClick={() => setUserToDelete(selectedUser)}
                         >
@@ -458,6 +578,18 @@ export function UsersView() {
                     onClose={() => setShowInvite(false)}
                     onSuccess={() => {
                         setShowInvite(false);
+                        reload();
+                    }}
+                />
+            )}
+
+            {userToEdit && (
+                <EditModal
+                    user={userToEdit}
+                    onClose={() => setUserToEdit(null)}
+                    onSuccess={(updated) => {
+                        setUserToEdit(null);
+                        setSelectedUser(updated);
                         reload();
                     }}
                 />

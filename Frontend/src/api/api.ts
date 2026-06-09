@@ -231,6 +231,36 @@ export async function deleteUser(
     );
 }
 
+export async function updateUser(
+    instance: IPublicClientApplication,
+    userId: number,
+    body: { email: null; displayName: string; roles: string[] }
+) {
+    if (!BASE_URL) return null;
+    const token = await getAccessToken(instance);
+    try {
+        const res = await fetch(`${BASE_URL}/api/users/${userId}`, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+            const text = await res.text().catch(() => "");
+            console.error("API error:", res.status, text);
+            throw new Error("Failed to update user");
+        }
+        const contentType = res.headers.get("content-type") ?? "";
+        if (res.status === 204 || !contentType.includes("application/json")) return null;
+        return await res.json();
+    } catch (err) {
+        console.error("Network/API failure:", err);
+        throw err;
+    }
+}
+
 // =========================
 // COURSES
 // =========================
