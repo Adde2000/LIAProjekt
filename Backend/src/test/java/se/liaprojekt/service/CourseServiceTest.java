@@ -10,6 +10,7 @@ import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.*;
 import se.liaprojekt.repository.*;
+import se.liaprojekt.service.ai.AssistantAdminService;
 import se.liaprojekt.service.ai.VectorStoreService;
 
 import java.util.ArrayList;
@@ -50,6 +51,9 @@ class CourseServiceTest {
     @Mock
     private AiSessionRepository aiSessionRepository;
 
+    @Mock
+    private AssistantAdminService assistantAdminService;
+
     @InjectMocks
     private CourseService courseService;
 
@@ -59,6 +63,9 @@ class CourseServiceTest {
 
     @BeforeEach
     void setUp() {
+
+        lenient().when(assistantAdminService.getAssistantName(any())).thenReturn(null);
+
         course = new Course();
         course.setId(1L);
         course.setTitle("Java");
