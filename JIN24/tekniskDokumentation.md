@@ -502,7 +502,17 @@ Alla endpoints kräver `Authorization: Bearer <JWT>`-header om inget annat anges
       "createdBy": "admin@example.com"
     },
     "userProgressResponse": {
-      "userResponse": { ... },
+      "userResponse": {
+        "id": 1,
+        "displayName": "Anna Andersson",
+        "givenName": "Anna",
+        "surname": "Andersson",
+        "mail": "anna.andersson@example.com",
+        "role": [
+          "USER",
+          "STUDENT"
+        ]
+      },
       "completedSections": 2,
       "progressPercentage": 50
     }
@@ -925,7 +935,7 @@ Planerade förbättringar:
 
 ## Swagger/OpenAPI
 
-Länk:
+Swagger UI är tillgänglig på /swagger-ui.html när applikationen körs. OpenAPI JSON-specifikation finns på /v3/api-docs.
 
 ---
 
