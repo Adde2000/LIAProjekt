@@ -13,6 +13,12 @@
     color: var(--color-on-accent);
 }
 
+.chat-header-description {
+    margin: 4px 0 0;
+    font-size: 13px;
+    opacity: 0.85;
+}
+
 .chat-window {
     flex: 1;
     overflow-y: auto;
