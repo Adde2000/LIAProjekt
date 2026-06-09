@@ -12,7 +12,21 @@ export const ROLE_CLS: Record<UserRole, string> = {
     courseAdmin: "vmv-role vmv-role--courseAdmin",
 };
 
-// normaliseRole maps a single raw role string to a typed UserRole
+// toBackendRole maps a frontend UserRole to the string the backend expects
+export function toBackendRole(role: UserRole): string {
+    const map: Record<UserRole, string> = {
+        admin:       "admin",
+        student:     "participant",
+        courseAdmin: "courseAdmin",
+    };
+    return map[role];
+}
+
+// toBackendRoles maps a full frontend role list to backend strings
+export function toBackendRoles(roles: UserRole[]): string[] {
+    return roles.map(toBackendRole);
+}
+
 export function normaliseRole(raw: string): UserRole {
     const map: Record<string, UserRole> = {
         admin:       "admin",
