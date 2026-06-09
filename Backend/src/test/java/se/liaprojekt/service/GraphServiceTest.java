@@ -1,19 +1,14 @@
 package se.liaprojekt.service;
 
 import com.azure.core.credential.TokenCredential;
-import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.microsoft.graph.models.*;
-import com.microsoft.graph.models.User;
-import com.microsoft.graph.models.UserCollectionResponse;
 
 import com.microsoft.graph.serviceclient.GraphServiceClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import org.springframework.test.util.ReflectionTestUtils;
@@ -21,7 +16,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import se.liaprojekt.dto.GraphResponse;
 import se.liaprojekt.exception.ResourceNotFoundException;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Set;
 

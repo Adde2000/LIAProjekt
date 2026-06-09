@@ -16,11 +16,9 @@ import se.liaprojekt.model.User;
 import se.liaprojekt.repository.UserRepository;
 import se.liaprojekt.service.CurrentUserService;
 import se.liaprojekt.service.GraphService;
-import se.liaprojekt.service.ai.VectorStoreService; // LÄGG TILL
+import se.liaprojekt.service.ai.VectorStoreService;
 
 import static org.mockito.ArgumentMatchers.anyString;
-import java.lang.reflect.Array;
-import java.util.List;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
