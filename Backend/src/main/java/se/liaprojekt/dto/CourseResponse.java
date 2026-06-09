@@ -13,4 +13,5 @@ public class CourseResponse {
     Integer aiSessionTtlWeeks;
     UserResponse courseAdmin;
     private String assistantId;
+    private String assistantName;
 }

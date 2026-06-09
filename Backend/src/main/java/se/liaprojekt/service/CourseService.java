@@ -9,6 +9,7 @@ import se.liaprojekt.model.*;
 import se.liaprojekt.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import se.liaprojekt.service.ai.AssistantAdminService;
 import se.liaprojekt.service.ai.VectorStoreService;
 
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ public class CourseService {
     private final CurrentUserService currentUserService;
     private final VectorStoreService vectorStoreService;
     private final AiSessionRepository aiSessionRepository;
+    private final AssistantAdminService assistantAdminService;
 
     public List<CourseResponse> getAllCourses() {
         return courseRepository.findAll()
@@ -280,6 +282,9 @@ public class CourseService {
         if (course.getCourseAdmin() != null) {
             courseAdminResponse = userService.getUserResponseById(course.getCourseAdmin().getId());
         }
+
+        String assistantName = assistantAdminService.getAssistantName(course.getAssistantId());
+
         return new CourseResponse(
                 course.getId(),
                 course.getTitle(),
@@ -287,7 +292,8 @@ public class CourseService {
                 course.getCreatedBy(),
                 course.getAiSessionTtlWeeks(),
                 courseAdminResponse,
-                course.getAssistantId()
+                course.getAssistantId(),
+                assistantName
         );
     }
 

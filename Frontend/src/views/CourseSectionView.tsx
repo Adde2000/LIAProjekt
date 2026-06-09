@@ -306,6 +306,21 @@ export function CourseSectionView({ course, onBack }: Props) {
                 Skapad av {course.createdBy}
             </div>
 
+            {course.courseAdmin && (
+                <div className="vmv-course-section-meta vmv-course-instructor">
+                    <span className="vmv-instructor-label">Kursledare:</span>{" "}
+                    <span className="vmv-instructor-name">{course.courseAdmin.displayName}</span>
+                    {course.courseAdmin.mail && (
+                        <a
+                            href={`mailto:${course.courseAdmin.mail}`}
+                            className="vmv-instructor-email"
+                        >
+                            {course.courseAdmin.mail}
+                        </a>
+                    )}
+                </div>
+            )}
+
             {/* ── AI Chat toggle ── */}
             <button
                 className="vmv-quiz-start"
@@ -314,7 +329,7 @@ export function CourseSectionView({ course, onBack }: Props) {
                 {showChat ? "Stäng AI-assistenten" : "Öppna AI-assistenten 🤖"}
             </button>
 
-            {showChat && <AIChatView courseId={course.id} />}
+            {showChat && <AIChatView courseId={course.id} assistantName={course.assistantName} />}
 
             {/* ── Sections list ── */}
             <div className="vmv-section-head vmv-section-head--sub">Avsnitt</div>

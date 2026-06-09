@@ -684,3 +684,32 @@
 .vmv-quiz-take-done-meta-sep {
     opacity: 0.4;
 }
+
+/* stilar för kursledare-raden */
+.vmv-course-instructor {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    margin-top: -1rem;
+}
+
+.vmv-instructor-label {
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+.vmv-instructor-name {
+    color: var(--color-text-primary);
+}
+
+.vmv-instructor-email {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-size: 11px;
+}
+
+.vmv-instructor-email:hover {
+    text-decoration: underline;
+}
