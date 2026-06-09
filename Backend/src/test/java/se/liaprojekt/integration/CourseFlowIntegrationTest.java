@@ -16,6 +16,7 @@ import se.liaprojekt.dto.SubmitAnswerRequest;
 import se.liaprojekt.model.User;
 import se.liaprojekt.repository.UserRepository;
 import se.liaprojekt.service.CurrentUserService;
+import se.liaprojekt.service.GraphService;
 import se.liaprojekt.service.ai.VectorStoreService;
 
 import java.util.List;
@@ -36,6 +37,7 @@ class CourseFlowIntegrationTest {
 
     @MockBean private CurrentUserService currentUserService;
     @MockBean private VectorStoreService vectorStoreService; // Mockas så att Azure/OpenAI-anrop inte sker på riktigt
+    @MockBean private GraphService graphService;
 
     private static final String TEST_USER = "test-user-1";
 

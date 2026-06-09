@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import se.liaprojekt.model.User;
 import se.liaprojekt.repository.UserRepository;
 import se.liaprojekt.service.CurrentUserService;
+import se.liaprojekt.service.GraphService;
 import se.liaprojekt.service.ai.VectorStoreService; // LÄGG TILL
 
 import static org.mockito.ArgumentMatchers.anyString;
@@ -36,6 +37,7 @@ class CourseFlowNegativeIntegrationTest {
 
     @MockBean private CurrentUserService currentUserService;
     @MockBean private VectorStoreService vectorStoreService; // LÄGG TILL: Hindrar Azure/OpenAI från att anropas i setupen
+    @MockBean private GraphService graphService;
 
     private static final String TEST_USER = "negative-user";
 
