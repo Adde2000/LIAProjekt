@@ -126,9 +126,8 @@ public class GraphService {
             assignment.setResourceId(UUID.fromString(resourceId));
             assignment.setAppRoleId(appRoleId);
 
-            AppRoleAssignment result = graphServiceClient
+            graphServiceClient
                     .users().byUserId(entraId).appRoleAssignments().post(assignment);
-            System.out.println(result);
         }
     }
 
