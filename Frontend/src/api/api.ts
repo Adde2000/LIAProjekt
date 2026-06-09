@@ -486,6 +486,26 @@ export async function getAssistants(
     );
 }
 
+export async function getAssistantById(
+    instance: IPublicClientApplication,
+    assistantId: string
+) {
+
+    if (!BASE_URL) return null;
+
+    const token = await getAccessToken(instance);
+
+    const all = await safeFetch(
+        `${BASE_URL}/api/ai/assistants`,
+        token,
+        "Failed to fetch assistants"
+    );
+
+    if (!Array.isArray(all)) return null;
+
+    return all.find((a: { id: string }) => a.id === assistantId) ?? null;
+}
+
 export async function assignAssistantToCourse(
     instance: IPublicClientApplication,
     courseId: number,

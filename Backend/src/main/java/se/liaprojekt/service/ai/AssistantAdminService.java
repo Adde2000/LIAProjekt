@@ -32,4 +32,14 @@ public class AssistantAdminService {
                 assistant.model()
         );
     }
+
+    public String getAssistantName(String assistantId) {
+        if (assistantId == null) return null;
+        return azureAssistantClient.getAssistants()
+                .stream()
+                .filter(a -> assistantId.equals(a.id()))
+                .map(AzureAssistantData::name)
+                .findFirst()
+                .orElse(null);
+    }
 }

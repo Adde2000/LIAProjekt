@@ -10,15 +10,18 @@ import {
     getAiMessages
 } from "../api/api";
 
-import type { ChatMessage } from "../types";
+import type {
+    ChatMessage
+} from "../types";
 
 import "../styles/ai-chat.css";
 
 interface Props {
     courseId: number;
+    assistantName?: string;
 }
 
-export default function AIChatView({ courseId }: Props) {
+export default function AIChatView({ courseId, assistantName }: Props) {
 
     const { instance } = useMsal();
 
@@ -141,8 +144,8 @@ export default function AIChatView({ courseId }: Props) {
     return (
         <div className="ai-chat-page">
             <div className="chat-header">
-                <h1>AI Assistant</h1>
-            </div>
+                <h1>{assistantName ?? "AI-assistent"}</h1>
+                </div>
             <ChatWindow messages={messages} loading={loading} />
             <ChatInput onSend={sendMessage} loading={loading || !sessionId} />
         </div>

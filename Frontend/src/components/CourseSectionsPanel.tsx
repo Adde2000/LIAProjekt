@@ -4,7 +4,6 @@ import type { CourseResponse, SectionResponse, LoadState } from "../types";
 import { idle } from "../types";
 import { getCourseSections as getSections, addCourseSection as addSection, uploadMaterial, deleteMaterial, getSectionMaterials } from "../api/api";
 import { FetchState } from "./FetchState";
-import { SectionQuizView } from "../views/admin/SectionQuizView";
 import { pad } from "./Shared";
 
 // ── File helpers ──────────────────────────────────────────────────────────────
@@ -182,7 +181,7 @@ function SectionRow({ section, index, onOpenQuiz }: {
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
-export function CourseSectionsPanel({ course }: { course: CourseResponse }) {
+export function CourseSectionsPanel({course, onOpenQuiz,}: { course: CourseResponse; onOpenQuiz: (section: SectionResponse) => void; }) {
     const { instance } = useMsal();
 
     const [sections, setSections]             = useState<LoadState<SectionResponse[]>>(idle());
@@ -190,7 +189,6 @@ export function CourseSectionsPanel({ course }: { course: CourseResponse }) {
     const [sectionTitle, setSectionTitle]     = useState("");
     const [sectionStatus, setSectionStatus]   = useState<"idle" | "submitting" | "success" | "error">("idle");
     const [sectionError, setSectionError]     = useState<string | null>(null);
-    const [quizSection, setQuizSection]       = useState<SectionResponse | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -222,10 +220,6 @@ export function CourseSectionsPanel({ course }: { course: CourseResponse }) {
         }
     }
 
-    if (quizSection) {
-        return <SectionQuizView section={quizSection} onBack={() => setQuizSection(null)} />;
-    }
-
     return (
         <>
             <div className="vmv-section-head" style={{ marginTop: "1.5rem" }}>
@@ -243,7 +237,7 @@ export function CourseSectionsPanel({ course }: { course: CourseResponse }) {
                     ) : (
                         <div className="vmv-mgmt-section-list">
                             {sections.data.map((s, i) => (
-                                <SectionRow key={s.id} section={s} index={i} onOpenQuiz={setQuizSection} />
+                                <SectionRow key={s.id} section={s} index={i} onOpenQuiz={onOpenQuiz} />
                             ))}
                         </div>
                     )}
