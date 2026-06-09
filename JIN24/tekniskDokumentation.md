@@ -1,6 +1,6 @@
 # Teknisk dokumentation
 
-## Projektnamn
+## Projektnamn <----------------------------------------------------------------------------------------------------------------------------------------------
 
 **Projekt:**
 
@@ -35,7 +35,7 @@
 
 # 1. Introduktion
 
-## Syfte
+## Syfte  <----------------------------------------------------------------------------------------------------------------------------------------------
 
 Beskriv projektets syfte.
 
@@ -777,8 +777,6 @@ cd project
 
 ## Backend
 
-Kopiera .env_example till .env och fyll i värdena
-
 
 ```bash
 mvn clean install
@@ -804,6 +802,7 @@ npm run dev
 
 ## Backend
 
+Kopiera .env_example till .env och fyll i värdena:
 
 | Variabel                                | Beskrivning                                              |
 |-----------------------------------------|----------------------------------------------------------|
@@ -908,7 +907,6 @@ Sidotjänster:
 * main — produktionskod
 * develop — integrationsbranch
 * feature/* — ny funktionalitet
-* bugfix/*
 
 ## Arbetsflöde
 
@@ -922,7 +920,7 @@ Sidotjänster:
 
 ---
 
-# 16. Framtida utveckling
+# 16. Framtida utveckling  <----------------------------------------------------------------------------------------------------------------------------------------------
 
 Planerade förbättringar:
 
@@ -931,7 +929,7 @@ Planerade förbättringar:
 
 ---
 
-# Bilagor
+# Bilagor <----------------------------------------------------------------------------------------------------------------------------------------------
 
 ## Swagger/OpenAPI
 
