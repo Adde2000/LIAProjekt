@@ -38,12 +38,12 @@
 #### Systemet erbjuder följande huvudfunktioner:
 * Skapa, läsa, uppdatera och ta bort kurser (CRUD)
 * Hantera kurssektioner med ordningsindex och låsstatus
-* Ladda upp och strömma kursmaterial (PDF, video) via Azure Blob Storage
+* Ladda upp och ladda ner/strömma kursmaterial (PDF, video) via Azure Blob Storage
 * Genomföra quiz per sektion och se resultat
 * AI-assisterad chatt kopplad till kursmaterial via Azure OpenAI Assistants
 * Användarhantering via Microsoft Entra ID (Azure AD)
 * Rollbaserad behörighet: Admin, CourseAdmin, Participant
-* E-postnotifieringar vid kursavslut och testresultat
+* E-postnotifieringar vid registrering, kursavslut och testresultat
 
 ---
 
@@ -81,7 +81,7 @@ Sidotjänster:
 2. Frontend hämtar ett JWT access token och skickar det som Authorization: Bearer-header.
 3. Spring Boot-backend validerar JWT mot Azure AD (OAuth2 Resource Server).
 4. Controller tar emot request och delegerar till Service-lagret.
-5. Service-lagret behandlar affärslogiken och anropar Repository.
+5. Service-lagret behandlar affärslogiken och anropar Repository eller relevant sidotjänst.
 6. Repository kommunicerar med Azure SQL via Hibernate/JPA.
 7. Response returneras som JSON till frontend.
 
@@ -102,6 +102,7 @@ Tar emot HTTP-requests, validerar behörighet med @PreAuthorize och delegerar ti
 ### Service
 
 Innehåller all affärslogik. Anropar Repository för dataåtkomst och mappar mellan Entity och DTO. Publicerar events via Azure Service Bus vid viktiga händelser (t.ex. kursavslut, ny användare).
+Kommunicerar med utomstående sidotjänster.
 
 ### Repository
 
@@ -154,7 +155,7 @@ src/main/java/se/liaprojekt/
 ├── dto/            — Data Transfer Objects
 │   └── azure/      — Azure-specifika DTO:er
 ├── event/          — Spring Application Events
-├── exception/      — Anpassade undantag och GlobalExceptionHandler
+├── exception/      — Anpassade Exeptions och GlobalExceptionHandler
 ├── listener/       — Event-lyssnare
 ├── model/          — JPA-entiteter
 ├── producer/       — Service Bus-publicering
@@ -163,9 +164,9 @@ src/main/java/se/liaprojekt/
 └── worker/         — Bakgrundsarbetare
 ```
 
-### Beskrivning
+### Klasser
 
-| Paket          | Beskrivning                                                                                                          |
+| Paket          | Klasser                                                                                                              |
 |----------------|----------------------------------------------------------------------------------------------------------------------|
 | config         | AzureOpenAiConfig, CorsConfig, OpenApiConfig, SecurityConfig, ServiceBusConfig                                       |
 | controller     | AiController, BlobStorageController, CourseController, EmailController, UserController                               |
@@ -227,6 +228,7 @@ Ansvar:
 * Implementera affärslogik. 
 * Mappa mellan Entity och DTO. 
 * Publicera Spring ApplicationEvents för asynkrona sidoeffekter (e-post, Service Bus). 
+* Kommunicera med externa tjänster.
 * Hantera felfall med anpassade undantag.
 
 
@@ -305,7 +307,6 @@ Exempel:
 
 * useState — lokal komponentstate (vald vy, formulärdata, laddningsstatus)
 * Anpassade hooks i auth/ — useRoles.ts och useStreamServiceWorker.ts
-* Ingen global state-manager (Redux/Zustand) används
 
 ## API-kommunikation
 
@@ -479,7 +480,7 @@ Alla endpoints kräver `Authorization: Bearer <JWT>`-header om inget annat anges
 | DELETE | `/api/courses/{courseId}`                         | Admin               | Tar bort en kurs                                    | 204 No Content / 404 |
 | GET    | `/api/courses/{courseId}/sections`                | Alla                | Hämtar sektioner (med låsstatus per användare)      | 200 OK               |
 | POST   | `/api/courses/{courseId}/sections`                | Admin / CourseAdmin | Lägger till sektion                                 | 200 OK               |
-| GET    | `/api/courses/{courseId}/students`                | Admin / CourseAdmin | Listar studenter med progress                       | 200 OK               |
+| GET    | `/api/courses/{courseId}/students`                | Admin / CourseAdmin | Listar studenter registrerade till kurs             | 200 OK               |
 | POST   | `/api/courses/{courseId}/students`                | Admin               | Lägger till studenter i kurs                        | 200 OK               |
 | GET    | `/api/courses/{courseId}/progress`                | Alla                | Hämtar inloggad användares progress                 | 200 OK               |
 | PUT    | `/api/courses/{courseId}/assistant/{assistantId}` | Admin / CourseAdmin | Kopplar Azure OpenAI-assistent till kurs            | 200 OK               |
@@ -701,13 +702,13 @@ Alla endpoints kräver `Authorization: Bearer <JWT>`-header om inget annat anges
 
 ## Quiz — `/api/courses/sections/tests`
 
-| Metod  | Endpoint                                                         | Roll                | Beskrivning                                | Statuskod |
-|--------|------------------------------------------------------------------|---------------------|--------------------------------------------|-----------|
-| GET    | `/api/courses/sections/tests/{sectionId}/questions`              | Alla                | Hämtar frågor för en sektion               | 200 OK |
-| POST   | `/api/courses/sections/tests/{sectionId}/questions`              | Admin / CourseAdmin | Lägger till fråga                          | 200 OK |
-| PUT    | `/api/courses/sections/tests/{sectionId}/questions/{questionId}` | Admin / CourseAdmin | Uppdaterar fråga                           | 200 OK |
+| Metod  | Endpoint                                                         | Roll                | Beskrivning                                | Statuskod      |
+|--------|------------------------------------------------------------------|---------------------|--------------------------------------------|----------------|
+| GET    | `/api/courses/sections/tests/{sectionId}/questions`              | Alla                | Hämtar frågor för en sektion               | 200 OK         |
+| POST   | `/api/courses/sections/tests/{sectionId}/questions`              | Admin / CourseAdmin | Lägger till fråga                          | 200 OK         |
+| PUT    | `/api/courses/sections/tests/{sectionId}/questions/{questionId}` | Admin / CourseAdmin | Uppdaterar fråga                           | 200 OK         |
 | DELETE | `/api/courses/sections/tests/{sectionId}/questions/{questionId}` | Admin / CourseAdmin | Tar bort fråga                             | 204 No Content |
-| POST   | `/api/courses/sections/tests/{sectionId}/submit`                 | Alla                | Skickar in quiz-svar och beräknar resultat | 200 OK |
+| POST   | `/api/courses/sections/tests/{sectionId}/submit`                 | Alla                | Skickar in quiz-svar och beräknar resultat | 200 OK         |
 
 ### POST `/api/courses/sections/tests/{sectionId}/questions` — Request
 ```json
@@ -831,7 +832,7 @@ Roller hämtas från JWT-tokenets 'roles'-claim och mappas med prefixet 'ROLE_'
 ## Förutsättningar
 * Java 21
 * Maven 3.9+
-* Node.js 20+ med npm
+* Node.js 24+ med npm
 * Azure-konto med konfigurerade resurser (SQL, Blob Storage, OpenAI, Key Vault, Service Bus, Entra ID app-registrering)
 
 ## Klona projektet
@@ -873,26 +874,27 @@ npm run dev
 
 Kopiera .env_example till .env och fyll i värdena:
 
-| Variabel                                | Beskrivning                                              |
-|-----------------------------------------|----------------------------------------------------------|
-| AZURE_CLIENT_ID                         | Azure AD app-registrerings client ID                     |
-| AZURE_CLIENT_SECRET                     | Azure AD app-registrerings client secret                 |
-| AZURE_TENANT_ID                         | Azure AD tenant ID                                       |
-| AZURE_STORAGE_ACCOUNT_NAME              | Azure Blob Storage-kontonamn                             |
-| AZURE_STORAGE_ACCOUNT_KEY               | Azure Blob Storage-kontonyckel                           |
-| AZURE_STORAGE_CONTAINER_NAME_PDF        | Container-namn för PDF-filer                             |
-| AZURE_STORAGE_CONTAINER_NAME_VIDEO      | Container-namn för videofiler                            |
-| AZURE_STORAGE_FRONTDOOR_ENDPOINT        | Azure Front Door-endpoint (om tillämpligt)               |
-| STREAM_TOKEN_SECRET                     | Minst 32 tecken lång hemlighet för StreamToken-signering |
-| SPRING_DATASOURCE_URL                   | JDBC-URL till Azure SQL                                  |
-| SPRING_DATASOURCE_USERNAME              | Databasanvändarnamn                                      |
-| SPRING_DATASOURCE_PASSWORD              | Databaslösenord                                          |
-| SPRING_DATASOURCE_DRIVER_CLASS_NAME     | com.microsoft.sqlserver.jdbc.SQLServerDriver             |
-| SPRING_JPA_HIBERNATE_DDL_AUTO           | validate / update / create-drop (test)                   |
-| SPRING_JPA_SHOW_SQL                     | true/false                                               |
-| SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT | org.hibernate.dialect.SQLServerDialect                   |
-| AZURE_OPENAI_API_KEY                    | Azure OpenAI API-nyckel                                  |
-| AZURE_OPENAI_ASSISTANT_ID               | Standard Azure OpenAI-assistent-ID                       |
+| Variabel                                | Beskrivning                                                                |
+|-----------------------------------------|----------------------------------------------------------------------------|
+| AZURE_CLIENT_ID                         | Azure AD app-registrerings client ID (behövs endast för lokal körning)     |
+| AZURE_CLIENT_SECRET                     | Azure AD app-registrerings client secret (behövs endast för lokal körning) |
+| AZURE_TENANT_ID                         | Azure AD tenant ID                                                         |
+| AZURE_STORAGE_ACCOUNT_NAME              | Azure Blob Storage-kontonamn                                               |
+| AZURE_STORAGE_ACCOUNT_KEY               | Azure Blob Storage-kontonyckel                                             |
+| AZURE_STORAGE_CONTAINER_NAME_PDF        | Container-namn för PDF-filer                                               |
+| AZURE_STORAGE_CONTAINER_NAME_VIDEO      | Container-namn för videofiler                                              |
+| AZURE_STORAGE_FRONTDOOR_ENDPOINT        | Azure Front Door-endpoint (om tillämpligt)                                 |
+| STREAM_TOKEN_SECRET                     | Minst 32 tecken lång hemlighet för StreamToken-signering                   |
+| SPRING_DATASOURCE_URL                   | JDBC-URL till Azure SQL                                                    |
+| SPRING_DATASOURCE_USERNAME              | Databasanvändarnamn                                                        |
+| SPRING_DATASOURCE_PASSWORD              | Databaslösenord                                                            |
+| SPRING_DATASOURCE_DRIVER_CLASS_NAME     | com.microsoft.sqlserver.jdbc.SQLServerDriver                               |
+| SPRING_JPA_HIBERNATE_DDL_AUTO           | validate / update / create-drop (test)                                     |
+| SPRING_JPA_SHOW_SQL                     | true/false                                                                 |
+| SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT | org.hibernate.dialect.SQLServerDialect                                     |
+| AZURE_OPENAI_API_KEY                    | Azure OpenAI API-nyckel                                                    |
+| AZURE_OPENAI_ASSISTANT_ID               | Standard Azure OpenAI-assistent-ID                                         |
+| APP_REDIRECT_FRONTEND                   | Frontend url för omdirigering                                              |
 
 ## Frontend
 
@@ -941,7 +943,6 @@ npm run lint    # ESLint-kontroll
 
 # 14. Deployment
 
-Beskriv hur applikationen distribueras.
 
 ## Flöde
 
@@ -969,7 +970,7 @@ Beskriv hur applikationen distribueras.
 ## Branch-struktur
 
 * main — produktionskod
-* develop — integrationsbranch
+* dev — integrationsbranch
 * feature/* — ny funktionalitet
 
 ## Arbetsflöde
@@ -978,7 +979,7 @@ Beskriv hur applikationen distribueras.
 2. Implementera funktionalitet
 3. Commit med beskrivande meddelande
 4. Push till remote
-5. Skapa Pull Request mot develop
+5. Skapa Pull Request mot dev
 6. Code Review
 7. Merge efter godkännande
 
