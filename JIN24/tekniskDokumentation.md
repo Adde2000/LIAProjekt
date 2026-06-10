@@ -1,14 +1,12 @@
 # Teknisk dokumentation
 
-## Projektnamn <----------------------------------------------------------------------------------------------------------------------------------------------
+## Projektnamn
 
-**Projekt:**
+**Projekt:** Vinkelboda
 
-**Version:**
+**Datum:** 2026-06-10
 
-**Datum:**
-
-**Författare:**
+**Författare:** Erik Thorsell, Alexander Grenander
 
 ---
 
@@ -34,17 +32,6 @@
 ---
 
 # 1. Introduktion
-
-## Syfte  <----------------------------------------------------------------------------------------------------------------------------------------------
-
-Beskriv projektets syfte.
-
-Exempel:
-
-LIA-praktikanterna genomför sin LIA i ett gemensamt produktionsprojekt: att planera, bygga,
-driftsätta och dokumentera en webbaserad lärportal på uppdrag av Högsbo Säljkonsulter AB.
-Projektet är valt för att det naturligt engagerar båda utbildningarnas kompetenser och kräver ett
-äkta samarbete där molninfrastrukturen och applikationen är beroende av varandra.
 
 ## Funktionalitet
 
@@ -303,7 +290,7 @@ Tillgängliga flikar filtreras baserat på användarens roller. RequireRole-komp
 | CourseCard                           | Kortkomponent som visar kursinfo och progress             |
 | CourseSectionsPanel                  | Hanterar sektioner inom en kurs                           |
 | CourseStudentsPanel                  | Listar och lägger till studenter i kurs                   |
-| ChatWindow / ChatInput / ChatMessage | AI-chattkomponenter med streaming-stöd                    |
+| ChatWindow / ChatInput / ChatMessage | AI-chattkomponenter                                       |
 | QuestionCard / QuizRow               | Quizfrågor och svarsalternativ                            |
 | RequireRole                          | Wrapper som döljer innehåll för obehöriga roller          |
 | ConfirmDialog                        | Bekräftelsedialog för destruktiva åtgärder                |
@@ -372,22 +359,105 @@ ORM-hantering sker via Spring Data JPA med Hibernate.
 
 ## ER-diagram
 
-```text
-Customer
+```mermaid
+erDiagram
 
-id
-name
-email
+    USER {
+        Long id PK
+        String entraId
+    }
 
-      1
-Customer -------- Order
-             *
+    COURSE {
+        Long id PK
+        String assistantId
+        String title
+        String description
+        String createdBy
+    }
 
-Order
+    SECTION {
+        Long id PK
+        String title
+        int orderIndex
+    }
 
-id
-date
-total
+    TEST_QUESTION {
+        Long id PK
+        String questionText
+    }
+
+    TEST_ANSWER {
+        Long id PK
+        String answerText
+        Boolean isCorrect
+    }
+
+    TEST_RESULT {
+        Long id PK
+        Status status
+        Integer score
+        boolean passed
+        LocalDateTime startedAt
+        LocalDateTime completedAt
+        int attemptNumber
+    }
+
+    ANSWERED_QUESTION {
+        Long id PK
+        boolean isCorrect
+    }
+
+    USER_PROGRESS {
+        Long id PK
+        int completedSections
+        int progressPercentage
+    }
+
+    AI_CHARACTER {
+        Long id PK
+        String assistantId
+        String name
+        String description
+    }
+
+    AI_SESSION {
+        Long id PK
+        String threadId
+        LocalDateTime createdAt
+        LocalDateTime lastUsedAt
+    }
+
+    EMAIL_NOTIFICATION {
+        Long id PK
+        EmailType type
+        String subject
+        LocalDateTime sentAt
+        EmailStatus status
+    }
+
+%% RELATIONSHIPS
+
+    COURSE ||--o{ SECTION : contains
+    SECTION ||--o{ TEST_QUESTION : has
+    TEST_QUESTION ||--o{ TEST_ANSWER : has
+
+    USER ||--o{ TEST_RESULT : owns
+    SECTION ||--o{ TEST_RESULT : belongs_to
+
+    TEST_RESULT ||--o{ ANSWERED_QUESTION : contains
+    TEST_QUESTION ||--o{ ANSWERED_QUESTION : references
+
+    USER ||--o{ USER_PROGRESS : tracks
+    COURSE ||--o{ USER_PROGRESS : progress_for
+
+    USER ||--o{ AI_SESSION : has
+    COURSE ||--o{ AI_SESSION : context_for
+    AI_CHARACTER ||--o{ AI_SESSION : used_in
+
+    COURSE }o--o{ AI_CHARACTER : many_to_many
+
+    USER ||--o{ EMAIL_NOTIFICATION : receives
+
 ```
 
 ---
@@ -470,7 +540,7 @@ Alla endpoints kräver `Authorization: Bearer <JWT>`-header om inget annat anges
 
 ---
 
-## Users — `/api/users`
+## Users — `/api/users`  <---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 | Metod | Endpoint                | Roll        | Beskrivning                     | Statuskod    |
 |-------|-------------------------|-------------|---------------------------------|--------------|
@@ -748,7 +818,6 @@ Roller hämtas från JWT-tokenets 'roles'-claim och mappas med prefixet 'ROLE_'
 
 ## Säkerhetsåtgärder
 
-* CSRF: Inaktiverat (stateless JWT-API behöver det ej)
 * CORS: Konfigurerat i CorsConfig för att tillåta frontend-origin
 * Videosäkerhet: Strömning av videofiler skyddas med kortlivade StreamTokens (HMAC-signerade, ej JWT) — hanteras av separat service worker
 * Inputvalidering: Spring-validering på request bodies
@@ -874,29 +943,24 @@ npm run lint    # ESLint-kontroll
 
 Beskriv hur applikationen distribueras.
 
-## Exempelarkitektur
+## Flöde
 
 ```text
-                Internet
+   Push till github & merge till dev/main
 
                     |
 
-      Azure Static Web Apps (Frontend)
+          Github Actions test
 
-                    |  HTTPS / REST
+                    |  
+                    
+   Github Actions deploy backend/frontend         
+                     
+                    |
 
-         Azure App Service (Backend)
-
-                    |  JPA/Hibernate
-
-            Azure SQL Database
+   Azure App services (Backend/Frontend)
             
 ```
-Sidotjänster:
-* Azure Blob Storage — PDF/video
-* Azure OpenAI       — AI-assistenter
-* Azure Service Bus  — asynkrona events
-* Azure Key Vault    — hemligheter
 
 ---
 
@@ -910,7 +974,7 @@ Sidotjänster:
 
 ## Arbetsflöde
 
-1. Skapa feature branch från develop
+1. Skapa feature branch från dev
 2. Implementera funktionalitet
 3. Commit med beskrivande meddelande
 4. Push till remote
@@ -920,57 +984,19 @@ Sidotjänster:
 
 ---
 
-# 16. Framtida utveckling  <----------------------------------------------------------------------------------------------------------------------------------------------
+# 16. Framtida utveckling 
 
 Planerade förbättringar:
 
 * Streaming-stöd för AI-svar (server-sent events) 
-* 
+* Visa PDF på frontend
 
 ---
 
-# Bilagor <----------------------------------------------------------------------------------------------------------------------------------------------
+# Bilagor
 
 ## Swagger/OpenAPI
 
 Swagger UI är tillgänglig på /swagger-ui.html när applikationen körs. OpenAPI JSON-specifikation finns på /v3/api-docs.
 
 ---
-
-## UML-diagram
-
-Lägg in klassdiagram.
-
----
-
-## Sekvensdiagram
-
-Lägg in sekvensdiagram.
-
----
-
-## ER-diagram
-
-Lägg in databasschema.
-
----
-
-## Skärmbilder
-
-Lägg in bilder från frontend.
-
----
-
-## Licens
-
-Beskriv projektets licens.
-
----
-
-## Kontakt
-
-Ansvarig utvecklare:
-
-E-post:
-
-GitHub:
