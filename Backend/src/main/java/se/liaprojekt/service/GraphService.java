@@ -25,11 +25,11 @@ public class GraphService {
     private String redirectUrl;
 
     //TODO Either CLIENT_ID is needed or the ServicePrincipalId directly
-    @Value("${spring.cloud.azure.client-id}")
-    private String clientId;
+//    @Value("${spring.cloud.azure.client-id}")
+//    private String clientId;
 
-//    @Value("${spring.cloud.azure.service-principal.id}")
-//    private String servicePrincipalId;
+    @Value("${spring.cloud.azure.service-principal.id}")
+    private String servicePrincipalId;
 
     @Value("${azure.graph.mail-user}")
     private String mailUser;
@@ -47,25 +47,26 @@ public class GraphService {
 
     @PostConstruct
     public void getAppRoles() {
-        ServicePrincipalCollectionResponse sp = graphServiceClient
-                .servicePrincipals()
-                .get(config -> {
-                    assert config.queryParameters != null;
-                    config.queryParameters.filter = "appId eq '" + clientId + "'";
-                });
-//        ServicePrincipal sp = graphServiceClient
+//        ServicePrincipalCollectionResponse sp = graphServiceClient
 //                .servicePrincipals()
-//                .byServicePrincipalId(servicePrincipalId)
-//                .get();
+//                .get(config -> {
+//                    assert config.queryParameters != null;
+//                    config.queryParameters.filter = "appId eq '" + clientId + "'";
+//                });
+//        System.out.println(sp.getValue().getFirst().getId());
+        ServicePrincipal sp = graphServiceClient
+                .servicePrincipals()
+                .byServicePrincipalId(servicePrincipalId)
+                .get();
         assert sp != null;
-        appRoles = Objects.requireNonNull(sp.getValue()).getFirst().getAppRoles();
-//        appRoles = sp.getAppRoles();
+//        appRoles = Objects.requireNonNull(sp.getValue()).getFirst().getAppRoles();
+        appRoles = sp.getAppRoles();
         assert appRoles != null;
         for (AppRole appRole : appRoles) {
             appRole.setDisplayName(Objects.requireNonNull(appRole.getDisplayName()).toLowerCase());
         }
-        resourceId = sp.getValue().getFirst().getId();
-//        resourceId = sp.getId();
+//        resourceId = sp.getValue().getFirst().getId();
+        resourceId = sp.getId();
     }
 
     public List<GraphResponse> getAllUsers() {
