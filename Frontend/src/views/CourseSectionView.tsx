@@ -69,7 +69,13 @@ function SectionItem({ section, onOpen, onOpenQuiz }: { section: SectionResponse
         try {
             const isPdf = extOf(m.originalName) === "pdf";
             if (isPdf) {
-                onOpen({ material: m, streamUrl: "", fileId: m.fileId, expiresIn: 0 });
+                const downloadUrl = await getDownloadUrl(instance, m.fileId);
+                const a = document.createElement("a");
+                a.href = downloadUrl;
+                a.download = m.originalName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
             } else {
                 const result = await getStreamToken(instance, m.fileId);
                 const fullUrl = `${import.meta.env.VITE_API_BASE_URL ?? ""}${result.streamUrl}`;
@@ -134,13 +140,13 @@ function SectionItem({ section, onOpen, onOpenQuiz }: { section: SectionResponse
                                             key={m.fileId}
                                             className={`vmv-section-material-row vmv-section-material-row--clickable${openingId === m.fileId ? " vmv-section-material-row--loading" : ""}`}
                                             onClick={() => openMaterial(m)}
-                                            title="Öppna"
+                                            title={ext === "pdf" ? "Ladda ned" : "Öppna"}
                                         >
                                             <span className="vmv-section-material-icon">{fileIcon(ext)}</span>
                                             <span className="vmv-section-material-name">{m.originalName}</span>
                                             <span className="vmv-section-material-type">{ext.toUpperCase()}</span>
                                             <span className="vmv-section-material-open">
-                                                {openingId === m.fileId ? "…" : "▶"}
+                                                {openingId === m.fileId ? "…" : ext === "pdf" ? "⬇" : "▶"}
                                             </span>
                                         </div>
                                     );
@@ -182,12 +188,8 @@ function SectionItem({ section, onOpen, onOpenQuiz }: { section: SectionResponse
 function MediaView({ stream, onBack }: { stream: ActiveStream; onBack: () => void }) {
     const { instance } = useMsal();
     const [videoUrl, setVideoUrl] = useState(stream.streamUrl);
-    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-    const [pdfError, setPdfError] = useState<string | null>(null);
     const ext = extOf(stream.material.originalName);
     const isVideo = ["mp4", "mov", "avi", "mkv"].includes(ext);
-    const isPdf   = ext === "pdf";
-    const pdfLoading = isPdf && pdfUrl === null && pdfError === null;
     const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     function scheduleRefresh(expiresIn: number) {
@@ -204,11 +206,6 @@ function MediaView({ stream, onBack }: { stream: ActiveStream; onBack: () => voi
 
     useEffect(() => {
         if (isVideo) scheduleRefresh(stream.expiresIn);
-        if (isPdf) {
-            getDownloadUrl(instance, stream.fileId)
-                .then((sasUrl) => setPdfUrl(sasUrl))
-                .catch((err) => setPdfError(err instanceof Error ? err.message : "Kunde inte ladda PDF"));
-        }
         return () => {
             if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
         };
@@ -224,18 +221,7 @@ function MediaView({ stream, onBack }: { stream: ActiveStream; onBack: () => voi
                 {isVideo && (
                     <video className="vmv-media-view-video" src={videoUrl} controls autoPlay />
                 )}
-                {isPdf && pdfLoading && (
-                    <div className="vmv-section-material-status">Laddar PDF…</div>
-                )}
-                {isPdf && pdfError && (
-                    <div className="vmv-section-material-status vmv-section-material-status--error">
-                        Fel: {pdfError}
-                    </div>
-                )}
-                {isPdf && pdfUrl && (
-                    <iframe className="vmv-media-view-pdf" src={pdfUrl} title={stream.material.originalName} />
-                )}
-                {!isVideo && !isPdf && (
+                {!isVideo && (
                     <div className="vmv-section-material-status">
                         <a href={stream.streamUrl} download={stream.material.originalName}>
                             Ladda ned {stream.material.originalName}
@@ -306,21 +292,6 @@ export function CourseSectionView({ course, onBack }: Props) {
                 Skapad av {course.createdBy}
             </div>
 
-            {course.courseAdmin && (
-                <div className="vmv-course-section-meta vmv-course-instructor">
-                    <span className="vmv-instructor-label">Kursledare:</span>{" "}
-                    <span className="vmv-instructor-name">{course.courseAdmin.displayName}</span>
-                    {course.courseAdmin.mail && (
-                        <a
-                            href={`mailto:${course.courseAdmin.mail}`}
-                            className="vmv-instructor-email"
-                        >
-                            {course.courseAdmin.mail}
-                        </a>
-                    )}
-                </div>
-            )}
-
             {/* ── AI Chat toggle ── */}
             <button
                 className="vmv-quiz-start"
@@ -329,7 +300,7 @@ export function CourseSectionView({ course, onBack }: Props) {
                 {showChat ? "Stäng AI-assistenten" : "Öppna AI-assistenten 🤖"}
             </button>
 
-            {showChat && <AIChatView courseId={course.id} assistantName={course.assistantName} />}
+            {showChat && <AIChatView courseId={course.id} />}
 
             {/* ── Sections list ── */}
             <div className="vmv-section-head vmv-section-head--sub">Avsnitt</div>
