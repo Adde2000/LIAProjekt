@@ -1,6 +1,8 @@
 package se.liaprojekt.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +22,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AiController {
 
+    private static final Logger log = LoggerFactory.getLogger(AiController.class);
+
     private final AiChatService aiChatService;
     private final AiSessionInitService initService;
     private final AiCharacterService aiCharacterService;
@@ -34,7 +38,7 @@ public class AiController {
     public ResponseEntity<ChatResponse> chat(
             @RequestBody ChatRequest request
     ) {
-
+        log.info("Chat request for sessionId={}", request.getSessionId());
         String aiResponse = aiChatService.chat(
                 request.getSessionId(),
                 request.getMessage()
@@ -55,11 +59,13 @@ public class AiController {
     ) {
 
         String entraId = currentUserService.getEntraId();
+        log.info("Creating AI session for courseId={}", courseId);
 
         AiSession session = initService.createSession(
                 entraId,
                 courseId
         );
+        log.info("AI session id={} created for courseId={}", session.getId(), courseId);
 
         return ResponseEntity.ok(
                 session.getId()
@@ -74,7 +80,7 @@ public class AiController {
     public ResponseEntity<List<AiCharacterResponse>> getCharacters(
             @PathVariable Long courseId
     ) {
-
+        log.info("Getting AI characters for courseId={}", courseId);
         List<AiCharacterResponse> characters =
                 aiCharacterService.getByCourse(courseId);
 
@@ -88,7 +94,7 @@ public class AiController {
     @GetMapping("/assistants")
     @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<List<AssistantAdminResponse>> getAssistants() {
-
+        log.info("Getting all Azure OpenAI assistants");
         return ResponseEntity.ok(
                 assistantAdminService.getAllAssistants()
         );
@@ -99,7 +105,7 @@ public class AiController {
     public ResponseEntity<List<ChatHistoryMessage>> getHistory(
             @PathVariable Long sessionId
     ) {
-
+        log.info("Getting chat history for sessionId={}", sessionId);
         return ResponseEntity.ok(
                 aiChatService.getHistory(sessionId)
         );
