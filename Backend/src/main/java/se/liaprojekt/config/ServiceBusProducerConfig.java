@@ -1,5 +1,6 @@
 package se.liaprojekt.config;
 
+import com.azure.core.amqp.AmqpTransportType;
 import com.azure.identity.DefaultAzureCredential;
 import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.messaging.servicebus.ServiceBusClientBuilder;
@@ -36,6 +37,7 @@ public class ServiceBusProducerConfig {
 
         return new ServiceBusClientBuilder()
                 .credential(NAMESPACE, credential)
+                .transportType(AmqpTransportType.AMQP_WEB_SOCKETS)
                 .sender()
                 .queueName(QUEUE_NAME)
                 .buildClient();

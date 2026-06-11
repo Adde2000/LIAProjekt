@@ -1,5 +1,6 @@
 package se.liaprojekt.config;
 
+import com.azure.core.amqp.AmqpTransportType;
 import com.azure.identity.DefaultAzureCredential;
 import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.messaging.servicebus.ServiceBusProcessorClient;
@@ -25,6 +26,7 @@ public class ServiceBusWorkerConfig {
 
         return new ServiceBusClientBuilder()
                 .credential(NAMESPACE, credential)
+                .transportType(AmqpTransportType.AMQP_WEB_SOCKETS)
                 .processor()
                 .queueName(QUEUE_NAME)
                 .processMessage(handler::handleMessage)
