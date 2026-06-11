@@ -21,7 +21,7 @@ import java.util.Set;
 @RequestMapping("/api/courses")
 @RequiredArgsConstructor
 public class CourseController {
-    Logger logger = LoggerFactory.getLogger(CourseController.class);
+    private static final Logger log = LoggerFactory.getLogger(CourseController.class);
 
     private final CourseService courseService;
     private final SectionService sectionService;
@@ -32,6 +32,7 @@ public class CourseController {
     @GetMapping
     @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<List<CourseResponse>> getAllCourses() {
+        log.info("Getting all courses");
         Set<String> roles = currentUserService.getRoles();
         if (roles.contains(Roles.ADMIN)) {
             return ResponseEntity.ok(courseService.getAllCourses());
@@ -46,6 +47,7 @@ public class CourseController {
     @GetMapping("/{courseId}")
     @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<CourseResponse> getCourseById(@PathVariable Long courseId) {
+        log.info("Getting course {}", courseId);
         return ResponseEntity.ok(courseService.getCourseById(courseId));
     }
 
@@ -53,7 +55,7 @@ public class CourseController {
     @GetMapping("/{courseId}/students")
     @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<List<UserProgressResponse>> getCourseStudents(@PathVariable Long courseId) {
-        logger.info("Get student list for course: {}", courseId);
+        log.info("Get student list for course: {}", courseId);
         return ResponseEntity.ok(courseService.getStudentsInCourse(courseId));
     }
 
@@ -61,15 +63,17 @@ public class CourseController {
     @PostMapping("/{courseId}/students")
     @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<List<UserProgressResponse>> addStudentsToCourse(@PathVariable Long courseId, @RequestBody List<UserRequest> students) {
-        logger.info("Adding students to course {}", courseId);
-        return ResponseEntity.ok(courseService.addStudentsToCourse(courseId, students));
+        log.info("Adding {} student(s) to course {}", students.size(), courseId);
+        List<UserProgressResponse> result = courseService.addStudentsToCourse(courseId, students);
+        log.info("Added {} student(s) to course {}", result.size(), courseId);
+        return ResponseEntity.ok(result);
     }
 
     //Admin
     @PostMapping
     @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<CourseResponse> createCourse(@RequestBody CourseRequest courseRequest) {
-        logger.info("Creating new course {}", courseRequest);
+        log.info("Creating new course {}", courseRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(courseService.createCourse(courseRequest));
     }
 
@@ -79,7 +83,7 @@ public class CourseController {
     public ResponseEntity<SectionResponse> addSection(
             @PathVariable Long courseId,
             @RequestBody SectionRequest request) {
-
+        log.info("Adding section to course id {}: Body {}", courseId, request);
         return ResponseEntity.ok(
                 sectionService.addSection(courseId, request.title())
         );
@@ -89,7 +93,7 @@ public class CourseController {
     @GetMapping("/{courseId}/sections")
     public ResponseEntity<List<SectionResponse>> getSections(
             @PathVariable Long courseId) {
-
+        log.info("Getting section list for course {}", courseId);
         String entraId = currentUserService.getEntraId();
 
         return ResponseEntity.ok(
@@ -99,6 +103,7 @@ public class CourseController {
 
     @PostMapping("/{courseId}/complete")
     public ResponseEntity<String> completeCourse(@PathVariable Long courseId) {
+        log.warn("completeCourse called for courseId={} — endpoint not yet implemented", courseId);
         //TODO is this needed?
         return ResponseEntity.ok("OK - completeCourse " + courseId);
     }
@@ -109,7 +114,7 @@ public class CourseController {
     public ResponseEntity<CourseResponse> updateCourse(
             @PathVariable Long courseId,
             @RequestBody CourseRequest courseRequest) {
-
+        log.info("Updating course {}", courseId);
         return ResponseEntity.ok(courseService.updateCourse(courseId, courseRequest));
     }
 
@@ -117,6 +122,7 @@ public class CourseController {
     @DeleteMapping("/{courseId}")
     @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<Void> deleteCourse(@PathVariable Long courseId) {
+        log.info("Deleting course {}", courseId);
         courseService.deleteCourse(courseId);
         return ResponseEntity.noContent().build();
     }
@@ -126,6 +132,7 @@ public class CourseController {
     public ResponseEntity<CourseProgressResponse> getProgress(
             @PathVariable Long courseId
     ) {
+        log.info("Getting progress for course {}", courseId);
         String entraId = currentUserService.getEntraId();
 
         return ResponseEntity.ok(
@@ -140,7 +147,7 @@ public class CourseController {
             @PathVariable Long courseId,
             @PathVariable String assistantId
     ) {
-
+        log.info("Assigning assistant {} to course {}", assistantId, courseId);
         courseService.assignAssistant(
                 courseId,
                 assistantId

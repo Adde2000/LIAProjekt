@@ -44,7 +44,7 @@ class GraphServiceTest {
         // Inject the mocked GraphServiceClient so no real HTTP calls are made
         ReflectionTestUtils.setField(graphService, "graphServiceClient", graphServiceClient);
         ReflectionTestUtils.setField(graphService, "mailUser", "admin@test.se");
-        ReflectionTestUtils.setField(graphService, "clientId", "test-client-id");
+        ReflectionTestUtils.setField(graphService, "servicePrincipalId", "servicePrincipalId");
     }
 
     @Test

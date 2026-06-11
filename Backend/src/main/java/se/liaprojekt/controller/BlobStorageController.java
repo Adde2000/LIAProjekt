@@ -95,6 +95,7 @@ public class BlobStorageController {
             @RequestParam String sectionId) throws IOException {
 
         String originalFileName = file.getOriginalFilename();
+
         if (originalFileName == null || !mediaTypeResolver.isSupported(originalFileName)) {
             throw new BadRequestException("Unsupported file type. Allowed: pdf, mp4, mov, avi, mkv.");
         }
@@ -102,6 +103,7 @@ public class BlobStorageController {
         log.debug("Uploading file '{}' with sectionId '{}'", originalFileName, sectionId);
         String fileId = blobStorageService.uploadFile(
                 originalFileName, file.getInputStream(), file.getSize(), sectionId);
+        log.info("Uploaded file '{}' as fileId='{}' for sectionId='{}'", originalFileName, fileId, sectionId);
 
         // Synka PDF till vector store via sectionId → course
         if (originalFileName.toLowerCase().endsWith(".pdf")) {
@@ -146,24 +148,6 @@ public class BlobStorageController {
         log.debug("Downloading fileId '{}'", fileId);
         String blobName = blobStorageService.resolveBlobName(fileId);
 
-        //TODO Fix so that the pdf can be displayed on the frontend
-//        if (getExtension(blobName).equals("pdf")) {
-//            String originalName = blobStorageService.getFileTags(blobName)
-//                    .getOrDefault("originalName", blobName);
-//
-//            StreamingResponseBody body = outputStream ->
-//                    blobStorageService.streamFile(blobName, outputStream, 0,
-//                            blobStorageService.getBlobSize(blobName));
-//
-//            return ResponseEntity.ok()
-//                    .contentType(MediaType.APPLICATION_PDF)
-//                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + originalName + "\"")
-//                    .header(HttpHeaders.CONTENT_LENGTH,
-//                            String.valueOf(blobStorageService.getBlobSize(blobName)))
-//                    .body(body);
-//        }
-
-        // Non-PDF fallback — return CDN URL for the caller to handle
         String url = blobStorageService.generateDownloadUrl(blobName).toString();
         return ResponseEntity.ok(Map.of("url", url));
     }
@@ -332,10 +316,11 @@ public class BlobStorageController {
      * @param type Optional filter: {@code pdf}, {@code video}, or omit for all files
      * @return 200 with list of {@link FileEntry} objects
      */
-    //TODO Should this exist?
     @GetMapping("/list")
+    @PreAuthorize(Roles.ADMIN)
     public ResponseEntity<List<FileEntry>> list(
             @RequestParam(required = false, defaultValue = "all") String type) {
+        log.debug("Listing files of type '{}'", type);
         Set<String> extensions = mediaTypeResolver.extensionsForType(type);
         return ResponseEntity.ok(blobStorageService.listFiles(extensions));
     }
@@ -352,6 +337,7 @@ public class BlobStorageController {
     //ALL
     @GetMapping("/list/section/{sectionId}")
     public ResponseEntity<List<FileEntry>> listBySection(@PathVariable String sectionId) {
+        log.debug("Listing files for sectionId='{}'", sectionId);
         return ResponseEntity.ok(blobStorageService.listFilesBySectionId(sectionId));
     }
 
@@ -365,7 +351,7 @@ public class BlobStorageController {
      * @param fileId Opaque file identifier returned at upload time
      * @return 200 with tag map (e.g. {@code {"sectionId": "42", "originalName": "lecture.pdf"}})
      */
-    //Admin TODO behövs denna?
+    //Admin
     @GetMapping("/{fileId}/tags")
     @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<Map<String, String>> getTags(@PathVariable String fileId) {
