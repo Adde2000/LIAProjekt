@@ -1,6 +1,8 @@
 package se.liaprojekt.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import se.liaprojekt.controller.util.Roles;
@@ -16,6 +18,7 @@ import static se.liaprojekt.model.EmailType.WELCOME_EMAIL;
 @RequestMapping("/api/email")
 @RequiredArgsConstructor
 public class EmailController {
+    private static final Logger log = LoggerFactory.getLogger(EmailController.class);
 
     private final EmailEventPublisher publisher;
 
@@ -25,7 +28,7 @@ public class EmailController {
     public String sendWelcome(
             @RequestParam String email,
             @RequestParam String name) {
-
+        log.info("Sending welcome email");
         EmailEvent event = new EmailEvent(
                 email,
                 "Välkommen " + name,
@@ -34,6 +37,7 @@ public class EmailController {
         );
 
         publisher.publish(event);
+        log.info("Welcome email queued");
 
         return "Email queued for " + email;
     }
