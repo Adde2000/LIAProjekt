@@ -1,14 +1,12 @@
 # Teknisk dokumentation
 
-## Projektnamn <----------------------------------------------------------------------------------------------------------------------------------------------
+## Projektnamn
 
-**Projekt:**
+**Projekt:** Vinkelboda
 
-**Version:**
+**Datum:** 2026-06-10
 
-**Datum:**
-
-**Författare:**
+**Författare:** Erik Thorsell, Alexander Grenander
 
 ---
 
@@ -35,28 +33,17 @@
 
 # 1. Introduktion
 
-## Syfte  <----------------------------------------------------------------------------------------------------------------------------------------------
-
-Beskriv projektets syfte.
-
-Exempel:
-
-LIA-praktikanterna genomför sin LIA i ett gemensamt produktionsprojekt: att planera, bygga,
-driftsätta och dokumentera en webbaserad lärportal på uppdrag av Högsbo Säljkonsulter AB.
-Projektet är valt för att det naturligt engagerar båda utbildningarnas kompetenser och kräver ett
-äkta samarbete där molninfrastrukturen och applikationen är beroende av varandra.
-
 ## Funktionalitet
 
 #### Systemet erbjuder följande huvudfunktioner:
 * Skapa, läsa, uppdatera och ta bort kurser (CRUD)
 * Hantera kurssektioner med ordningsindex och låsstatus
-* Ladda upp och strömma kursmaterial (PDF, video) via Azure Blob Storage
+* Ladda upp och ladda ner/strömma kursmaterial (PDF, video) via Azure Blob Storage
 * Genomföra quiz per sektion och se resultat
 * AI-assisterad chatt kopplad till kursmaterial via Azure OpenAI Assistants
 * Användarhantering via Microsoft Entra ID (Azure AD)
 * Rollbaserad behörighet: Admin, CourseAdmin, Participant
-* E-postnotifieringar vid kursavslut och testresultat
+* E-postnotifieringar vid registrering, kursavslut och testresultat
 
 ---
 
@@ -94,7 +81,7 @@ Sidotjänster:
 2. Frontend hämtar ett JWT access token och skickar det som Authorization: Bearer-header.
 3. Spring Boot-backend validerar JWT mot Azure AD (OAuth2 Resource Server).
 4. Controller tar emot request och delegerar till Service-lagret.
-5. Service-lagret behandlar affärslogiken och anropar Repository.
+5. Service-lagret behandlar affärslogiken och anropar Repository eller relevant sidotjänst.
 6. Repository kommunicerar med Azure SQL via Hibernate/JPA.
 7. Response returneras som JSON till frontend.
 
@@ -115,6 +102,7 @@ Tar emot HTTP-requests, validerar behörighet med @PreAuthorize och delegerar ti
 ### Service
 
 Innehåller all affärslogik. Anropar Repository för dataåtkomst och mappar mellan Entity och DTO. Publicerar events via Azure Service Bus vid viktiga händelser (t.ex. kursavslut, ny användare).
+Kommunicerar med utomstående sidotjänster.
 
 ### Repository
 
@@ -167,7 +155,7 @@ src/main/java/se/liaprojekt/
 ├── dto/            — Data Transfer Objects
 │   └── azure/      — Azure-specifika DTO:er
 ├── event/          — Spring Application Events
-├── exception/      — Anpassade undantag och GlobalExceptionHandler
+├── exception/      — Anpassade Exeptions och GlobalExceptionHandler
 ├── listener/       — Event-lyssnare
 ├── model/          — JPA-entiteter
 ├── producer/       — Service Bus-publicering
@@ -176,9 +164,9 @@ src/main/java/se/liaprojekt/
 └── worker/         — Bakgrundsarbetare
 ```
 
-### Beskrivning
+### Klasser
 
-| Paket          | Beskrivning                                                                                                          |
+| Paket          | Klasser                                                                                                              |
 |----------------|----------------------------------------------------------------------------------------------------------------------|
 | config         | AzureOpenAiConfig, CorsConfig, OpenApiConfig, SecurityConfig, ServiceBusConfig                                       |
 | controller     | AiController, BlobStorageController, CourseController, EmailController, UserController                               |
@@ -240,6 +228,7 @@ Ansvar:
 * Implementera affärslogik. 
 * Mappa mellan Entity och DTO. 
 * Publicera Spring ApplicationEvents för asynkrona sidoeffekter (e-post, Service Bus). 
+* Kommunicera med externa tjänster.
 * Hantera felfall med anpassade undantag.
 
 
@@ -303,7 +292,7 @@ Tillgängliga flikar filtreras baserat på användarens roller. RequireRole-komp
 | CourseCard                           | Kortkomponent som visar kursinfo och progress             |
 | CourseSectionsPanel                  | Hanterar sektioner inom en kurs                           |
 | CourseStudentsPanel                  | Listar och lägger till studenter i kurs                   |
-| ChatWindow / ChatInput / ChatMessage | AI-chattkomponenter med streaming-stöd                    |
+| ChatWindow / ChatInput / ChatMessage | AI-chattkomponenter                                       |
 | QuestionCard / QuizRow               | Quizfrågor och svarsalternativ                            |
 | RequireRole                          | Wrapper som döljer innehåll för obehöriga roller          |
 | ConfirmDialog                        | Bekräftelsedialog för destruktiva åtgärder                |
@@ -318,7 +307,6 @@ Exempel:
 
 * useState — lokal komponentstate (vald vy, formulärdata, laddningsstatus)
 * Anpassade hooks i auth/ — useRoles.ts och useStreamServiceWorker.ts
-* Ingen global state-manager (Redux/Zustand) används
 
 ## API-kommunikation
 
@@ -372,22 +360,105 @@ ORM-hantering sker via Spring Data JPA med Hibernate.
 
 ## ER-diagram
 
-```text
-Customer
+```mermaid
+erDiagram
 
-id
-name
-email
+    USER {
+        Long id PK
+        String entraId
+    }
 
-      1
-Customer -------- Order
-             *
+    COURSE {
+        Long id PK
+        String assistantId
+        String title
+        String description
+        String createdBy
+    }
 
-Order
+    SECTION {
+        Long id PK
+        String title
+        int orderIndex
+    }
 
-id
-date
-total
+    TEST_QUESTION {
+        Long id PK
+        String questionText
+    }
+
+    TEST_ANSWER {
+        Long id PK
+        String answerText
+        Boolean isCorrect
+    }
+
+    TEST_RESULT {
+        Long id PK
+        Status status
+        Integer score
+        boolean passed
+        LocalDateTime startedAt
+        LocalDateTime completedAt
+        int attemptNumber
+    }
+
+    ANSWERED_QUESTION {
+        Long id PK
+        boolean isCorrect
+    }
+
+    USER_PROGRESS {
+        Long id PK
+        int completedSections
+        int progressPercentage
+    }
+
+    AI_CHARACTER {
+        Long id PK
+        String assistantId
+        String name
+        String description
+    }
+
+    AI_SESSION {
+        Long id PK
+        String threadId
+        LocalDateTime createdAt
+        LocalDateTime lastUsedAt
+    }
+
+    EMAIL_NOTIFICATION {
+        Long id PK
+        EmailType type
+        String subject
+        LocalDateTime sentAt
+        EmailStatus status
+    }
+
+%% RELATIONSHIPS
+
+    COURSE ||--o{ SECTION : contains
+    SECTION ||--o{ TEST_QUESTION : has
+    TEST_QUESTION ||--o{ TEST_ANSWER : has
+
+    USER ||--o{ TEST_RESULT : owns
+    SECTION ||--o{ TEST_RESULT : belongs_to
+
+    TEST_RESULT ||--o{ ANSWERED_QUESTION : contains
+    TEST_QUESTION ||--o{ ANSWERED_QUESTION : references
+
+    USER ||--o{ USER_PROGRESS : tracks
+    COURSE ||--o{ USER_PROGRESS : progress_for
+
+    USER ||--o{ AI_SESSION : has
+    COURSE ||--o{ AI_SESSION : context_for
+    AI_CHARACTER ||--o{ AI_SESSION : used_in
+
+    COURSE }o--o{ AI_CHARACTER : many_to_many
+
+    USER ||--o{ EMAIL_NOTIFICATION : receives
+
 ```
 
 ---
@@ -409,7 +480,7 @@ Alla endpoints kräver `Authorization: Bearer <JWT>`-header om inget annat anges
 | DELETE | `/api/courses/{courseId}`                         | Admin               | Tar bort en kurs                                    | 204 No Content / 404 |
 | GET    | `/api/courses/{courseId}/sections`                | Alla                | Hämtar sektioner (med låsstatus per användare)      | 200 OK               |
 | POST   | `/api/courses/{courseId}/sections`                | Admin / CourseAdmin | Lägger till sektion                                 | 200 OK               |
-| GET    | `/api/courses/{courseId}/students`                | Admin / CourseAdmin | Listar studenter med progress                       | 200 OK               |
+| GET    | `/api/courses/{courseId}/students`                | Admin / CourseAdmin | Listar studenter registrerade till kurs             | 200 OK               |
 | POST   | `/api/courses/{courseId}/students`                | Admin               | Lägger till studenter i kurs                        | 200 OK               |
 | GET    | `/api/courses/{courseId}/progress`                | Alla                | Hämtar inloggad användares progress                 | 200 OK               |
 | PUT    | `/api/courses/{courseId}/assistant/{assistantId}` | Admin / CourseAdmin | Kopplar Azure OpenAI-assistent till kurs            | 200 OK               |
@@ -472,12 +543,41 @@ Alla endpoints kräver `Authorization: Bearer <JWT>`-header om inget annat anges
 
 ## Users — `/api/users`
 
-| Metod | Endpoint                | Roll        | Beskrivning                     | Statuskod    |
-|-------|-------------------------|-------------|---------------------------------|--------------|
-| GET   | `/api/users/all`        | Admin       | Hämtar alla användare           | 200 OK       |
-| GET   | `/api/users/{userId}`   | Admin       | Hämtar specifik användare       | 200 OK / 404 |
-| GET   | `/api/users/me`         | Alla        | Hämtar inloggad användare       | 200 OK       |
-| GET   | `/api/users/me/courses` | Participant | Hämtar mina kurser med progress | 200 OK       |
+| Metod  | Endpoint                | Roll        | Beskrivning                        | Statuskod         |
+|--------|-------------------------|-------------|------------------------------------|-------------------|
+| GET    | `/api/users/all`        | Admin       | Hämtar alla användare              | 200 OK            |
+| GET    | `/api/users/{userId}`   | Admin       | Hämtar specifik användare          | 200 OK / 404      |
+| GET    | `/api/users/me`         | Alla        | Hämtar inloggad användare          | 200 OK            |
+| GET    | `/api/users/me/courses` | Participant | Hämtar mina kurser med progress    | 200 OK            |
+| POST   | `/api/users/invite`     | Admin       | Bjuder in en eller flera användare | 200 OK            |
+| PUT    | `/api/users/{userId}`   | Admin       | Uppdaterar en användare            | 200 OK / 404      |
+| DELETE | `/api/users/{userId}`   | Admin       | Tar bort en användare              | 204 No Content    |
+
+### GET `/api/users/all` — Response
+```json
+[
+  {
+    "id": 1,
+    "displayName": "Anna Svensson",
+    "givenName": "Anna",
+    "surname": "Svensson",
+    "mail": "anna@example.com",
+    "role": ["Admin"]
+  }
+]
+```
+
+### GET `/api/users/{userId}` — Response
+```json
+{
+  "id": 1,
+  "displayName": "Anna Svensson",
+  "givenName": "Anna",
+  "surname": "Svensson",
+  "mail": "anna@example.com",
+  "role": ["Admin"]
+}
+```
 
 ### GET `/api/users/me` — Response
 ```json
@@ -508,16 +608,64 @@ Alla endpoints kräver `Authorization: Bearer <JWT>`-header om inget annat anges
         "givenName": "Anna",
         "surname": "Andersson",
         "mail": "anna.andersson@example.com",
-        "role": [
-          "USER",
-          "STUDENT"
-        ]
+        "role": ["Participant"]
       },
       "completedSections": 2,
       "progressPercentage": 50
     }
   }
 ]
+```
+
+### POST `/api/users/invite` — Request Body
+```json
+[
+  {
+    "email": "ny.anvandare@example.com",
+    "displayName": "Ny Användare",
+    "roles": ["Participant"]
+  }
+]
+```
+
+### POST `/api/users/invite` — Response
+```json
+[
+  {
+    "id": 2,
+    "displayName": "Ny Användare",
+    "givenName": null,
+    "surname": null,
+    "mail": "ny.anvandare@example.com",
+    "role": ["Participant"]
+  }
+]
+```
+
+### PUT `/api/users/{userId}` — Request Body
+```json
+{
+  "email": null,
+  "displayName": "Anna Svensson",
+  "roles": ["Admin"]
+}
+```
+
+### PUT `/api/users/{userId}` — Response
+```json
+{
+  "id": 1,
+  "displayName": "Anna Svensson",
+  "givenName": "Anna",
+  "surname": "Svensson",
+  "mail": "anna@example.com",
+  "role": ["Admin"]
+}
+```
+
+### DELETE `/api/users/{userId}` — Response
+```
+204 No Content
 ```
 
 ---
@@ -631,13 +779,13 @@ Alla endpoints kräver `Authorization: Bearer <JWT>`-header om inget annat anges
 
 ## Quiz — `/api/courses/sections/tests`
 
-| Metod  | Endpoint                                                         | Roll                | Beskrivning                                | Statuskod |
-|--------|------------------------------------------------------------------|---------------------|--------------------------------------------|-----------|
-| GET    | `/api/courses/sections/tests/{sectionId}/questions`              | Alla                | Hämtar frågor för en sektion               | 200 OK |
-| POST   | `/api/courses/sections/tests/{sectionId}/questions`              | Admin / CourseAdmin | Lägger till fråga                          | 200 OK |
-| PUT    | `/api/courses/sections/tests/{sectionId}/questions/{questionId}` | Admin / CourseAdmin | Uppdaterar fråga                           | 200 OK |
+| Metod  | Endpoint                                                         | Roll                | Beskrivning                                | Statuskod      |
+|--------|------------------------------------------------------------------|---------------------|--------------------------------------------|----------------|
+| GET    | `/api/courses/sections/tests/{sectionId}/questions`              | Alla                | Hämtar frågor för en sektion               | 200 OK         |
+| POST   | `/api/courses/sections/tests/{sectionId}/questions`              | Admin / CourseAdmin | Lägger till fråga                          | 200 OK         |
+| PUT    | `/api/courses/sections/tests/{sectionId}/questions/{questionId}` | Admin / CourseAdmin | Uppdaterar fråga                           | 200 OK         |
 | DELETE | `/api/courses/sections/tests/{sectionId}/questions/{questionId}` | Admin / CourseAdmin | Tar bort fråga                             | 204 No Content |
-| POST   | `/api/courses/sections/tests/{sectionId}/submit`                 | Alla                | Skickar in quiz-svar och beräknar resultat | 200 OK |
+| POST   | `/api/courses/sections/tests/{sectionId}/submit`                 | Alla                | Skickar in quiz-svar och beräknar resultat | 200 OK         |
 
 ### POST `/api/courses/sections/tests/{sectionId}/questions` — Request
 ```json
@@ -748,7 +896,6 @@ Roller hämtas från JWT-tokenets 'roles'-claim och mappas med prefixet 'ROLE_'
 
 ## Säkerhetsåtgärder
 
-* CSRF: Inaktiverat (stateless JWT-API behöver det ej)
 * CORS: Konfigurerat i CorsConfig för att tillåta frontend-origin
 * Videosäkerhet: Strömning av videofiler skyddas med kortlivade StreamTokens (HMAC-signerade, ej JWT) — hanteras av separat service worker
 * Inputvalidering: Spring-validering på request bodies
@@ -762,7 +909,7 @@ Roller hämtas från JWT-tokenets 'roles'-claim och mappas med prefixet 'ROLE_'
 ## Förutsättningar
 * Java 21
 * Maven 3.9+
-* Node.js 20+ med npm
+* Node.js 24+ med npm
 * Azure-konto med konfigurerade resurser (SQL, Blob Storage, OpenAI, Key Vault, Service Bus, Entra ID app-registrering)
 
 ## Klona projektet
@@ -804,26 +951,27 @@ npm run dev
 
 Kopiera .env_example till .env och fyll i värdena:
 
-| Variabel                                | Beskrivning                                              |
-|-----------------------------------------|----------------------------------------------------------|
-| AZURE_CLIENT_ID                         | Azure AD app-registrerings client ID                     |
-| AZURE_CLIENT_SECRET                     | Azure AD app-registrerings client secret                 |
-| AZURE_TENANT_ID                         | Azure AD tenant ID                                       |
-| AZURE_STORAGE_ACCOUNT_NAME              | Azure Blob Storage-kontonamn                             |
-| AZURE_STORAGE_ACCOUNT_KEY               | Azure Blob Storage-kontonyckel                           |
-| AZURE_STORAGE_CONTAINER_NAME_PDF        | Container-namn för PDF-filer                             |
-| AZURE_STORAGE_CONTAINER_NAME_VIDEO      | Container-namn för videofiler                            |
-| AZURE_STORAGE_FRONTDOOR_ENDPOINT        | Azure Front Door-endpoint (om tillämpligt)               |
-| STREAM_TOKEN_SECRET                     | Minst 32 tecken lång hemlighet för StreamToken-signering |
-| SPRING_DATASOURCE_URL                   | JDBC-URL till Azure SQL                                  |
-| SPRING_DATASOURCE_USERNAME              | Databasanvändarnamn                                      |
-| SPRING_DATASOURCE_PASSWORD              | Databaslösenord                                          |
-| SPRING_DATASOURCE_DRIVER_CLASS_NAME     | com.microsoft.sqlserver.jdbc.SQLServerDriver             |
-| SPRING_JPA_HIBERNATE_DDL_AUTO           | validate / update / create-drop (test)                   |
-| SPRING_JPA_SHOW_SQL                     | true/false                                               |
-| SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT | org.hibernate.dialect.SQLServerDialect                   |
-| AZURE_OPENAI_API_KEY                    | Azure OpenAI API-nyckel                                  |
-| AZURE_OPENAI_ASSISTANT_ID               | Standard Azure OpenAI-assistent-ID                       |
+| Variabel                                | Beskrivning                                                                |
+|-----------------------------------------|----------------------------------------------------------------------------|
+| AZURE_CLIENT_ID                         | Azure AD app-registrerings client ID (behövs endast för lokal körning)     |
+| AZURE_CLIENT_SECRET                     | Azure AD app-registrerings client secret (behövs endast för lokal körning) |
+| AZURE_TENANT_ID                         | Azure AD tenant ID                                                         |
+| AZURE_STORAGE_ACCOUNT_NAME              | Azure Blob Storage-kontonamn                                               |
+| AZURE_STORAGE_ACCOUNT_KEY               | Azure Blob Storage-kontonyckel                                             |
+| AZURE_STORAGE_CONTAINER_NAME_PDF        | Container-namn för PDF-filer                                               |
+| AZURE_STORAGE_CONTAINER_NAME_VIDEO      | Container-namn för videofiler                                              |
+| AZURE_STORAGE_FRONTDOOR_ENDPOINT        | Azure Front Door-endpoint (om tillämpligt)                                 |
+| STREAM_TOKEN_SECRET                     | Minst 32 tecken lång hemlighet för StreamToken-signering                   |
+| SPRING_DATASOURCE_URL                   | JDBC-URL till Azure SQL                                                    |
+| SPRING_DATASOURCE_USERNAME              | Databasanvändarnamn                                                        |
+| SPRING_DATASOURCE_PASSWORD              | Databaslösenord                                                            |
+| SPRING_DATASOURCE_DRIVER_CLASS_NAME     | com.microsoft.sqlserver.jdbc.SQLServerDriver                               |
+| SPRING_JPA_HIBERNATE_DDL_AUTO           | validate / update / create-drop (test)                                     |
+| SPRING_JPA_SHOW_SQL                     | true/false                                                                 |
+| SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT | org.hibernate.dialect.SQLServerDialect                                     |
+| AZURE_OPENAI_API_KEY                    | Azure OpenAI API-nyckel                                                    |
+| AZURE_OPENAI_ASSISTANT_ID               | Standard Azure OpenAI-assistent-ID                                         |
+| APP_REDIRECT_FRONTEND                   | Frontend url för omdirigering                                              |
 
 ## Frontend
 
@@ -872,31 +1020,25 @@ npm run lint    # ESLint-kontroll
 
 # 14. Deployment
 
-Beskriv hur applikationen distribueras.
 
-## Exempelarkitektur
+## Flöde
 
 ```text
-                Internet
+   Push till github & merge till dev/main
 
                     |
 
-      Azure Static Web Apps (Frontend)
+          Github Actions test
 
-                    |  HTTPS / REST
+                    |  
+                    
+   Github Actions deploy backend/frontend         
+                     
+                    |
 
-         Azure App Service (Backend)
-
-                    |  JPA/Hibernate
-
-            Azure SQL Database
+   Azure App services (Backend/Frontend)
             
 ```
-Sidotjänster:
-* Azure Blob Storage — PDF/video
-* Azure OpenAI       — AI-assistenter
-* Azure Service Bus  — asynkrona events
-* Azure Key Vault    — hemligheter
 
 ---
 
@@ -905,72 +1047,34 @@ Sidotjänster:
 ## Branch-struktur
 
 * main — produktionskod
-* develop — integrationsbranch
+* dev — integrationsbranch
 * feature/* — ny funktionalitet
 
 ## Arbetsflöde
 
-1. Skapa feature branch från develop
+1. Skapa feature branch från dev
 2. Implementera funktionalitet
 3. Commit med beskrivande meddelande
 4. Push till remote
-5. Skapa Pull Request mot develop
+5. Skapa Pull Request mot dev
 6. Code Review
 7. Merge efter godkännande
 
 ---
 
-# 16. Framtida utveckling  <----------------------------------------------------------------------------------------------------------------------------------------------
+# 16. Framtida utveckling 
 
 Planerade förbättringar:
 
 * Streaming-stöd för AI-svar (server-sent events) 
-* 
+* Visa PDF på frontend
 
 ---
 
-# Bilagor <----------------------------------------------------------------------------------------------------------------------------------------------
+# Bilagor
 
 ## Swagger/OpenAPI
 
 Swagger UI är tillgänglig på /swagger-ui.html när applikationen körs. OpenAPI JSON-specifikation finns på /v3/api-docs.
 
 ---
-
-## UML-diagram
-
-Lägg in klassdiagram.
-
----
-
-## Sekvensdiagram
-
-Lägg in sekvensdiagram.
-
----
-
-## ER-diagram
-
-Lägg in databasschema.
-
----
-
-## Skärmbilder
-
-Lägg in bilder från frontend.
-
----
-
-## Licens
-
-Beskriv projektets licens.
-
----
-
-## Kontakt
-
-Ansvarig utvecklare:
-
-E-post:
-
-GitHub:

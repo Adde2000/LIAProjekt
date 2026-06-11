@@ -8,6 +8,7 @@ import com.azure.storage.blob.sas.BlobServiceSasSignatureValues;
 import com.azure.storage.common.StorageSharedKeyCredential;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import se.liaprojekt.exception.BlobOperationException;
@@ -48,6 +49,7 @@ public class BlobStorageService {
      * @throws IllegalStateException if the Front Door endpoint is not absolute HTTPS,
      *                               or if either container does not exist
      */
+    @Autowired
     public BlobStorageService(
             @Value("${spring.cloud.azure.storage.blob.account-name}") String accountName,
             @Value("${spring.cloud.azure.storage.account-key}") String accountKey,
@@ -84,9 +86,29 @@ public class BlobStorageService {
         // Fail fast on startup if either container is misconfigured or missing
         // Don't validate if running tests
         if (!isTesting) {
-            validateContainer(pdfContainerClient, pdfContainerName);
-            validateContainer(videoContainerClient, videoContainerName);
+            validateContainer(this.pdfContainerClient, pdfContainerName);
+            validateContainer(this.videoContainerClient, videoContainerName);
         }
+    }
+    // -------------------------------------------------------------------------
+    // Test Constructor
+    // -------------------------------------------------------------------------
+    BlobStorageService(
+            BlobContainerClient pdfContainerClient,
+            BlobContainerClient videoContainerClient,
+            String accountName,
+            String pdfContainerName,
+            String videoContainerName,
+            long sasExpiryMinutes,
+            String frontDoorEndpoint) {
+
+        this.pdfContainerClient = pdfContainerClient;
+        this.videoContainerClient = videoContainerClient;
+        this.accountName = accountName;
+        this.pdfContainerName = pdfContainerName;
+        this.videoContainerName = videoContainerName;
+        this.sasExpiryMinutes = sasExpiryMinutes;
+        this.frontDoorEndpoint = frontDoorEndpoint.replaceAll("/+$", "");
     }
 
     // -------------------------------------------------------------------------
