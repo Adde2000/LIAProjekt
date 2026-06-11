@@ -541,14 +541,43 @@ Alla endpoints kräver `Authorization: Bearer <JWT>`-header om inget annat anges
 
 ---
 
-## Users — `/api/users`  <---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## Users — `/api/users`
 
-| Metod | Endpoint                | Roll        | Beskrivning                     | Statuskod    |
-|-------|-------------------------|-------------|---------------------------------|--------------|
-| GET   | `/api/users/all`        | Admin       | Hämtar alla användare           | 200 OK       |
-| GET   | `/api/users/{userId}`   | Admin       | Hämtar specifik användare       | 200 OK / 404 |
-| GET   | `/api/users/me`         | Alla        | Hämtar inloggad användare       | 200 OK       |
-| GET   | `/api/users/me/courses` | Participant | Hämtar mina kurser med progress | 200 OK       |
+| Metod  | Endpoint                | Roll        | Beskrivning                        | Statuskod         |
+|--------|-------------------------|-------------|------------------------------------|-------------------|
+| GET    | `/api/users/all`        | Admin       | Hämtar alla användare              | 200 OK            |
+| GET    | `/api/users/{userId}`   | Admin       | Hämtar specifik användare          | 200 OK / 404      |
+| GET    | `/api/users/me`         | Alla        | Hämtar inloggad användare          | 200 OK            |
+| GET    | `/api/users/me/courses` | Participant | Hämtar mina kurser med progress    | 200 OK            |
+| POST   | `/api/users/invite`     | Admin       | Bjuder in en eller flera användare | 200 OK            |
+| PUT    | `/api/users/{userId}`   | Admin       | Uppdaterar en användare            | 200 OK / 404      |
+| DELETE | `/api/users/{userId}`   | Admin       | Tar bort en användare              | 204 No Content    |
+
+### GET `/api/users/all` — Response
+```json
+[
+  {
+    "id": 1,
+    "displayName": "Anna Svensson",
+    "givenName": "Anna",
+    "surname": "Svensson",
+    "mail": "anna@example.com",
+    "role": ["Admin"]
+  }
+]
+```
+
+### GET `/api/users/{userId}` — Response
+```json
+{
+  "id": 1,
+  "displayName": "Anna Svensson",
+  "givenName": "Anna",
+  "surname": "Svensson",
+  "mail": "anna@example.com",
+  "role": ["Admin"]
+}
+```
 
 ### GET `/api/users/me` — Response
 ```json
@@ -579,16 +608,64 @@ Alla endpoints kräver `Authorization: Bearer <JWT>`-header om inget annat anges
         "givenName": "Anna",
         "surname": "Andersson",
         "mail": "anna.andersson@example.com",
-        "role": [
-          "USER",
-          "STUDENT"
-        ]
+        "role": ["Participant"]
       },
       "completedSections": 2,
       "progressPercentage": 50
     }
   }
 ]
+```
+
+### POST `/api/users/invite` — Request Body
+```json
+[
+  {
+    "email": "ny.anvandare@example.com",
+    "displayName": "Ny Användare",
+    "roles": ["Participant"]
+  }
+]
+```
+
+### POST `/api/users/invite` — Response
+```json
+[
+  {
+    "id": 2,
+    "displayName": "Ny Användare",
+    "givenName": null,
+    "surname": null,
+    "mail": "ny.anvandare@example.com",
+    "role": ["Participant"]
+  }
+]
+```
+
+### PUT `/api/users/{userId}` — Request Body
+```json
+{
+  "email": null,
+  "displayName": "Anna Svensson",
+  "roles": ["Admin"]
+}
+```
+
+### PUT `/api/users/{userId}` — Response
+```json
+{
+  "id": 1,
+  "displayName": "Anna Svensson",
+  "givenName": "Anna",
+  "surname": "Svensson",
+  "mail": "anna@example.com",
+  "role": ["Admin"]
+}
+```
+
+### DELETE `/api/users/{userId}` — Response
+```
+204 No Content
 ```
 
 ---
