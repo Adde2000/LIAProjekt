@@ -113,7 +113,7 @@ function AddStudentsPanel({ courseId, enrolledIds, onAdded, onCancel }: {
     const available = (allUsers.data ?? []).filter(
         (u) =>
             !enrolledIds.has(u.id) &&
-            u.role.includes("participant") &&
+            u.role.map(normaliseRole).includes("student") &&
             (u.displayName.toLowerCase().includes(search.toLowerCase()) ||
              (u.mail ?? "").toLowerCase().includes(search.toLowerCase()))
     );

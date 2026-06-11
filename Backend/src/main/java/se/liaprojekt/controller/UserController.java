@@ -21,7 +21,7 @@ import java.util.Map;
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
-    private final Logger log = LoggerFactory.getLogger(UserController.class);
+    private static final Logger log = LoggerFactory.getLogger(UserController.class);
 
     private final UserService userService;
     private final CourseService courseService;
@@ -49,11 +49,13 @@ public class UserController {
     @PostMapping("/invite")
     @PreAuthorize(Roles.ROLE_ADMIN)
     public ResponseEntity<List<UserResponse>> inviteUser(@RequestBody List<InviteRequest> invites) {
-        log.info("Invite users: {}", invites);
+        log.info("Inviting {} user(s)", invites.size());
         List<UserResponse> userResponses = new ArrayList<>();
         for (InviteRequest invite : invites) {
             Roles.checkRolesValid(invite.roles);
-            userResponses.add(userService.inviteUser(invite.email, invite.displayName, invite.roles));
+            UserResponse created = userService.inviteUser(invite.email, invite.displayName, invite.roles);
+            log.info("Invited user id={} roles={}", created.id(), invite.roles);
+            userResponses.add(created);
         }
         return ResponseEntity.ok(userResponses);
     }
@@ -72,6 +74,7 @@ public class UserController {
         log.info("Update user: {}", userId);
         Roles.checkRolesValid(inviteRequest.roles);
         UserResponse userResponse = userService.updateUser(userId, inviteRequest.displayName, inviteRequest.roles);
+        log.info("Updated user id={} roles={}", userId, inviteRequest.roles);
         return ResponseEntity.ok(userResponse);
     }
 
