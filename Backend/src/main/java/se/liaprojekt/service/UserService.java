@@ -24,7 +24,6 @@ public class UserService {
     private final ApplicationEventPublisher eventPublisher;
     private final UserRepository userRepository;
 
-    //@PostConstruct
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void init() {
