@@ -1,6 +1,7 @@
 package se.liaprojekt.config;
 
 import com.azure.core.amqp.AmqpTransportType;
+import com.azure.core.credential.TokenCredential;
 import com.azure.identity.DefaultAzureCredential;
 import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.messaging.servicebus.ServiceBusProcessorClient;
@@ -12,7 +13,7 @@ import se.liaprojekt.worker.EmailMessageHandler;
 public class ServiceBusWorkerConfig {
 
     private static final String NAMESPACE =
-            "sb-app-dev01.servicebus.windows.net";
+            "sb-app-dev01.servicebus.windows.net"; //TODO NAMESPACE IS HARDCODED
 
     private static final String QUEUE_NAME =
             "email-queue";
@@ -21,7 +22,7 @@ public class ServiceBusWorkerConfig {
      * Consumer / Worker client
      */
     @Bean
-    public ServiceBusProcessorClient processorClient(DefaultAzureCredential credential,
+    public ServiceBusProcessorClient processorClient(TokenCredential credential,
                                                      EmailMessageHandler handler) {
 
         return new ServiceBusClientBuilder()
