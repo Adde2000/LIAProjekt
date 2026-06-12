@@ -18,7 +18,7 @@ import org.springframework.context.annotation.Configuration;
 public class ServiceBusProducerConfig {
 
     private static final String NAMESPACE =
-            "sb-app-dev01.servicebus.windows.net";
+            "sb-app-dev01.servicebus.windows.net"; //TODO NAMESPACE IS HARDCODED
 
     private static final String QUEUE_NAME =
             "email-queue";
@@ -28,7 +28,7 @@ public class ServiceBusProducerConfig {
      */
     @Bean
     public TokenCredential credential() {
-        return new ManagedIdentityCredentialBuilder().build();
+        return new DefaultAzureCredentialBuilder().build();
     }
 
     /**
