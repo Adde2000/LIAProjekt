@@ -1,7 +1,9 @@
 import { type JSX, useState } from "react";
+import { useMsal } from "@azure/msal-react";
 import { useStreamServiceWorker } from "./auth/useStreamServiceWorker";
 import { useHasRole } from "./auth/useRoles";
 import { RequireRole } from "./components/RequireRole";
+import { logoutRedirect } from "./auth/authRedirect";
 import type { ViewKey } from "./types";
 import { VIEWS } from "./data";
 import { CoursesView } from "./views/CoursesView";
@@ -22,6 +24,7 @@ import "./styles/ai-chat.css";
 
 export default function LearningPortal() {
     useStreamServiceWorker();
+    const { instance } = useMsal();
     const isAdmin       = useHasRole("admin");
     const isCourseAdmin = useHasRole("courseAdmin");
     const isStudent     = useHasRole("student");
@@ -67,6 +70,12 @@ export default function LearningPortal() {
         <div className="vmv">
             <header className="vmv-header">
                 <img src={vinkelbodaLogo} alt="Vinkelboda logotyp" className="vmv-logo" />
+                <button
+                    className="vmv-logout-btn"
+                    onClick={() => logoutRedirect(instance)}
+                >
+                    Logga ut
+                </button>
             </header>
 
             <nav className="vmv-nav">
