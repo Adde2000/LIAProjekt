@@ -102,9 +102,11 @@ Varje kurs kan kopplas till en AI-assistent som hjälper deltagarna att ställa 
 
 ---
 
-## 8. Logga ut <---------------------------------------------------------------------------------
+## 8. Logga ut
 
-Klicka på ditt namn eller profilikon uppe till höger och välj "Logga ut". Stäng sedan webbläsarfliken.
+1. Klicka på "Logga ut" brevid logotypen längst upp på sidan.
+2. Du skickas till Microsofts utloggningssida — völj konto att logga ut ifrån.
+3. Stäng sedan webbläsarfliken.
 
 ---
 ---
@@ -221,9 +223,11 @@ Du kan se och välja vilken assistent som är kopplad till din kurs under "Hante
 
 ---
 
-## 10. Logga ut <-------------------------------------------------------------------------
+## 10. Logga ut
 
-Klicka på ditt namn eller profilikon uppe till höger och välj "Logga ut". Stäng sedan webbläsarfliken.
+1. Klicka på "Logga ut" brevid logotypen längst upp på sidan.
+2. Du skickas till Microsofts utloggningssida — völj konto att logga ut ifrån.
+3. Stäng sedan webbläsarfliken.
 
 ---
 ---
@@ -341,6 +345,8 @@ Lösenordet är detsamma som till din Email. Kontakta IT-support om du behöver 
 
 ---
 
-## 8. Logga ut <------------------------------------------------------
+## 8. Logga ut
 
-Klicka på ditt namn eller profilikon uppe till höger och välj "Logga ut". Det är bra att logga ut om du delar dator med någon annan.
+1. Klicka på "Logga ut" brevid logotypen längst upp på sidan.
+2. Du skickas till Microsofts utloggningssida — völj konto att logga ut ifrån.
+3. Stäng sedan webbläsarfliken.
