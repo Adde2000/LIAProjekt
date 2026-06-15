@@ -1,5 +1,7 @@
 package se.liaprojekt.service;
 
+import com.azure.core.credential.AccessToken;
+import com.azure.core.credential.TokenRequestContext;
 import com.microsoft.graph.models.*;
 import com.microsoft.graph.models.UserCollectionResponse;
 import com.microsoft.graph.models.odataerrors.ODataError;
@@ -42,7 +44,16 @@ public class GraphService {
             TokenService tokenService,
             @Value("${graph.scope}") String[] scopes
     ) {
-        graphServiceClient = new GraphServiceClient(tokenService.getCredential(), scopes);
+        AccessToken token = tokenService.getCredential()
+                .getToken(new TokenRequestContext()
+                    .addScopes(scopes))
+                .block();
+
+        System.out.println(token.getToken());
+
+        graphServiceClient = new GraphServiceClient(
+                tokenService.getCredential(),
+                scopes);
     }
 
     @PostConstruct
