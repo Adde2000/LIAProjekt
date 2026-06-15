@@ -18,3 +18,7 @@ export async function handleRedirect(instance: IPublicClientApplication) {
         instance.setActiveAccount(accounts[0]);
     }
 }
+
+export function logoutRedirect(instance: IPublicClientApplication) {
+    return instance.logoutRedirect();
+}
