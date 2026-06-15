@@ -12,6 +12,7 @@ import se.liaprojekt.event.UserCreatedEvent;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.User;
 import org.springframework.context.ApplicationEventPublisher;
+import se.liaprojekt.repository.AiSessionRepository;
 import se.liaprojekt.repository.UserRepository;
 
 import java.util.*;
@@ -23,7 +24,7 @@ public class UserService {
     private final GraphService graphService;
     private final ApplicationEventPublisher eventPublisher;
     private final UserRepository userRepository;
-
+    private final AiSessionRepository aiSessionRepository;
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void init() {
@@ -101,6 +102,7 @@ public class UserService {
             return;
         }
         graphService.deleteUser(user.getEntraId());
+        aiSessionRepository.deleteByUserId(userId);
         userRepository.delete(user);
     }
 
