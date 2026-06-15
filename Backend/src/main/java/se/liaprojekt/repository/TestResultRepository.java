@@ -8,6 +8,8 @@ import java.util.Optional;
 
 public interface TestResultRepository extends JpaRepository<TestResult, Long> {
 
+    void deleteByUserId(long userId);
+
     // =========================
     // ALL USER RESULTS (ALL SECTIONS)
     // =========================
