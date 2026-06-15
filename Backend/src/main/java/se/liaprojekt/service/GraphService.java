@@ -40,17 +40,13 @@ public class GraphService {
     private List<AppRole> appRoles;
     private String resourceId;
 
+    TokenService tokenService;
+
     public GraphService(
             TokenService tokenService,
             @Value("${graph.scope}") String[] scopes
     ) {
-        AccessToken token = tokenService.getCredential()
-                .getToken(new TokenRequestContext()
-                    .addScopes(scopes))
-                .block();
-
-        System.out.println(token.getToken());
-
+        this.tokenService = tokenService;
         graphServiceClient = new GraphServiceClient(
                 tokenService.getCredential(),
                 scopes);
@@ -204,6 +200,13 @@ public class GraphService {
     }
 
     public void deleteUser(String entraId) {
+
+        AccessToken token = tokenService.getCredential()
+                .getToken(new TokenRequestContext()
+                        .addScopes("https://graph.microsoft.com/.default"))
+                .block();
+
+        System.out.println(token.getToken());
         graphServiceClient.users().byUserId(entraId).delete();
     }
 
