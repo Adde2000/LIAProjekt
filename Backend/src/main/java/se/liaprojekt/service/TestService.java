@@ -152,7 +152,9 @@ public class TestService {
     public void deleteSectionQuestions(Long sectionId) {
         List<TestQuestion> questionList = questionRepository.findBySectionId(sectionId);
         for (TestQuestion question : questionList) {
-            testAnswerRepository.deleteAll(question.getAnswers());
+            for (TestAnswer answer : question.getAnswers()) {
+                testAnswerRepository.delete(answer);
+            }
             questionRepository.delete(question);
         }
         questionRepository.deleteBySectionId(sectionId);
