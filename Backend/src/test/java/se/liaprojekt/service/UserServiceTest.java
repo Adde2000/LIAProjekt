@@ -16,6 +16,7 @@ import se.liaprojekt.dto.UserResponse;
 import se.liaprojekt.event.UserCreatedEvent;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.User;
+import se.liaprojekt.repository.AiSessionRepository;
 import se.liaprojekt.repository.UserRepository;
 
 import java.util.List;
@@ -38,6 +39,9 @@ class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private AiSessionRepository aiSessionRepository;
 
     @InjectMocks
     private UserService userService;
@@ -183,6 +187,8 @@ class UserServiceTest {
 
         when(userRepository.findByEntraId("entra-123"))
                 .thenReturn(Optional.of(user));
+
+        doNothing().when(aiSessionRepository).deleteByUserId(oldUser.getId());
 
         // Act
         userService.getAllUserResponses();
