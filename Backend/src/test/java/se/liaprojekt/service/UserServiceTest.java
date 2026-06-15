@@ -18,6 +18,7 @@ import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.User;
 import se.liaprojekt.repository.AiSessionRepository;
 import se.liaprojekt.repository.TestResultRepository;
+import se.liaprojekt.repository.UserProgressRepository;
 import se.liaprojekt.repository.UserRepository;
 
 import java.util.List;
@@ -46,6 +47,9 @@ class UserServiceTest {
 
     @Mock
     private TestResultRepository testResultRepository;
+
+    @Mock
+    private UserProgressRepository userProgressRepository;
 
     @InjectMocks
     private UserService userService;
@@ -194,6 +198,7 @@ class UserServiceTest {
 
         doNothing().when(aiSessionRepository).deleteByUserId(oldUser.getId());
         doNothing().when(testResultRepository).deleteByUserId(oldUser.getId());
+        doNothing().when(userProgressRepository).deleteByUserId(oldUser.getId());
 
         // Act
         userService.getAllUserResponses();

@@ -14,6 +14,7 @@ import se.liaprojekt.model.User;
 import org.springframework.context.ApplicationEventPublisher;
 import se.liaprojekt.repository.AiSessionRepository;
 import se.liaprojekt.repository.TestResultRepository;
+import se.liaprojekt.repository.UserProgressRepository;
 import se.liaprojekt.repository.UserRepository;
 
 import java.util.*;
@@ -27,6 +28,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final AiSessionRepository aiSessionRepository;
     private final TestResultRepository testResultRepository;
+    private final UserProgressRepository userProgressRepository;
 
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
@@ -112,6 +114,7 @@ public class UserService {
     private void deleteUserDbInfo(User user) {
         aiSessionRepository.deleteByUserId(user.getId());
         testResultRepository.deleteByUserId(user.getId());
+        userProgressRepository.deleteByUserId(user.getId());
     }
 
     private void updateFromGraphAPI(List<GraphResponse> graphResponseList) {
