@@ -16,7 +16,7 @@ import java.util.Base64;
 
 @Configuration
 public class ServiceBusWorkerConfig {
-    private static final Logger log = LoggerFactory.getLogger(ServiceBusWorkerConfig.class);
+//    private static final Logger log = LoggerFactory.getLogger(ServiceBusWorkerConfig.class);
 
     private static final String NAMESPACE =
             "sb-app-dev01.servicebus.windows.net"; //TODO NAMESPACE IS HARDCODED
@@ -31,18 +31,18 @@ public class ServiceBusWorkerConfig {
     public ServiceBusProcessorClient processorClient(TokenCredential credential,
                                                      EmailMessageHandler handler) {
 
-        // Log the actual token claims
-        TokenRequestContext context = new TokenRequestContext()
-                .addScopes("https://servicebus.azure.net/.default");
-
-        credential.getToken(context).subscribe(token -> {
-            String[] parts = token.getToken().split("\\.");
-            if (parts.length >= 2) {
-                String payload = new String(Base64.getDecoder().decode(
-                        parts[1].replace("-", "+").replace("_", "/")));
-                log.info("Token claims: {}", payload);
-            }
-        });
+//        // Log the actual token claims
+//        TokenRequestContext context = new TokenRequestContext()
+//                .addScopes("https://servicebus.azure.net/.default");
+//
+//        credential.getToken(context).subscribe(token -> {
+//            String[] parts = token.getToken().split("\\.");
+//            if (parts.length >= 2) {
+//                String payload = new String(Base64.getDecoder().decode(
+//                        parts[1].replace("-", "+").replace("_", "/")));
+//                log.info("Token claims: {}", payload);
+//            }
+//        });
 
         return new ServiceBusClientBuilder()
                 .credential(NAMESPACE, credential)
