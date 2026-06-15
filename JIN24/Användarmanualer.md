@@ -10,11 +10,11 @@
 
 ## 1. Logga in
 
-För att komma åt lärportalen behöver du logga in med ditt vanliga Microsoft konto — samma lösenord som du använder för din e-post.
+För att komma åt lärportalen behöver du logga in med ditt vanliga Email konto — samma lösenord som du använder för din e-post.
 
 1. Öppna lärportalen i din webbläsare (t.ex. Chrome eller Edge).
 2. Klicka på knappen "Logga in".
-3. Du skickas till Microsofts inloggningssida — ange din jobbmejl och ditt lösenord.
+3. Du skickas till Microsofts inloggningssida — ange din Email och ditt lösenord.
 4. Du är nu inloggad och ser adminpanelen.
 
 > 💡 **Tips:** Har du problem att logga in? Kontakta er IT-ansvarig — de kan hjälpa till med kontoinställningar.
