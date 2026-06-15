@@ -44,6 +44,7 @@ public class ServiceBusProducerConfig {
 
         return new ServiceBusClientBuilder()
                 .connectionString(connectionString)
+                .transportType(AmqpTransportType.AMQP_WEB_SOCKETS)
                 .sender()
                 .queueName(queueName)
                 .buildClient();

@@ -39,6 +39,7 @@ public class ServiceBusWorkerConfig {
 
         return new ServiceBusClientBuilder()
                 .connectionString(connectionString)
+                .transportType(AmqpTransportType.AMQP_WEB_SOCKETS)
                 .processor()
                 .queueName(queueName)
                 .processMessage(handler::handleMessage)
