@@ -156,6 +156,9 @@ public class UserService {
         }
 
         //Users left in the map are users that have been removed from graph and should be removed from database
+        for (User user : usersInDataBaseMap.values()) {
+            aiSessionRepository.deleteByUserId(user.getId());
+        }
         userRepository.deleteAll(usersInDataBaseMap.values());
     }
 
