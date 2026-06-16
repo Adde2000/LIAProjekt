@@ -14,4 +14,7 @@ public interface AnsweredQuestionRepository extends JpaRepository<AnsweredQuesti
             Long testResultId,
             Long questionId
     );
+
+    void deleteByTestResultId(Long testResultId);
+    void deleteByQuestionId(Long answeredQuestionId);
 }
