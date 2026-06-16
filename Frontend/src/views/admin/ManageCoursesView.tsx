@@ -59,6 +59,10 @@ function CourseDetail({ course, onDelete, onOpenQuiz, }: { course: CourseRespons
     const [assistants, setAssistants]           = useState<AssistantAdminResponse[]>([]);
     const [selectedAssistant, setSelectedAssistant] = useState(course.assistantId ?? "");
 
+    useEffect(() => {
+        setSelectedAssistant(course.assistantId ?? "");
+    }, [course.id]);
+
     const [courseAdmins, setCourseAdmins]               = useState<UserResponse[]>([]);
     const [selectedCourseAdmin, setSelectedCourseAdmin] = useState<number | null>(course.courseAdmin?.id ?? null);
     const [courseAdminStatus, setCourseAdminStatus]     = useState<"idle" | "saving" | "saved" | "error">("idle");
