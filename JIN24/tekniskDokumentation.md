@@ -971,7 +971,12 @@ Kopiera .env_example till .env och fyll i värdena:
 | SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT | org.hibernate.dialect.SQLServerDialect                                     |
 | AZURE_OPENAI_API_KEY                    | Azure OpenAI API-nyckel                                                    |
 | AZURE_OPENAI_ASSISTANT_ID               | Standard Azure OpenAI-assistent-ID                                         |
+| OPENAI_NAME                             | Azure OpenAI-resursens namn i Azure-portalen                               |
+| MAIL_USER                               | E-postadress som används som avsändare vid utskick                         |
+| KEYVAULT_NAME                           | Azure Key Vault-resursens namn i Azure-portalen                            |
 | APP_REDIRECT_FRONTEND                   | Frontend url för omdirigering                                              |
+
+
 
 ## Frontend
 
