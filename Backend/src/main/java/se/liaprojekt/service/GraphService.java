@@ -1,5 +1,7 @@
 package se.liaprojekt.service;
 
+import com.azure.core.credential.AccessToken;
+import com.azure.core.credential.TokenRequestContext;
 import com.microsoft.graph.models.*;
 import com.microsoft.graph.models.UserCollectionResponse;
 import com.microsoft.graph.models.odataerrors.ODataError;
@@ -38,11 +40,16 @@ public class GraphService {
     private List<AppRole> appRoles;
     private String resourceId;
 
+    TokenService tokenService;
+
     public GraphService(
             TokenService tokenService,
             @Value("${graph.scope}") String[] scopes
     ) {
-        graphServiceClient = new GraphServiceClient(tokenService.getCredential(), scopes);
+        this.tokenService = tokenService;
+        graphServiceClient = new GraphServiceClient(
+                tokenService.getCredential(),
+                scopes);
     }
 
     @PostConstruct
@@ -193,6 +200,13 @@ public class GraphService {
     }
 
     public void deleteUser(String entraId) {
+
+        AccessToken token = tokenService.getCredential()
+                .getToken(new TokenRequestContext()
+                        .addScopes("https://graph.microsoft.com/.default"))
+                .block();
+
+        System.out.println(token.getToken());
         graphServiceClient.users().byUserId(entraId).delete();
     }
 

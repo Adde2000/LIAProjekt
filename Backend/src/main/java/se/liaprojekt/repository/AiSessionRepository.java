@@ -19,4 +19,8 @@ public interface AiSessionRepository extends JpaRepository<AiSession, Long> {
     @Transactional
     @Modifying
     void deleteByCourseId(Long courseId);
+
+    @Transactional
+    @Modifying
+    void deleteByUserId(Long userId);
 }

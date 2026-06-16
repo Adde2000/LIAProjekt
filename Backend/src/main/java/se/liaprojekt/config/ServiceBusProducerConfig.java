@@ -2,11 +2,10 @@ package se.liaprojekt.config;
 
 import com.azure.core.amqp.AmqpTransportType;
 import com.azure.core.credential.TokenCredential;
-import com.azure.identity.DefaultAzureCredential;
 import com.azure.identity.DefaultAzureCredentialBuilder;
-import com.azure.identity.ManagedIdentityCredentialBuilder;
 import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.messaging.servicebus.ServiceBusSenderClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -17,31 +16,37 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ServiceBusProducerConfig {
 
-    private static final String NAMESPACE =
-            "sb-app-dev01.servicebus.windows.net"; //TODO NAMESPACE IS HARDCODED
+//    private static final String NAMESPACE =
+//            "sb-app-dev01.servicebus.windows.net"; //TODO NAMESPACE IS HARDCODED
+//
+//    private static final String QUEUE_NAME =
+//            "email-queue";
 
-    private static final String QUEUE_NAME =
-            "email-queue";
+    @Value("${spring.cloud.azure.servicebus.connection-string}")
+    private String connectionString;
+
+    @Value("${spring.cloud.azure.servicebus.queue-name}")
+    private String queueName;
 
     /**
      * Azure Managed Identity credential
      */
-    @Bean
-    public TokenCredential credential() {
-        return new DefaultAzureCredentialBuilder().build();
-    }
+//    @Bean
+//    public TokenCredential credential() {
+//        return new DefaultAzureCredentialBuilder().build();
+//    }
 
     /**
      * Sender (producer)
      */
     @Bean
-    public ServiceBusSenderClient senderClient(TokenCredential credential) {
+    public ServiceBusSenderClient senderClient() {
 
         return new ServiceBusClientBuilder()
-                .credential(NAMESPACE, credential)
+                .connectionString(connectionString)
                 .transportType(AmqpTransportType.AMQP_WEB_SOCKETS)
                 .sender()
-                .queueName(QUEUE_NAME)
+                .queueName(queueName)
                 .buildClient();
     }
 }

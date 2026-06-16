@@ -26,6 +26,7 @@ public class TestService {
     private final TestResultRepository testResultRepository;
     private final SectionRepository sectionRepository;
     private final TestQuestionRepository questionRepository;
+    private final TestAnswerRepository testAnswerRepository;
     private final AnsweredQuestionRepository answeredQuestionRepository;
     private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
@@ -149,6 +150,13 @@ public class TestService {
 
     @Transactional
     public void deleteSectionQuestions(Long sectionId) {
+        List<TestQuestion> questionList = questionRepository.findBySectionId(sectionId);
+        for (TestQuestion question : questionList) {
+            for (TestAnswer answer : question.getAnswers()) {
+                testAnswerRepository.delete(answer);
+            }
+            questionRepository.delete(question);
+        }
         questionRepository.deleteBySectionId(sectionId);
     }
 
