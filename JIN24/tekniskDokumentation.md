@@ -951,31 +951,34 @@ npm run dev
 
 Kopiera .env_example till .env och fyll i värdena:
 
-| Variabel                                | Beskrivning                                                                |
-|-----------------------------------------|----------------------------------------------------------------------------|
-| AZURE_CLIENT_ID                         | Azure AD app-registrerings client ID (behövs endast för lokal körning)     |
-| AZURE_CLIENT_SECRET                     | Azure AD app-registrerings client secret (behövs endast för lokal körning) |
-| AZURE_TENANT_ID                         | Azure AD tenant ID                                                         |
-| AZURE_STORAGE_ACCOUNT_NAME              | Azure Blob Storage-kontonamn                                               |
-| AZURE_STORAGE_ACCOUNT_KEY               | Azure Blob Storage-kontonyckel                                             |
-| AZURE_STORAGE_CONTAINER_NAME_PDF        | Container-namn för PDF-filer                                               |
-| AZURE_STORAGE_CONTAINER_NAME_VIDEO      | Container-namn för videofiler                                              |
-| AZURE_STORAGE_FRONTDOOR_ENDPOINT        | Azure Front Door-endpoint (om tillämpligt)                                 |
-| STREAM_TOKEN_SECRET                     | Minst 32 tecken lång hemlighet för StreamToken-signering                   |
-| SPRING_DATASOURCE_URL                   | JDBC-URL till Azure SQL                                                    |
-| SPRING_DATASOURCE_USERNAME              | Databasanvändarnamn                                                        |
-| SPRING_DATASOURCE_PASSWORD              | Databaslösenord                                                            |
-| SPRING_DATASOURCE_DRIVER_CLASS_NAME     | com.microsoft.sqlserver.jdbc.SQLServerDriver                               |
-| SPRING_JPA_HIBERNATE_DDL_AUTO           | validate / update / create-drop (test)                                     |
-| SPRING_JPA_SHOW_SQL                     | true/false                                                                 |
-| SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT | org.hibernate.dialect.SQLServerDialect                                     |
-| AZURE_OPENAI_API_KEY                    | Azure OpenAI API-nyckel                                                    |
-| AZURE_OPENAI_ASSISTANT_ID               | Standard Azure OpenAI-assistent-ID                                         |
-| OPENAI_NAME                             | Azure OpenAI-resursens namn i Azure-portalen                               |
-| MAIL_USER                               | E-postadress som används som avsändare vid utskick                         |
-| KEYVAULT_NAME                           | Azure Key Vault-resursens namn i Azure-portalen                            |
-| APP_REDIRECT_FRONTEND                   | Frontend url för omdirigering                                              |
-
+| Variabel                                | Beskrivning                                                                              |
+|-----------------------------------------|------------------------------------------------------------------------------------------|
+| AZURE_CLIENT_ID                         | Azure AD app-registrerings client ID (behövs endast för lokal körning)                   |
+| AZURE_CLIENT_SECRET                     | Azure AD app-registrerings client secret (behövs endast för lokal körning)               |
+| AZURE_TENANT_ID                         | Azure AD tenant ID                                                                       |
+| AZURE_STORAGE_ACCOUNT_NAME              | Azure Blob Storage-kontonamn                                                             |
+| AZURE_STORAGE_ACCOUNT_KEY               | Azure Blob Storage-kontonyckel                                                           |
+| AZURE_STORAGE_CONTAINER_NAME_PDF        | Container-namn för PDF-filer                                                             |
+| AZURE_STORAGE_CONTAINER_NAME_VIDEO      | Container-namn för videofiler                                                            |
+| AZURE_STORAGE_FRONTDOOR_ENDPOINT        | Azure Front Door-endpoint (om tillämpligt)                                               |
+| STREAM_TOKEN_SECRET                     | Minst 32 tecken lång hemlighet för StreamToken-signering                                 |
+| SPRING_DATASOURCE_URL                   | JDBC-URL till Azure SQL                                                                  |
+| SPRING_DATASOURCE_USERNAME              | Databasanvändarnamn                                                                      |
+| SPRING_DATASOURCE_PASSWORD              | Databaslösenord                                                                          |
+| SPRING_DATASOURCE_DRIVER_CLASS_NAME     | com.microsoft.sqlserver.jdbc.SQLServerDriver                                             |
+| SPRING_JPA_HIBERNATE_DDL_AUTO           | validate / update / create-drop (test)                                                   |
+| SPRING_JPA_SHOW_SQL                     | true/false                                                                               |
+| SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT | org.hibernate.dialect.SQLServerDialect                                                   |
+| AZURE_OPENAI_API_KEY                    | Azure OpenAI API-nyckel                                                                  |
+| AZURE_OPENAI_ASSISTANT_ID               | Standard Azure OpenAI-assistent-ID                                                       |
+| OPENAI_NAME                             | Azure OpenAI-resursens namn i Azure-portalen                                             |
+| MAIL_USER                               | E-postadress som används som avsändare vid utskick                                       |
+| KEYVAULT_NAME                           | Azure Key Vault-resursens namn i Azure-portalen                                          |
+| APP_REDIRECT_FRONTEND                   | Frontend url för omdirigering                                                            |
+| SERVICE_BUS_NAME                        | Azure Service Bus-resursens namn i Azure-portalen                                        |
+| SERVICE_BUS_POLICY_NAME                 | Namnet på åtkomstpolicyn (Shared Access Policy) för Service Bus                          |
+| SERVICE_BUS_ACCESS_KEY                  | Hemlig nyckel för åtkomstpolicyn – finns under "Shared access policies" i Azure-portalen |
+| SERVICE_BUS_QUEUE_NAME                  | Namnet på den kö som används för e-postnotifikationer                                    |
 
 
 ## Frontend
