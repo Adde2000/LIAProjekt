@@ -107,7 +107,7 @@ class CourseServiceTest {
 
         UserResponse userResponse = new UserResponse(1L, "Test", "Test", "User", "test@test.se", null);
 
-        when(userProgressRepository.findByUserId(1L)).thenReturn(List.of(userProgress));
+        when(userProgressRepository.findByUser_Id(1L)).thenReturn(List.of(userProgress));
         when(userService.getUserResponseById(1L)).thenReturn(userResponse);
 
         // Act

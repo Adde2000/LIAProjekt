@@ -155,9 +155,18 @@ public class TestService {
             for (TestAnswer answer : question.getAnswers()) {
                 testAnswerRepository.delete(answer);
             }
-            questionRepository.delete(question);
+            testAnswerRepository.flush();
+            answeredQuestionRepository.deleteByQuestionId(question.getId());
+            answeredQuestionRepository.flush();
         }
         questionRepository.deleteBySectionId(sectionId);
+        questionRepository.flush();
+    }
+
+    @Transactional
+    public void deleteSection(Long sectionId) {
+        deleteSectionQuestions(sectionId);
+        testResultRepository.deleteBySectionId(sectionId);
     }
 
     // =========================

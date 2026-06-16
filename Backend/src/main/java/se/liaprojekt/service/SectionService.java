@@ -2,6 +2,7 @@ package se.liaprojekt.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import se.liaprojekt.dto.SectionResponse;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.Course;
@@ -77,10 +78,12 @@ public class SectionService {
     // =========================
     // DELETE SECTIONS
     // =========================
+    @Transactional
     public void deleteSection(Long sectionId) {
         blobStorageService.deleteSectionFiles(sectionId);
-        testService.deleteSectionQuestions(sectionId);
+        testService.deleteSection(sectionId);
         sectionRepository.deleteById(sectionId);
+        sectionRepository.flush();
     }
 
     // =========================

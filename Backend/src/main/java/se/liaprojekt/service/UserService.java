@@ -1,5 +1,7 @@
 package se.liaprojekt.service;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -30,6 +32,9 @@ public class UserService {
     private final TestResultRepository testResultRepository;
     private final UserProgressRepository userProgressRepository;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void init() {
@@ -53,6 +58,7 @@ public class UserService {
         return mapToResponse(user, graphResponse);
     }
 
+    @Transactional
     public List<UserResponse> getAllUserResponses() {
         List<GraphResponse> graphResponseList = graphService.getAllUsers();
         updateFromGraphAPI(graphResponseList);
@@ -99,6 +105,7 @@ public class UserService {
         graphService.setRoles(entraId, roles);
     }
 
+    @Transactional
     public void deleteUser(long userId) {
         User user;
         try {
@@ -114,7 +121,8 @@ public class UserService {
     private void deleteUserDbInfo(User user) {
         aiSessionRepository.deleteByUserId(user.getId());
         testResultRepository.deleteByUserId(user.getId());
-        userProgressRepository.deleteByUserId(user.getId());
+        userProgressRepository.deleteForUser(user.getId());
+        entityManager.flush();
     }
 
     private void updateFromGraphAPI(List<GraphResponse> graphResponseList) {

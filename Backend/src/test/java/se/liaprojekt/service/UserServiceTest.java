@@ -1,5 +1,6 @@
 package se.liaprojekt.service;
 
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,6 +51,9 @@ class UserServiceTest {
 
     @Mock
     private UserProgressRepository userProgressRepository;
+
+    @Mock
+    private EntityManager entityManager;
 
     @InjectMocks
     private UserService userService;
@@ -198,7 +202,6 @@ class UserServiceTest {
 
         doNothing().when(aiSessionRepository).deleteByUserId(oldUser.getId());
         doNothing().when(testResultRepository).deleteByUserId(oldUser.getId());
-        doNothing().when(userProgressRepository).deleteByUserId(oldUser.getId());
 
         // Act
         userService.getAllUserResponses();

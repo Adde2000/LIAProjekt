@@ -12,6 +12,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.transaction.annotation.Transactional;
 import se.liaprojekt.controller.util.Roles;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.exception.ResourceNotFoundException;
@@ -94,11 +95,12 @@ class CourseControllerTest {
     }
 
     @AfterEach
+    @Transactional
     void tearDown() {
-        courseRepository.deleteAll();
-        sectionRepository.deleteAll();
-        userRepository.deleteAll();
-        userProgressRepository.deleteAll();
+        userProgressRepository.deleteAllInBatch();
+        sectionRepository.deleteAllInBatch();
+        courseRepository.deleteAllInBatch();
+        userRepository.deleteAllInBatch();
     }
 
 

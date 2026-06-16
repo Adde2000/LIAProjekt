@@ -49,7 +49,7 @@ public class CourseService {
     }
 
     public List<Map<String, Object>> getAllRegisteredCourses(long userId) {
-        List<UserProgress> userProgressList = userProgressRepository.findByUserId(userId);
+        List<UserProgress> userProgressList = userProgressRepository.findByUser_Id(userId);
         List<Map<String, Object>> responseList = new ArrayList<>();
         for (UserProgress userProgress : userProgressList) {
             Course course = userProgress.getCourse();
@@ -155,10 +155,16 @@ public class CourseService {
         // Ta bort AI-sessioner först
         aiSessionRepository.deleteByCourseId(id);
 
-        List<Section> sections = course.getSections();
-        for (Section section : sections) {
-            sectionService.deleteSection(section.getId());
+        List<Long> sectionIds = course.getSections()
+                .stream()
+                .map(Section::getId)
+                .toList();
+
+        for (Long sectionId : sectionIds) {
+            sectionService.deleteSection(sectionId);
         }
+        sectionRepository.flush();
+
         courseRepository.delete(course);
 
     }
