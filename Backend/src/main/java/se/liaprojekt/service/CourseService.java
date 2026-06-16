@@ -49,7 +49,7 @@ public class CourseService {
     }
 
     public List<Map<String, Object>> getAllRegisteredCourses(long userId) {
-        List<UserProgress> userProgressList = userProgressRepository.findByUserId(userId);
+        List<UserProgress> userProgressList = userProgressRepository.findByUser_Id(userId);
         List<Map<String, Object>> responseList = new ArrayList<>();
         for (UserProgress userProgress : userProgressList) {
             Course course = userProgress.getCourse();

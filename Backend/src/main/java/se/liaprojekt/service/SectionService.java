@@ -81,7 +81,7 @@ public class SectionService {
     @Transactional
     public void deleteSection(Long sectionId) {
         blobStorageService.deleteSectionFiles(sectionId);
-        testService.deleteSectionQuestions(sectionId);
+        testService.deleteSection(sectionId);
         sectionRepository.deleteById(sectionId);
         sectionRepository.flush();
     }
