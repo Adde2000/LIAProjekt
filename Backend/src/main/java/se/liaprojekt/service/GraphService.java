@@ -1,7 +1,5 @@
 package se.liaprojekt.service;
 
-import com.azure.core.credential.AccessToken;
-import com.azure.core.credential.TokenRequestContext;
 import com.microsoft.graph.models.*;
 import com.microsoft.graph.models.UserCollectionResponse;
 import com.microsoft.graph.models.odataerrors.ODataError;
@@ -25,10 +23,6 @@ public class GraphService {
 
     @Value("${app.redirect.frontend}")
     private String redirectUrl;
-
-    //TODO Either CLIENT_ID is needed or the ServicePrincipalId directly
-//    @Value("${spring.cloud.azure.client-id}")
-//    private String clientId;
 
     @Value("${spring.cloud.azure.service-principal.id}")
     private String servicePrincipalId;
@@ -54,25 +48,16 @@ public class GraphService {
 
     @PostConstruct
     public void getAppRoles() {
-//        ServicePrincipalCollectionResponse sp = graphServiceClient
-//                .servicePrincipals()
-//                .get(config -> {
-//                    assert config.queryParameters != null;
-//                    config.queryParameters.filter = "appId eq '" + clientId + "'";
-//                });
-//        System.out.println(sp.getValue().getFirst().getId());
         ServicePrincipal sp = graphServiceClient
                 .servicePrincipals()
                 .byServicePrincipalId(servicePrincipalId)
                 .get();
         assert sp != null;
-//        appRoles = Objects.requireNonNull(sp.getValue()).getFirst().getAppRoles();
         appRoles = sp.getAppRoles();
         assert appRoles != null;
         for (AppRole appRole : appRoles) {
             appRole.setDisplayName(Objects.requireNonNull(appRole.getDisplayName()).toLowerCase());
         }
-//        resourceId = sp.getValue().getFirst().getId();
         resourceId = sp.getId();
     }
 
@@ -200,13 +185,6 @@ public class GraphService {
     }
 
     public void deleteUser(String entraId) {
-
-        AccessToken token = tokenService.getCredential()
-                .getToken(new TokenRequestContext()
-                        .addScopes("https://graph.microsoft.com/.default"))
-                .block();
-
-        System.out.println(token.getToken());
         graphServiceClient.users().byUserId(entraId).delete();
     }
 
