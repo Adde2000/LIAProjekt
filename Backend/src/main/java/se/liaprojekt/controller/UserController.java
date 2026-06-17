@@ -1,9 +1,5 @@
 package se.liaprojekt.controller;
 
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import se.liaprojekt.controller.util.Roles;
 import se.liaprojekt.dto.UserResponse;
+import se.liaprojekt.exception.BadRequestException;
 import se.liaprojekt.service.CourseService;
 import se.liaprojekt.service.CurrentUserService;
 import se.liaprojekt.service.UserService;
@@ -20,6 +17,7 @@ import se.liaprojekt.service.UserService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/users")
@@ -52,11 +50,12 @@ public class UserController {
 
     @PostMapping("/invite")
     @PreAuthorize(Roles.ROLE_ADMIN)
-    public ResponseEntity<List<UserResponse>> inviteUser(@Valid @RequestBody List<InviteRequest> invites) {
+    public ResponseEntity<List<UserResponse>> inviteUser(@RequestBody List<InviteRequest> invites) {
         log.info("Inviting {} user(s)", invites.size());
         List<UserResponse> userResponses = new ArrayList<>();
         for (InviteRequest invite : invites) {
             Roles.checkRolesValid(invite.roles);
+            isValidEmail(invite.email);
             UserResponse created = userService.inviteUser(invite.email, invite.displayName, invite.roles);
             log.info("Invited user id={} roles={}", created.id(), invite.roles);
             userResponses.add(created);
@@ -101,15 +100,17 @@ public class UserController {
         return ResponseEntity.ok(courseResponseList);
     }
 
-    public record InviteRequest(
-            @NotBlank
-            @Email
-            String email,
+    public record InviteRequest(String email, String displayName, List<String> roles) {}
 
-            @NotBlank
-            String displayName,
+    private static void isValidEmail(String email) {
+        if (email == null) {
+            throw new BadRequestException("Email is null");
+        }
 
-            @NotEmpty
-            List<String> roles
-    ) {}
+        String regex = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
+
+        if (!Pattern.compile(regex).matcher(email).matches()) {
+            throw new BadRequestException("Email is not valid");
+        }
+    }
 }
