@@ -185,7 +185,9 @@ public class GraphService {
     }
 
     public void deleteUser(String entraId) {
-        graphServiceClient.users().byUserId(entraId).delete();
+        try {
+            graphServiceClient.users().byUserId(entraId).delete();
+        } catch (ODataError ignored) {}
     }
 
     private GraphResponse mapToGraphResponse(User user, Set<String> roles) {
