@@ -1,5 +1,9 @@
 package se.liaprojekt.controller;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +52,7 @@ public class UserController {
 
     @PostMapping("/invite")
     @PreAuthorize(Roles.ROLE_ADMIN)
-    public ResponseEntity<List<UserResponse>> inviteUser(@RequestBody List<InviteRequest> invites) {
+    public ResponseEntity<List<UserResponse>> inviteUser(@Valid @RequestBody List<InviteRequest> invites) {
         log.info("Inviting {} user(s)", invites.size());
         List<UserResponse> userResponses = new ArrayList<>();
         for (InviteRequest invite : invites) {
@@ -97,5 +101,15 @@ public class UserController {
         return ResponseEntity.ok(courseResponseList);
     }
 
-    public record InviteRequest(String email, String displayName, List<String> roles) {}
+    public record InviteRequest(
+            @NotBlank
+            @Email
+            String email,
+
+            @NotBlank
+            String displayName,
+
+            @NotEmpty
+            List<String> roles
+    ) {}
 }
