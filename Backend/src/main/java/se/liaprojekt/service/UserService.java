@@ -114,8 +114,8 @@ public class UserService {
             return;
         }
         graphService.deleteUser(user.getEntraId());
-        deleteUserDbInfo(user);
-        userRepository.delete(user);
+//        deleteUserDbInfo(user);
+//        userRepository.delete(user);
     }
 
     private void deleteUserDbInfo(User user) {
