@@ -19,7 +19,7 @@ public class EmailService {
     @Value("${app.email.enabled:true}")
     private boolean emailEnabled;
 
-    public void sendTestResultEmail(String email, int score) {
+    public void sendTestResultEmail(String email, int score, String sectionName) {
 
         if (!emailEnabled) {
             log.info(
@@ -40,8 +40,8 @@ public class EmailService {
                 "Test avklarat",
                 """
                 <h1>Grattis!</h1>
-                <p>Du klarade testet med %d%%</p>
-                """.formatted(score),
+                <p>Du klarade testet till avsnitt %s%% med %d%%</p>
+                """.formatted(sectionName, score),
                 EmailType.TEST_RESULT
         );
 

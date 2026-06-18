@@ -44,7 +44,8 @@ class EmailServiceTest {
         // Act
         emailService.sendTestResultEmail(
                 "test@test.com",
-                100
+                100,
+                "testSection"
         );
 
         // Assert
@@ -129,7 +130,8 @@ class EmailServiceTest {
         // Act
         emailService.sendTestResultEmail(
                 "test@test.com",
-                80
+                80,
+                "testSection"
         );
 
         // Assert

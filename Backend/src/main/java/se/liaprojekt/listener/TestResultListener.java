@@ -70,12 +70,15 @@ public class TestResultListener {
                 .getUserByEntraId(entraId)
                 .mail();
 
+
         // =========================
         // SEND TEST RESULT EMAIL
         // =========================
         emailService.sendTestResultEmail(
                 email,
-                result.getScore()
+                result.getScore(),
+                result.getSection().getTitle()
+
         );
 
         // =========================
