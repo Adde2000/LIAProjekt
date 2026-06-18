@@ -104,7 +104,7 @@ public class CourseController {
     @PostMapping("/{courseId}/complete")
     public ResponseEntity<String> completeCourse(@PathVariable Long courseId) {
         log.warn("completeCourse called for courseId={} — endpoint not yet implemented", courseId);
-        //TODO is this needed?
+        //TODO only needed if course admin should manually complete a course
         return ResponseEntity.ok("OK - completeCourse " + courseId);
     }
 
