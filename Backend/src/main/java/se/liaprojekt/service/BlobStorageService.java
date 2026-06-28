@@ -133,7 +133,7 @@ public class BlobStorageService {
      * @return The opaque {@code fileId} (UUID string) that identifies this file
      */
     public String uploadFile(String originalFileName, InputStream data,
-                             long length, String sectionId) {
+                             long length, String sectionId, boolean aiOnly) {
         try {
             String extension = getExtension(originalFileName);
             String fileId = UUID.randomUUID().toString();
@@ -154,6 +154,11 @@ public class BlobStorageService {
             tags.put("originalName", encodeTagValue(originalFileName));
             if (sectionId != null) {
                 tags.put("sectionId", sectionId);
+            }
+            if (aiOnly) {
+                tags.put("aiOnly", "true");
+            } else {
+                tags.put("aiOnly", "false");
             }
             client.setTags(tags);
 
@@ -254,7 +259,7 @@ public class BlobStorageService {
     }
 
     public void deleteSectionFiles(Long sectionId) {
-        List<FileEntry> fileEntries = listFilesBySectionId(String.valueOf(sectionId));
+        List<FileEntry> fileEntries = listFilesBySectionId(String.valueOf(sectionId), true);
         for (FileEntry fileEntry : fileEntries) {
             deleteFile(resolveBlobName(fileEntry.fileId));
         }
@@ -308,9 +313,12 @@ public class BlobStorageService {
      * @param sectionId The section identifier to filter by
      * @return {@link FileEntry} list of all blobs tagged with this sectionId
      */
-    public List<FileEntry> listFilesBySectionId(String sectionId) {
+    public List<FileEntry> listFilesBySectionId(String sectionId, boolean includeAiOnly) {
         try {
             String query = "\"sectionId\" = '%s'".formatted(sectionId);
+            if (!includeAiOnly) {
+                query = query.concat(" AND \"aiOnly\" = '%s'".formatted(false));
+            }
 
             Stream<TaggedBlobItem> fromPdf = pdfContainerClient
                     .findBlobsByTags(query).stream();

@@ -89,7 +89,8 @@ public class VectorStoreService {
             List<BlobStorageService.FileEntry> files =
 
                     blobStorageService.listFilesBySectionId(
-                            section.getId().toString()
+                            section.getId().toString(),
+                            true
                     );
 
             for (BlobStorageService.FileEntry file : files) {
