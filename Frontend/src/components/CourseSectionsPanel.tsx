@@ -25,6 +25,91 @@ function fileIcon(ext: string) {
     return "📎";
 }
 
+// ── Upload dialog ─────────────────────────────────────────────────────────────
+
+function UploadDialog({
+                          onConfirm,
+                          onCancel,
+                          uploading,
+                          uploadErr,
+                      }: {
+    onConfirm: (file: File, aiOnly: boolean) => void;
+    onCancel: () => void;
+    uploading: boolean;
+    uploadErr: string | null;
+}) {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [aiOnly, setAiOnly] = useState(false);
+
+    function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+        setSelectedFile(e.target.files?.[0] ?? null);
+    }
+
+    function handleConfirm() {
+        if (!selectedFile) return;
+        onConfirm(selectedFile, aiOnly);
+    }
+
+    return (
+        <div className="vmv-dialog-backdrop" onClick={onCancel}>
+            <div className="vmv-dialog" onClick={(e) => e.stopPropagation()}>
+                <div className="vmv-dialog-title">Ladda upp material</div>
+
+                <div style={{ marginBottom: "1.25rem" }}>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept={ACCEPTED_TYPES}
+                        style={{ display: "none" }}
+                        onChange={handleFileChange}
+                    />
+                    <button
+                        className="vmv-quiz-start"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                    >
+                        {selectedFile ? `📎 ${selectedFile.name}` : "Välj fil…"}
+                    </button>
+                </div>
+
+                <label className="vmv-mgmt-ai-only-label" style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "13px", cursor: "pointer", userSelect: "none" }}>
+                    <input
+                        type="checkbox"
+                        checked={aiOnly}
+                        onChange={(e) => setAiOnly(e.target.checked)}
+                        disabled={uploading}
+                    />
+                    Endast för AI (dölj för studenter)
+                </label>
+
+                {uploadErr && (
+                    <div className="vmv-form-feedback vmv-form-feedback--error" style={{ marginBottom: "1rem" }}>
+                        Fel: {uploadErr}
+                    </div>
+                )}
+
+                <div className="vmv-dialog-actions">
+                    <button
+                        className="vmv-quiz-start"
+                        onClick={onCancel}
+                        disabled={uploading}
+                    >
+                        Avbryt
+                    </button>
+                    <button
+                        className="vmv-quiz-start"
+                        onClick={handleConfirm}
+                        disabled={!selectedFile || uploading}
+                    >
+                        {uploading ? "Laddar upp…" : "Ladda upp ↗"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ── Section row ───────────────────────────────────────────────────────────────
 
 function SectionRow({ section, index, onOpenQuiz }: {
@@ -33,13 +118,13 @@ function SectionRow({ section, index, onOpenQuiz }: {
     onOpenQuiz: (s: SectionResponse) => void;
 }) {
     const { instance } = useMsal();
-    const fileInputRef = useRef<HTMLInputElement>(null);
     const fetchedRef   = useRef(false);
 
     const [expanded,     setExpanded]     = useState(false);
     const [materials,    setMaterials]    = useState<MaterialItem[]>([]);
     const [loadingFiles, setLoadingFiles] = useState(false);
     const [loadErr,      setLoadErr]      = useState<string | null>(null);
+    const [showUpload,   setShowUpload]   = useState(false);
     const [uploading,    setUploading]    = useState(false);
     const [uploadErr,    setUploadErr]    = useState<string | null>(null);
     const [deleting,     setDeleting]     = useState<string | null>(null);
@@ -68,15 +153,13 @@ function SectionRow({ section, index, onOpenQuiz }: {
         });
     }
 
-    async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        e.target.value = "";
+    async function handleUploadConfirm(file: File, aiOnly: boolean) {
         setUploading(true);
         setUploadErr(null);
         try {
-            const result = await uploadMaterial(instance, section.id, file) as MaterialItem;
+            const result = await uploadMaterial(instance, section.id, file, aiOnly) as MaterialItem;
             setMaterials((prev) => [...prev, result]);
+            setShowUpload(false);
         } catch (err) {
             setUploadErr(err instanceof Error ? err.message : "Okänt fel vid uppladdning");
         } finally {
@@ -143,23 +226,12 @@ function SectionRow({ section, index, onOpenQuiz }: {
                     )}
 
                     <div className="vmv-mgmt-material-footer">
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept={ACCEPTED_TYPES}
-                            style={{ display: "none" }}
-                            onChange={handleFileChange}
-                        />
                         <button
                             className="vmv-quiz-start"
-                            disabled={uploading}
-                            onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                            onClick={(e) => { e.stopPropagation(); setShowUpload(true); setUploadErr(null); }}
                         >
-                            {uploading ? "Laddar upp…" : "Ladda upp material ↗"}
+                            Ladda upp material ↗
                         </button>
-                        {uploadErr && (
-                            <span className="vmv-form-feedback vmv-form-feedback--error">Fel: {uploadErr}</span>
-                        )}
                     </div>
 
                     <div className="vmv-mgmt-quiz-section" onClick={(e) => e.stopPropagation()}>
@@ -174,6 +246,15 @@ function SectionRow({ section, index, onOpenQuiz }: {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {showUpload && (
+                <UploadDialog
+                    onConfirm={handleUploadConfirm}
+                    onCancel={() => { setShowUpload(false); setUploadErr(null); }}
+                    uploading={uploading}
+                    uploadErr={uploadErr}
+                />
             )}
         </div>
     );
