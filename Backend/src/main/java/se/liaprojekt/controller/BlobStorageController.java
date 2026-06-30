@@ -1,5 +1,6 @@
 package se.liaprojekt.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -17,6 +18,7 @@ import se.liaprojekt.model.Course;
 import se.liaprojekt.service.BlobStorageService;
 import se.liaprojekt.service.BlobStorageService.FileEntry;
 import se.liaprojekt.service.CourseService;
+import se.liaprojekt.service.CurrentUserService;
 import se.liaprojekt.service.StreamTokenService;
 
 import java.io.IOException;
@@ -45,6 +47,7 @@ import java.util.Set;
  */
 @RestController
 @RequestMapping("/api/material")
+@RequiredArgsConstructor
 public class BlobStorageController {
 
     private static final Logger log = LoggerFactory.getLogger(BlobStorageController.class);
@@ -55,24 +58,14 @@ public class BlobStorageController {
     private final BlobStorageService blobStorageService;
     private final SupportedMediaTypeResolver mediaTypeResolver;
     private final StreamTokenService streamTokenService;
-    private final VectorStoreService vectorStoreService;   // ADD
+    private final VectorStoreService vectorStoreService;
     private final CourseService courseService;
-
-    public BlobStorageController(BlobStorageService blobStorageService,
-                                 SupportedMediaTypeResolver mediaTypeResolver,
-                                 StreamTokenService streamTokenService,
-                                 VectorStoreService vectorStoreService,    // ADD
-                                 CourseService courseService) {
-        this.blobStorageService = blobStorageService;
-        this.mediaTypeResolver = mediaTypeResolver;
-        this.streamTokenService = streamTokenService;
-        this.vectorStoreService = vectorStoreService;      // ADD
-        this.courseService = courseService;
-    }
+    private final CurrentUserService currentUserService;
 
     // -------------------------------------------------------------------------
     // Upload
     // -------------------------------------------------------------------------
+
 
     /**
      * Uploads a file to Azure Blob Storage and returns the opaque {@code fileId}
@@ -84,6 +77,7 @@ public class BlobStorageController {
      *
      * @param file      Multipart file from the request (PDF or video)
      * @param sectionId Optional section identifier to tag the file with
+     * @param aiOnly    Optional boolean defining if uploaded file should only be visible to the AI
      * @return 200 with {@code fileId} and {@code originalName} on success,
      *         400 if the file type is unsupported
      */
@@ -92,8 +86,8 @@ public class BlobStorageController {
     @PreAuthorize(Roles.ANY_ROLE_ADMIN_COURSE_ADMIN)
     public ResponseEntity<Map<String, String>> upload(
             @RequestParam("file") MultipartFile file,
-            @RequestParam String sectionId) throws IOException {
-
+            @RequestParam String sectionId,
+            @RequestParam Boolean aiOnly) throws IOException {
         String originalFileName = file.getOriginalFilename();
 
         if (originalFileName == null || !mediaTypeResolver.isSupported(originalFileName)) {
@@ -102,7 +96,7 @@ public class BlobStorageController {
 
         log.debug("Uploading file '{}' with sectionId '{}'", originalFileName, sectionId);
         String fileId = blobStorageService.uploadFile(
-                originalFileName, file.getInputStream(), file.getSize(), sectionId);
+                originalFileName, file.getInputStream(), file.getSize(), sectionId, aiOnly);
         log.info("Uploaded file '{}' as fileId='{}' for sectionId='{}'", originalFileName, fileId, sectionId);
 
         // Synka PDF till vector store via sectionId → course
@@ -338,7 +332,9 @@ public class BlobStorageController {
     @GetMapping("/list/section/{sectionId}")
     public ResponseEntity<List<FileEntry>> listBySection(@PathVariable String sectionId) {
         log.debug("Listing files for sectionId='{}'", sectionId);
-        return ResponseEntity.ok(blobStorageService.listFilesBySectionId(sectionId));
+        Set<String> roles = currentUserService.getRoles();
+        boolean includeAiOnly = roles.contains(Roles.ADMIN) || roles.contains(Roles.COURSE_ADMIN);
+        return ResponseEntity.ok(blobStorageService.listFilesBySectionId(sectionId, includeAiOnly));
     }
 
     // -------------------------------------------------------------------------

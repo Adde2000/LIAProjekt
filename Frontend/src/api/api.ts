@@ -546,7 +546,8 @@ export async function getSectionMaterials(
 export async function uploadMaterial(
     instance: IPublicClientApplication,
     sectionId: number,
-    file: File
+    file: File,
+    aiOnly: boolean = false
 ) {
     if (!BASE_URL) return null;
 
@@ -555,6 +556,7 @@ export async function uploadMaterial(
     const formData = new FormData();
     formData.append("file", file);
     formData.append("sectionId", String(sectionId));
+    formData.append("aiOnly", String(aiOnly));
 
     const res = await fetch(`${BASE_URL}/api/material/upload`, {
         method: "POST",

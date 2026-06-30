@@ -75,7 +75,7 @@ class BlobStorageServiceTest {
 
             try (MockedConstruction<BlobClientBuilder> ignored = stubbedBuilder()) {
                 String fileId = service.uploadFile("doc.pdf",
-                        new ByteArrayInputStream(new byte[]{1}), 1L, null);
+                        new ByteArrayInputStream(new byte[]{1}), 1L, null, false);
                 assertThat(fileId).matches(
                         "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
             }
@@ -88,7 +88,7 @@ class BlobStorageServiceTest {
 
             try (MockedConstruction<BlobClientBuilder> ignored = stubbedBuilder()) {
                 service.uploadFile("rapport.pdf",
-                        new ByteArrayInputStream(new byte[]{1}), 1L, "42");
+                        new ByteArrayInputStream(new byte[]{1}), 1L, "42", false);
                 verify(blobClient).setTags(argThat(tags ->
                         tags.containsKey("originalName") && "42".equals(tags.get("sectionId"))));
             }
@@ -101,7 +101,7 @@ class BlobStorageServiceTest {
 
             try (MockedConstruction<BlobClientBuilder> ignored = stubbedBuilder()) {
                 service.uploadFile("rapport.pdf",
-                        new ByteArrayInputStream(new byte[]{1}), 1L, null);
+                        new ByteArrayInputStream(new byte[]{1}), 1L, null, false);
                 verify(blobClient).setTags(argThat(tags -> !tags.containsKey("sectionId")));
             }
         }
@@ -113,7 +113,7 @@ class BlobStorageServiceTest {
 
             try (MockedConstruction<BlobClientBuilder> ignored = stubbedBuilder()) {
                 String name = "på_12_v_.pdf";
-                service.uploadFile(name, new ByteArrayInputStream(new byte[]{1}), 1L, null);
+                service.uploadFile(name, new ByteArrayInputStream(new byte[]{1}), 1L, null, false);
                 String expected = Base64.getEncoder()
                         .encodeToString(name.getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 verify(blobClient).setTags(argThat(tags -> expected.equals(tags.get("originalName"))));
@@ -126,7 +126,7 @@ class BlobStorageServiceTest {
             when(blobClient.generateSas(any())).thenReturn("token=abc");
 
             try (MockedConstruction<BlobClientBuilder> ignored = stubbedBuilder()) {
-                service.uploadFile("clip.mp4", new ByteArrayInputStream(new byte[]{1}), 1L, null);
+                service.uploadFile("clip.mp4", new ByteArrayInputStream(new byte[]{1}), 1L, null, false);
                 verify(pdfContainerClient, never()).getBlobClient(anyString());
             }
         }
